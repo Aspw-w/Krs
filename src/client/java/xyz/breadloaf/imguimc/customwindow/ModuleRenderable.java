@@ -891,6 +891,20 @@ public class ModuleRenderable implements Renderable, IMinecraft {
         if (key == GLFW.GLFW_KEY_UNKNOWN)
             return "NONE";
 
+        if (key < 0) {
+            return switch (-key) {
+                case 1 -> "MOUSE LEFT";
+                case 2 -> "MOUSE RIGHT";
+                case 3 -> "MOUSE MIDDLE";
+                case 4 -> "MOUSE 4";
+                case 5 -> "MOUSE 5";
+                case 6 -> "MOUSE 6";
+                case 7 -> "MOUSE 7";
+                case 8 -> "MOUSE 8";
+                default -> "MOUSE " + (-key);
+            };
+        }
+
         String name = GLFW.glfwGetKeyName(key, GLFW.glfwGetKeyScancode(key));
         if (name != null)
             return name.toUpperCase();
@@ -983,6 +997,21 @@ public class ModuleRenderable implements Renderable, IMinecraft {
         try {
             return Integer.parseInt(key);
         } catch (NumberFormatException ignored) {
+        }
+
+        String lower = key.toLowerCase().replace(" ", "_");
+        if (lower.startsWith("mouse_")) {
+            return switch (lower) {
+                case "mouse_left", "mouse_1", "mouse_button_1" -> -1;
+                case "mouse_right", "mouse_2", "mouse_button_2" -> -2;
+                case "mouse_middle", "mouse_3", "mouse_button_3" -> -3;
+                case "mouse_4", "mouse_button_4" -> -4;
+                case "mouse_5", "mouse_button_5" -> -5;
+                case "mouse_6", "mouse_button_6" -> -6;
+                case "mouse_7", "mouse_button_7" -> -7;
+                case "mouse_8", "mouse_button_8" -> -8;
+                default -> GLFW.GLFW_KEY_UNKNOWN;
+            };
         }
 
         try {
