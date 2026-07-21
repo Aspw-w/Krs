@@ -190,6 +190,18 @@ public class NanoVGClickGuiScreen extends Screen {
         if (closing)
             return true;
 
+        if (bindingModule != null) {
+            bindingModule.key = - (event.button() + 1);
+            bindingModule = null;
+            return true;
+        }
+
+        if (bindingValue != null) {
+            bindingValue.set(- (event.button() + 1));
+            bindingValue = null;
+            return true;
+        }
+
         updateClickGuiTransform(NanoVGManager.getScaledScreenWidth(), NanoVGManager.getScaledScreenHeight());
         float mouseX = toClickGuiMouseX(NanoVGManager.toScaledMouseX(event.x()));
         float mouseY = toClickGuiMouseY(NanoVGManager.toScaledMouseY(event.y()));
@@ -2382,6 +2394,20 @@ public class NanoVGClickGuiScreen extends Screen {
     private static String keyName(int key) {
         if (key == GLFW.GLFW_KEY_UNKNOWN)
             return "NONE";
+
+        if (key < 0) {
+            return switch (-key) {
+                case 1 -> "MOUSE LEFT";
+                case 2 -> "MOUSE RIGHT";
+                case 3 -> "MOUSE MIDDLE";
+                case 4 -> "MOUSE 4";
+                case 5 -> "MOUSE 5";
+                case 6 -> "MOUSE 6";
+                case 7 -> "MOUSE 7";
+                case 8 -> "MOUSE 8";
+                default -> "MOUSE " + (-key);
+            };
+        }
 
         String name = GLFW.glfwGetKeyName(key, GLFW.glfwGetKeyScancode(key));
         if (name != null)
