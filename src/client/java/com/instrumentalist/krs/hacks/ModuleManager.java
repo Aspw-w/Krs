@@ -275,6 +275,17 @@ public class ModuleManager implements EventListener {
     }
 
     @Override
+    public void onMouseClick(MouseClickEvent event) {
+        if (mc.gui.screen() != null) return;
+
+        for (Module m : allModules) {
+            if (-(event.button + 1) == m.key && event.action == GLFW.GLFW_PRESS) {
+                m.toggle();
+            }
+        }
+    }
+
+    @Override
     public void onKey(KeyboardEvent event) {
         boolean shouldOpenEmptyScreen = false;
 
