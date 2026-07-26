@@ -29,8 +29,7 @@ public class ModernMMCSpeed implements SpeedEvent {
 
         if (MovementUtil.isMoving()) {
             if (mc.player.onGround()) {
-                MovementUtil.setVelocityY(0.2);
-                MovementUtil.strafe(0.45f);
+                mc.player.jumpFromGround();
             }
         }
     }
