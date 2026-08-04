@@ -54,6 +54,9 @@ public class FlyModeManager {
             case "float":
                 currentMode = new FloatFly();
                 break;
+            case "ncp boost":
+                currentMode = new NCPBoostFly();
+                break;
             default:
                 currentMode = null;
         }

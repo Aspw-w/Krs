@@ -14,8 +14,10 @@ public class MotionEvent extends EventArgument {
     public float pitch;
     public boolean onGround;
     public boolean isMoving;
+    public boolean callInPost;
+    public final boolean post;
 
-    public MotionEvent(double x, double y, double z, float yaw, float pitch, boolean onGround, boolean isMoving) {
+    public MotionEvent(double x, double y, double z, float yaw, float pitch, boolean onGround, boolean isMoving, boolean callInPost, final boolean post) {
         this.x = x;
         this.y = y;
         this.z = z;
@@ -23,6 +25,8 @@ public class MotionEvent extends EventArgument {
         this.pitch = pitch;
         this.onGround = onGround;
         this.isMoving = isMoving;
+        this.callInPost = callInPost;
+        this.post = post;
     }
 
     @Override

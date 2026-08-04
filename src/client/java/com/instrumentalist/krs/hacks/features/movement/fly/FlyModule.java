@@ -23,7 +23,7 @@ public class FlyModule extends Module {
     @Setting
     private static final ListValue flyMode = new ListValue(
             "Fly Mode",
-            new String[]{"Vanilla", "Creative", "Airwalk", "Jetpack", "Float", "Negative Packet", "2b2tJP Control Fast", "Modern MMC", "Vulcan Glide", "Verus Jetpack", "Matrix", "Grim 1.9-1.18.1"},
+            new String[]{"Vanilla", "Creative", "Airwalk", "Jetpack", "Float", "NCP Boost", "Negative Packet", "2b2tJP Control Fast", "Modern MMC", "Vulcan Glide", "Verus Jetpack", "Matrix", "Grim 1.9-1.18.1"},
             "Vanilla"
     );
 
@@ -138,6 +138,15 @@ public class FlyModule extends Module {
             grim19To1181Fly.disable();
         } else if (flyModeManager.currentMode instanceof VulcanGlideFly) {
             VulcanGlideFly.ticks = 0;
+        } else if (flyModeManager.currentMode instanceof NCPBoostFly) {
+            NCPBoostFly.moveSpeed = 0;
+            if (NCPBoostFly.timer) {
+                TimerUtil.reset();
+                NCPBoostFly.timer = false;
+            }
+            if (mc.player != null) {
+                MovementUtil.stopMoving();
+            }
         }
     }
 
