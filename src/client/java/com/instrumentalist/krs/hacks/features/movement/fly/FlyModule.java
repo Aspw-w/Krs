@@ -96,6 +96,10 @@ public class FlyModule extends Module {
     @Setting
     public static final BooleanValue verusJetpackJumpKeyOnly = new BooleanValue("Verus Jump Key Only", false, () -> flyMode.get().equalsIgnoreCase("verus jetpack"));
 
+    // NCP Boost
+    @Setting
+    public static final BooleanValue ncpDamageBoost = new BooleanValue("NCP Damage Boost", true, () -> flyMode.get().equalsIgnoreCase("ncp boost"));
+
     public static void onEnableFunctions() {
         if (flyModeManager.currentMode instanceof MatrixFly matrixFly) {
             matrixFly.reset();

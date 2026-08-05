@@ -4,6 +4,7 @@ package com.instrumentalist.krs.hacks.features.movement.fly.features;
 
 import com.instrumentalist.krs.events.features.*;
 import com.instrumentalist.krs.hacks.features.movement.fly.FlyEvent;
+import com.instrumentalist.krs.hacks.features.movement.fly.FlyModule;
 import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.utils.move.MovementUtil;
@@ -51,14 +52,17 @@ public class NCPBoostFly implements FlyEvent {
             MovementUtil.setVelocityY(-8E-6);
         } else {
             if (mc.player.onGround()) {
-                for (int i = 0 ; i < 65 ; i++) {
-                    PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(mc.player.position().x, mc.player.position().y + 0.049, mc.player.position().z, false, false));
-                    PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(mc.player.position().x, mc.player.position().y, mc.player.position().z, false, false));
+                if (FlyModule.ncpDamageBoost.get()) {
+                    for (int i = 0; i < 65; i++) {
+                        PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(mc.player.position().x, mc.player.position().y + 0.049, mc.player.position().z, false, false));
+                        PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(mc.player.position().x, mc.player.position().y, mc.player.position().z, false, false));
+                    }
+                    PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(mc.player.position().x, mc.player.position().y, mc.player.position().z, true, false));
                 }
-                PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(mc.player.position().x, mc.player.position().y, mc.player.position().z, true, false));
 
                 TimerUtil.timerSpeed = 0.3f;
                 mc.player.jumpFromGround();
+                MovementUtil.stopXZ();
                 moveSpeed = 1.61f;
                 timer = true;
             }
