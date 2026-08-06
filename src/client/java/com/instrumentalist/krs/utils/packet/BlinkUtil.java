@@ -115,6 +115,21 @@ public final class BlinkUtil {
         }
     }
 
+    public void releasePackets(int count) {
+        if (count <= 0) return;
+
+        synchronized (flushLock) {
+            ArrayDeque<Packet<?>> toRelease;
+            synchronized (packets) {
+                toRelease = new ArrayDeque<>();
+                int remaining = count;
+                while (remaining-- > 0 && !packets.isEmpty())
+                    toRelease.addLast(packets.removeFirst());
+            }
+            flushPackets(toRelease);
+        }
+    }
+
     public void stopBlink() {
         synchronized (flushLock) {
             synchronized (packets) {

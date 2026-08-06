@@ -78,6 +78,7 @@ public class ModuleManager implements EventListener {
                 new AntiBlind(), new Breaker(), new CivBreak(), new Timer(), new Nuker(),
                 new Xray(), new CaveFinder(), new Scaffold(), new Blink(), new TransactionConfirmBlinker(), new ExploitPatcher(),
                 new PortalScreen(), new FullBright(), new TargetStrafe(), new DisablerModule(),
+                new InfiniteBlink(),
                 new OldHitting(), new Freecam(), new ClientCape(), new EntityYawFix(), new MurdererDetector(),
                 new NoHurtCam(), new FastBow(), new FastEat(), new Zoom(), new PathFinder(),
                 new FastBreak(), new FastPlace(), new ViewModel(), new EntityDesync(), new Step(), new AntiVoid(),
