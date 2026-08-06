@@ -126,6 +126,8 @@ public class NanoVGClickGuiScreen extends Screen {
     private Rect settingsPanelScrollbarThumbRect = new Rect(0f, 0f, 0f, 0f);
     private TextFocus textFocus = TextFocus.NONE;
     private TextValue focusedTextValue;
+    private ColorValue focusedColorValue;
+    private String focusedHexText = "";
     private Module focusedTextModule;
     private Module bindingModule;
     private KeyBindValue bindingValue;
@@ -1398,7 +1400,7 @@ public class NanoVGClickGuiScreen extends Screen {
             if (progress <= 0.001f)
                 continue;
 
-            float settingHeight = (34f + listDropdownHeight(module, setting)) * easeOut(progress);
+            float settingHeight = (34f + listDropdownHeight(module, setting) + extraSettingHeight(setting)) * easeOut(progress);
             float finalRowY = rowY;
             Rect settingClip = new Rect(x + 6f, rowY, width - 12f, settingHeight);
             vg.scissor(settingClip.x, settingClip.y, settingClip.width, settingClip.height, () ->
@@ -1451,13 +1453,13 @@ public class NanoVGClickGuiScreen extends Screen {
             case ListValue value -> renderListSetting(vg, row, module, value);
             case FloatValue value -> renderFloatSetting(vg, row, value);
             case IntValue value -> renderIntSetting(vg, row, value);
-            case ColorValue value -> renderColorSetting(vg, row, value);
+            case ColorValue value -> renderColorSetting(vg, row, module, value);
             case TextValue value -> renderTextSetting(vg, row, module, value);
             case KeyBindValue value -> renderKeyBindSetting(vg, row, value);
             default -> renderSettingRow(vg, row, setting.name, "Unsupported");
         }
 
-        return 34f + listDropdownHeight(module, setting);
+        return 34f + listDropdownHeight(module, setting) + extraSettingHeight(setting);
     }
 
     private void renderSettingRow(NVGU vg, Rect row, String label, String value) {
@@ -1538,23 +1540,22 @@ public class NanoVGClickGuiScreen extends Screen {
         drawSlider(vg, track, normalize(value.get(), value.minimum, value.maximum));
     }
 
-    private void renderColorSetting(NVGU vg, Rect row, ColorValue value) {
-        renderSettingRow(vg, row, value.name, value.toHex().substring(0, 7));
-        Color color = value.get();
-        float startX = row.x + row.width - 142f;
-        drawColorTrack(vg, value, startX, row.y + 13f, color.getRed(), 0, alpha(255, 80, 80, 230));
-        drawColorTrack(vg, value, startX + 34f, row.y + 13f, color.getGreen(), 1, alpha(80, 255, 120, 230));
-        drawColorTrack(vg, value, startX + 68f, row.y + 13f, color.getBlue(), 2, alpha(80, 175, 255, 230));
-        vg.roundedRectangle(row.x + row.width - 19f, row.y + 7f, 12f, 12f, 3f, color);
-        vg.roundedRectangleBorder(row.x + row.width - 19f, row.y + 7f, 12f, 12f, 3f, 1f, alpha(255, 255, 255, 80), Border.INSIDE);
-    }
+    private void renderColorSetting(NVGU vg, Rect row, Module module, ColorValue value) {
+        renderSettingRow(vg, row, value.name, null);
+        boolean active = textFocus == TextFocus.SETTING && focusedColorValue == value;
+        Rect input = new Rect(row.x + row.width - 132f, row.y + 4f, 124f, 19f);
+        addControl(ControlType.TEXT_VALUE, input, value, module, 0);
+        vg.roundedRectangle(input.x, input.y, input.width, input.height, 4f, alpha(255, 255, 255, active ? 28 : 18));
+        vg.roundedRectangleBorder(input.x, input.y, input.width, input.height, 4f, 1f, active ? alpha(0, 255, 255, 90) : alpha(255, 255, 255, 30), Border.INSIDE);
+        String text = inputText(active ? focusedHexText : value.toHex(), active, "");
+        Color textColor = value.toHex().isEmpty() && !active ? alpha(120, 130, 140, 205) : alpha(255, 255, 255, 235);
+        NVGFonts.INTER.drawText(fitText(text, NVGFonts.INTER, 10f, input.width - 10f), input.x + 6f, input.y + 5f, 10f, textColor, Alignment.LEFT_TOP, false);
 
-    private void drawColorTrack(NVGU vg, ColorValue value, float x, float y, int component, int index, Color accent) {
-        Rect track = new Rect(x, y, 24f, 4f);
-        addControl(ControlType.COLOR_SLIDER, track.expand(5f, 9f), value, null, index);
-        vg.roundedRectangle(track.x, track.y, track.width, track.height, 2f, alpha(255, 255, 255, 32));
-        vg.roundedRectangle(track.x, track.y, track.width * component / 255f, track.height, 2f, accent);
-        vg.circle(track.x + track.width * component / 255f, track.centerY(), 3f, Color.WHITE);
+        float squareSize = 18f;
+        float squareX = input.x + (input.width - squareSize) / 2f;
+        float squareY = row.y + 29f;
+        vg.roundedRectangle(squareX, squareY, squareSize, squareSize, 3f, value.get());
+        vg.roundedRectangleBorder(squareX, squareY, squareSize, squareSize, 3f, 1f, alpha(255, 255, 255, 90), Border.INSIDE);
     }
 
     private void renderTextSetting(NVGU vg, Rect row, Module module, TextValue value) {
@@ -1684,8 +1685,15 @@ public class NanoVGClickGuiScreen extends Screen {
             }
             case TEXT_VALUE -> {
                 textFocus = TextFocus.SETTING;
-                focusedTextValue = (TextValue) control.target;
                 focusedTextModule = (Module) control.owner;
+                if (control.target instanceof ColorValue colorValue) {
+                    focusedColorValue = colorValue;
+                    focusedHexText = colorValue.toHex();
+                    focusedTextValue = null;
+                } else {
+                    focusedTextValue = (TextValue) control.target;
+                    focusedColorValue = null;
+                }
             }
             case KEY_VALUE -> bindingValue = (KeyBindValue) control.target;
         }
@@ -2082,7 +2090,7 @@ public class NanoVGClickGuiScreen extends Screen {
         }
 
         for (SettingValue<?> setting : settings) {
-            height += (34f + listDropdownHeight(module, setting)) * easeOut(settingVisibilityProgress(setting));
+            height += (34f + listDropdownHeight(module, setting) + extraSettingHeight(setting)) * easeOut(settingVisibilityProgress(setting));
         }
 
         if (!hasRenderableSettings(module))
@@ -2098,6 +2106,10 @@ public class NanoVGClickGuiScreen extends Screen {
                 : setting instanceof ListValue listValue && listDropdownAnimations.containsKey(listValue)
                 ? listDropdownBaseHeight(listValue) * easeOut(listDropdownProgress(module, listValue))
                 : 0f;
+    }
+
+    private float extraSettingHeight(SettingValue<?> setting) {
+        return setting instanceof ColorValue ? 30f : 0f;
     }
 
     private float listDropdownBaseHeight(ListValue value) {
@@ -2218,12 +2230,14 @@ public class NanoVGClickGuiScreen extends Screen {
     private void clearTextFocus() {
         textFocus = TextFocus.NONE;
         focusedTextValue = null;
+        focusedColorValue = null;
         focusedTextModule = null;
     }
 
     private String getFocusedText() {
         if (textFocus == TextFocus.SEARCH) return searchQuery;
         if (textFocus == TextFocus.CONFIG_NAME) return newConfigName;
+        if (textFocus == TextFocus.SETTING && focusedColorValue != null) return focusedHexText;
         if (textFocus == TextFocus.SETTING && focusedTextValue != null) return focusedTextValue.get();
         return "";
     }
@@ -2240,6 +2254,12 @@ public class NanoVGClickGuiScreen extends Screen {
 
         if (textFocus == TextFocus.CONFIG_NAME) {
             newConfigName = text == null ? "" : text;
+            return;
+        }
+
+        if (textFocus == TextFocus.SETTING && focusedColorValue != null) {
+            focusedHexText = text == null ? "" : text;
+            focusedColorValue.fromHex(focusedHexText);
             return;
         }
 
