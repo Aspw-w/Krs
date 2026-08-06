@@ -1,14 +1,22 @@
 package com.instrumentalist.krs.hacks.features.combat;
 
+import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.AttackEvent;
 import com.instrumentalist.krs.events.features.MotionEvent;
 import com.instrumentalist.krs.events.features.ReceivedPacketEvent;
+import com.instrumentalist.krs.events.features.Render3DEvent;
+import com.instrumentalist.krs.events.features.RenderHudEvent;
 import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.entity.FakePlayerEntity;
 import com.instrumentalist.krs.utils.math.MSTimer;
+import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
+import com.instrumentalist.krs.utils.render.RenderUtil;
+import com.instrumentalist.krs.utils.value.BooleanValue;
+import com.instrumentalist.krs.utils.value.ColorValue;
+import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.IntValue;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
@@ -22,15 +30,35 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.glfw.GLFW;
 
+import java.awt.Color;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 
 public class Backtrack extends Module {
     private static final int MAX_STORED_PACKETS = 512;
+    private static final int[][] FACES = new int[][]{
+            {2, 6, 7, 3},
+            {0, 1, 5, 4},
+            {1, 2, 6, 5},
+            {0, 3, 7, 4},
+            {4, 5, 6, 7},
+            {0, 1, 2, 3},
+    };
 
     @Setting
     private final IntValue trackDelay = new IntValue("Track Delay", 200, 0, 2000, "ms");
+
+    @Setting
+    private final BooleanValue renderServerPos = new BooleanValue("Render Server Position", true);
+
+    @Setting
+    private final ColorValue serverPosColor = new ColorValue("Server Pos Color", new Color(255, 80, 80, 255));
+
+    @Setting
+    private final FloatValue serverPosOpacity = new FloatValue("Server Pos Opacity", 55f, 0f, 100f, "%", () -> renderServerPos.get());
 
     private final ArrayDeque<Packet<?>> storagePackets = new ArrayDeque<>();
     private final ArrayDeque<EntityPacketLoc> storageEntityMove = new ArrayDeque<>();
@@ -45,6 +73,8 @@ public class Backtrack extends Module {
     private float simulatedYaw = 0.0F;
     private float simulatedPitch = 0.0F;
     private volatile boolean needFreeze = false;
+
+    private final List<float[]> serverPosFaces = new ArrayList<>();
 
     public Backtrack() {
         super("Backtrack", ModuleCategory.Combat, GLFW.GLFW_KEY_UNKNOWN, false, true);
@@ -67,6 +97,7 @@ public class Backtrack extends Module {
     public void onDisable() {
         releasePackets();
         clearTracking();
+        serverPosFaces.clear();
     }
 
     @Override
@@ -76,6 +107,7 @@ public class Backtrack extends Module {
             storageEntityMove.clear();
         }
         clearTracking();
+        serverPosFaces.clear();
     }
 
     @Override
@@ -148,6 +180,112 @@ public class Backtrack extends Module {
         } catch (Exception ignored) {
             releasePackets();
         }
+    }
+
+    @Override
+    public void onRender3D(Render3DEvent event) {
+        serverPosFaces.clear();
+        if (!renderServerPos.get() || mc.player == null || mc.level == null)
+            return;
+        if (!RenderUtil.shouldRenderWorldHudOverlays())
+            return;
+
+        Entity target = lastAttackedEntity;
+        if (target == null || target.isRemoved())
+            return;
+
+        Vec3 position = simulatedPosition;
+        if (position == null)
+            return;
+
+        AABB box = makeBoundingBox(target, position);
+
+        Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
+        float framebufferToScaledX = NanoVGManager.getScaledScreenWidth() / Math.max(1, mc.getWindow().getWidth());
+        float framebufferToScaledY = NanoVGManager.getScaledScreenHeight() / Math.max(1, mc.getWindow().getHeight());
+        float[] projected = new float[3];
+
+        double minX = box.minX;
+        double minY = box.minY;
+        double minZ = box.minZ;
+        double maxX = box.maxX;
+        double maxY = box.maxY;
+        double maxZ = box.maxZ;
+
+        double[][] corners = new double[][]{
+                {minX, minY, minZ},
+                {maxX, minY, minZ},
+                {maxX, minY, maxZ},
+                {minX, minY, maxZ},
+                {minX, maxY, minZ},
+                {maxX, maxY, minZ},
+                {maxX, maxY, maxZ},
+                {minX, maxY, maxZ},
+        };
+
+        float[] sx = new float[8];
+        float[] sy = new float[8];
+        boolean[] located = new boolean[8];
+        for (int i = 0; i < 8; i++) {
+            if (RenderUtil.INSTANCE.renderedWorldToScreen(corners[i][0], corners[i][1], corners[i][2], projected)) {
+                sx[i] = projected[0] * framebufferToScaledX;
+                sy[i] = projected[1] * framebufferToScaledY;
+                located[i] = true;
+            }
+        }
+
+        boolean[] visible = new boolean[]{
+                cameraPos.z > maxZ,
+                cameraPos.z < minZ,
+                cameraPos.x > maxX,
+                cameraPos.x < minX,
+                cameraPos.y > maxY,
+                cameraPos.y < minY,
+        };
+
+        for (int f = 0; f < FACES.length; f++) {
+            if (!visible[f])
+                continue;
+
+            int a = FACES[f][0];
+            int b = FACES[f][1];
+            int c = FACES[f][2];
+            int d = FACES[f][3];
+            if (!located[a] || !located[b] || !located[c] || !located[d])
+                continue;
+
+            serverPosFaces.add(new float[]{sx[a], sy[a], sx[b], sy[b], sx[c], sy[c], sx[d], sy[d]});
+        }
+    }
+
+    @Override
+    public void onRenderHud(RenderHudEvent event) {
+        if (!renderServerPos.get() || serverPosFaces.isEmpty())
+            return;
+        if (mc.player == null || mc.level == null)
+            return;
+        if (!RenderUtil.shouldRenderWorldHudOverlays())
+            return;
+
+        Color baseColor = serverPosColor.get();
+        Color fillColor = new Color(
+                baseColor.getRed(),
+                baseColor.getGreen(),
+                baseColor.getBlue(),
+                Math.round(baseColor.getAlpha() * (serverPosOpacity.get() / 100f))
+        );
+
+        Client.nanoVgManager.load(vg -> {
+            for (float[] polygon : serverPosFaces) {
+                float[][] points = new float[][]{
+                        {polygon[0], polygon[1]},
+                        {polygon[2], polygon[3]},
+                        {polygon[4], polygon[5]},
+                        {polygon[6], polygon[7]},
+                };
+                vg.polygon(points, fillColor);
+            }
+        });
     }
 
     private void handleEntityMovePacket(ReceivedPacketEvent event, ClientboundMoveEntityPacket packet) {
