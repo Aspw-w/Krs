@@ -232,7 +232,7 @@ public class BedESP extends Module {
                     solidFaces.add(new float[]{sx[a], sy[a], sx[b], sy[b], sx[c], sy[c], sx[d], sy[d]});
                 }
             } else {
-                double halfWidth = lineWidth.get() / 2.0;
+                double halfWidth = lineWidth.get() * 0.05;
                 for (int[] edge : EDGES) {
                     addEdgeBar(
                             corners[edge[0]], corners[edge[1]], halfWidth,
@@ -309,8 +309,16 @@ public class BedESP extends Module {
                 quad[i * 2] = projected[0] * scaleX;
                 quad[i * 2 + 1] = projected[1] * scaleY;
             }
-            if (ok)
-                hitboxFaces.add(quad);
+            if (ok) {
+                double area = Math.abs(
+                        quad[0] * quad[3] - quad[1] * quad[2]
+                                + quad[2] * quad[5] - quad[3] * quad[4]
+                                + quad[4] * quad[7] - quad[5] * quad[6]
+                                + quad[6] * quad[1] - quad[7] * quad[0]
+                ) * 0.5;
+                if (area > 1.0)
+                    hitboxFaces.add(quad);
+            }
         }
     }
 
