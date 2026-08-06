@@ -80,7 +80,7 @@ public class ModuleManager implements EventListener {
                 new PortalScreen(), new FullBright(), new TargetStrafe(), new DisablerModule(),
                 new OldHitting(), new Freecam(), new ClientCape(), new EntityYawFix(), new MurdererDetector(),
                 new NoHurtCam(), new FastBow(), new FastEat(), new Zoom(), new PathFinder(),
-                new FastBreak(), new ViewModel(), new EntityDesync(), new Step(), new AntiVoid(),
+                new FastBreak(), new FastPlace(), new ViewModel(), new EntityDesync(), new Step(), new AntiVoid(),
                 new AutoFish(), new NoJumpCooldown(), new AlwaysRiptide(),
                 new WorldTime(), new ChatCommands(), new Rotations(),
                 new PluginsDetector(), new NameTags(), new ESP(), new MovementFix(), new LongThrow(),
