@@ -4,6 +4,7 @@ import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.AntiBlind;
 import com.instrumentalist.krs.hacks.features.render.CameraNoClip;
+import com.instrumentalist.krs.hacks.features.render.FreeLook;
 import com.instrumentalist.krs.hacks.features.movement.LongJump;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.hacks.features.render.WidelyPutin;
@@ -66,6 +67,9 @@ public abstract class CameraMixin implements IMinecraft {
                     target = "Lnet/minecraft/client/Camera;alignWithEntity(F)V",
                     shift = At.Shift.AFTER))
     private void freecamCameraHook(DeltaTracker deltaTracker, CallbackInfo ci) {
+        if (FreeLook.shouldMoveCamera())
+            return;
+
         if (!ModuleManager.getModuleState(Freecam.class) || !Freecam.getCanFly())
             return;
 
@@ -74,6 +78,30 @@ public abstract class CameraMixin implements IMinecraft {
         setPosition(Freecam.getCamPos(partialTicks));
         setRotation(Freecam.getCamYaw(), Freecam.getCamPitch());
         applyFreecamThirdPersonPull();
+    }
+
+    @Inject(method = "update(Lnet/minecraft/client/DeltaTracker;)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/client/Camera;alignWithEntity(F)V",
+                    shift = At.Shift.AFTER))
+    private void freeLookCameraHook(DeltaTracker deltaTracker, CallbackInfo ci) {
+        if (!FreeLook.shouldMoveCamera() || entity == null)
+            return;
+
+        float partialTicks = deltaTracker.getGameTimeDeltaPartialTick(true);
+        detached = true;
+        setPosition(entity.getEyePosition(partialTicks));
+
+        if (mc.options.getCameraType().isMirrored())
+            setRotation(FreeLook.getCameraYaw() + 180.0F, -FreeLook.getCameraPitch());
+        else
+            setRotation(FreeLook.getCameraYaw(), FreeLook.getCameraPitch());
+
+        float scale = 1.0F;
+        if (entity instanceof LivingEntity livingEntity)
+            scale = livingEntity.getScale();
+
+        move(-getMaxZoom(FreeLook.getCameraDistance() * scale), 0.0F, 0.0F);
     }
 
     @Inject(method = "update(Lnet/minecraft/client/DeltaTracker;)V",

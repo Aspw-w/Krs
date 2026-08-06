@@ -91,6 +91,7 @@ public class ModuleManager implements EventListener {
                 new PacketDuper(), new SneakSpam(), new ImGui(), new ClickGui(), new ConsoleSpammer(),
                 new Reach(), new NoCombatDelay(), new AutoBypass(), new FakePinger(), new QuickMacro(),
                 new FPSBobbing(), new CrossbowExploit(), new WTap(), new HatenaPiano(),
+                new FreeLook(),
                 new SafeWalk(), new Parkour(), new AutoWalk(), new AutoRespawn(),
                 new AutoLeave(), new AutoSneak(), new MiddleClick(),
                 new NoWeb(), new AntiLevitation(), new WaterSpeed(), new FastFall(),

@@ -2,6 +2,7 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.render.FreeLook;
 import com.instrumentalist.krs.hacks.features.render.OldHitting;
 import com.instrumentalist.krs.hacks.features.render.ViewModel;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
@@ -218,6 +219,11 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
 
     @Inject(method = "renderPlayerArm", at = @At("HEAD"), cancellable = true)
     private void armModifierHook(PoseStack matrices, SubmitNodeCollector submitter, int light, float equipProgress, float swingProgress, HumanoidArm arm, CallbackInfo ci) {
+        if (FreeLook.shouldMoveCamera()) {
+            ci.cancel();
+            return;
+        }
+
         if (this.shouldUseCustomEquipOffset())
             this.customRenderArmHoldingItem(matrices, submitter, light, equipProgress, swingProgress, arm, ci);
     }
@@ -375,6 +381,11 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
 
     @Inject(method = "submitArmWithItem", at = @At("HEAD"), cancellable = true)
     private void itemRendererHook(AbstractClientPlayer player, float tickDelta, float pitch, InteractionHand hand, float swingProgress, ItemStack item, float equipProgress, PoseStack matrices, SubmitNodeCollector submitter, int light, CallbackInfo ci) {
+        if (FreeLook.shouldMoveCamera()) {
+            ci.cancel();
+            return;
+        }
+
         boolean bl = hand == InteractionHand.MAIN_HAND;
         boolean animationBlocking = OldHitting.shouldBlock();
         boolean substituteMainHand = animationBlocking && shouldSubstituteBlockingMainHand(player, hand);
