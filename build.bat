@@ -27,7 +27,7 @@ if not errorlevel 1 (
 )
 
 :: 3) Search the common JDK installation directories
-set "SEARCH_PATHS="%ProgramFiles%\Java" "%ProgramFiles(x86)%\Java" "%UserProfile%\.jdks" "C:\Java" "%ProgramFiles%\Eclipse Adoptium" "%LocalAppData%\Programs\Eclipse Adoptium" "%ProgramFiles%\Microsoft" "%ProgramFiles%\Amazon Corretto" "%ProgramFiles%\Zulu" "%ProgramFiles%\BellSoft""
+set "SEARCH_PATHS="%ProgramFiles%\Java" "%ProgramFiles(x86)%\Java" "%UserProfile%\.jdks" "C:\Java" "%ProgramFiles%\Eclipse Adoptium" "%ProgramFiles(x86)%\Eclipse Adoptium" "%LocalAppData%\Programs\Eclipse Adoptium" "%ProgramFiles%\Temurin" "%ProgramFiles%\AdoptOpenJDK" "%ProgramFiles%\Microsoft" "%ProgramFiles%\Amazon Corretto" "%ProgramFiles%\Zulu" "%ProgramFiles%\BellSoft""
 
 for %%D in (%SEARCH_PATHS%) do (
     if exist %%D (
@@ -66,7 +66,7 @@ if not defined MAJOR_VER (
     for /f "tokens=2 delims=-_" %%B in ("!CAND_LAST!") do set "VER_NUM=%%B"
     if not defined VER_NUM set "VER_NUM=!CAND_LAST!"
     for /f "tokens=1 delims=+" %%P in ("!VER_NUM!") do set "VER_NUM=%%P"
-    for /f "tokens=1 delims=abcdefghijklmnopqrstuvwxyz-_ " %%M in ("!VER_NUM!") do set "MAJOR_VER=%%M"
+    for /f "tokens=1 delims=abcdefghijklmnopqrstuvwxyz-.+_" %%M in ("!VER_NUM!") do set "MAJOR_VER=%%M"
 )
 
 :: Make sure the major version is a real number before comparing
