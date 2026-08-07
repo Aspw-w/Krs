@@ -33,7 +33,11 @@ public class FastPlace extends Module {
         boolean holdingBlock = mc.player.getMainHandItem().getItem() instanceof BlockItem
                 || mc.player.getOffhandItem().getItem() instanceof BlockItem;
 
-        if (holdingBlock && mc.options.keyUse.isDown())
-            ((IMinecraftClient) mc).krs$setRightClickDelay((int) Math.max(0f, delay.get()));
+        if (holdingBlock && mc.options.keyUse.isDown()) {
+            int target = (int) Math.max(0f, delay.get());
+            int current = ((IMinecraftClient) mc).krs$getRightClickDelay();
+            if (current > target)
+                ((IMinecraftClient) mc).krs$setRightClickDelay(target);
+        }
     }
 }
