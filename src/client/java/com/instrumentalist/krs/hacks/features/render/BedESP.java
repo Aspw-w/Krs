@@ -58,7 +58,7 @@ public class BedESP extends Module {
     private static final FloatValue opacity = new FloatValue("Opacity", 65f, 0f, 100f, "%", () -> mode.get().equalsIgnoreCase("Solid"));
 
     @Setting
-    private static final FloatValue lineWidth = new FloatValue("Width", 2f, 0.5f, 4f, () -> mode.get().equalsIgnoreCase("Hitbox"));
+    private static final FloatValue lineWidth = new FloatValue("Width", 0.40f, 0.01f, 1f, () -> mode.get().equalsIgnoreCase("Hitbox"));
 
     private final List<AABB> foundBeds = new ArrayList<>();
     private final List<float[]> solidFaces = new ArrayList<>();
