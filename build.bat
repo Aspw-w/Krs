@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-title Auto Compiler.
+title Auto Compiler
 
 echo Looking for a JDK 25 or higher...
 
@@ -42,6 +42,8 @@ for %%D in (%SEARCH_PATHS%) do (
 
 echo [ERROR] No JDK version 25 or higher was found on this system.
 echo Please install JDK 25+ to build this project.
+echo You can find JDKs at oracle.com/java/technologies/javase/jdk25-archive-downloads.html.
+echo JDK 25 is recommended for this project.
 echo.
 pause
 exit /b 1
