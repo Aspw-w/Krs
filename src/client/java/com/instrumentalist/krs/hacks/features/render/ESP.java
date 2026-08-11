@@ -6,6 +6,7 @@ import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
+import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
 import com.instrumentalist.krs.utils.render.Shader2DRenderer;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
@@ -265,11 +266,29 @@ public class ESP extends Module {
         if (target == null || target.width <= 0 || target.height <= 0)
             return;
 
+        if (GraphicsApiCompatibility.usesCompatibilityRenderer()) {
+            renderedCaptureId = captureId;
+            GraphicsApiCompatibility.renderOffscreenLayer(
+                    GraphicsApiCompatibility.Layer.ESP,
+                    () -> drawCapturedShadow(0, 0, 0, 0)
+            );
+            return;
+        }
+
         MainTargetHandle targetHandle = mainTargetHandle(target);
         if (targetHandle == null)
             return;
 
         renderedCaptureId = captureId;
+        drawCapturedShadow(
+                targetHandle.framebuffer(),
+                target.width,
+                target.height,
+                targetHandle.depthTexture()
+        );
+    }
+
+    private static void drawCapturedShadow(int targetFramebuffer, int targetWidth, int targetHeight, int sourceDepthTexture) {
         Shader2DRenderer.INSTANCE.drawSilhouetteShadow(
                 captureWidth,
                 captureHeight,
@@ -284,10 +303,10 @@ public class ESP extends Module {
                 130f / 255f,
                 reversedDepth,
                 Color.WHITE,
-                targetHandle.framebuffer(),
-                target.width,
-                target.height,
-                targetHandle.depthTexture()
+                targetFramebuffer,
+                targetWidth,
+                targetHeight,
+                sourceDepthTexture
         );
     }
 

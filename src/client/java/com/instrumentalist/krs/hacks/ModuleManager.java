@@ -94,7 +94,7 @@ public class ModuleManager implements EventListener {
                 new AutoLeave(), new AutoSneak(), new MiddleClick(),
                 new NoWeb(), new AntiLevitation(), new WaterSpeed(), new FastFall(),
                 new Spider(), new AutoRocket(), new AutoTotem(), new ItemDropChanger(),
-                new XCarry(), new PortalGodMode()
+                new XCarry(), new PortalGodMode(), new Stasis()
         ));
 
         devModules.addAll(List.of(
@@ -218,7 +218,7 @@ public class ModuleManager implements EventListener {
         for (Module module : modules) {
             if (module.tempEnabled && module instanceof PluginsDetector)
                 module.toggle();
-            else if (module.tempEnabled && (module instanceof InvManager || module instanceof ChestStealer || module instanceof Scaffold || module instanceof KillAura)) {
+            else if (module.tempEnabled && (module instanceof InvManager || module instanceof ChestStealer || module instanceof Scaffold || module instanceof KillAura || module instanceof Stasis)) {
                 module.toggle();
                 Client.notificationManager.addNotification("World Change", "Automatically disabled " + module.moduleName);
             }

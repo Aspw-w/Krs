@@ -29,6 +29,9 @@ public class SpeedModeManager {
             case "hypixel ncp hop":
                 currentMode = new HypixelNCPHopSpeed();
                 break;
+            case "modern mmc":
+                currentMode = new ModernMMCSpeed();
+                break;
             case "boost":
                 currentMode = new BoostSpeed();
                 break;
@@ -49,9 +52,6 @@ public class SpeedModeManager {
                 break;
             case "miniblox":
                 currentMode = new MinibloxSpeed();
-                break;
-            case "rounding error":
-                currentMode = new RoundingErrorSpeed();
                 break;
             default:
                 currentMode = null;

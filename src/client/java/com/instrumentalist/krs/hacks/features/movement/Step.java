@@ -75,7 +75,7 @@ public class Step extends Module {
     private static int stepDelay = 0;
 
     private static boolean shouldStep() {
-        return ModuleManager.getModuleState(Step.class) && mc.player.onGround() && canStep && !ModuleManager.getModuleState(FlyModule.class) && (!disableWhenSpeed.get() || !ModuleManager.getModuleState(SpeedModule.class));
+        return ModuleManager.getModuleState(Step.class) && mc.player != null && !mc.player.isShiftKeyDown() && mc.player.onGround() && canStep && !ModuleManager.getModuleState(FlyModule.class) && (!disableWhenSpeed.get() || !ModuleManager.getModuleState(SpeedModule.class));
     }
 
     public static float hookStepHeight(float original, LivingEntity entity) {

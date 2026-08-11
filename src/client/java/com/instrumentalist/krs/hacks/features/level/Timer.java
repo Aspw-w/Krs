@@ -15,7 +15,7 @@ import java.util.Locale;
 public class Timer extends Module {
 
     @Setting
-    public static final ListValue mode = new ListValue("Mode", new String[]{"Vanilla"}, "Vanilla");
+    public static final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "Rounding Error"}, "Vanilla");
 
     @Setting
     private static final FloatValue speed = new FloatValue("Speed", 1.5f, 0.1f, 10f, () -> mode.get().equalsIgnoreCase("vanilla"));
@@ -43,6 +43,9 @@ public class Timer extends Module {
                 TimerUtil.reset();
             else TimerUtil.timerSpeed = speed.get();
         }
-    }
 
+        if (mode.get().toLowerCase(Locale.ROOT).equals("rounding error")) {
+            TimerUtil.timerSpeed = 1.0075f;
+        }
+    }
 }

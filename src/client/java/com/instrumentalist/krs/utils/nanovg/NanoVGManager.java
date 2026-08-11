@@ -1,6 +1,7 @@
 package com.instrumentalist.krs.utils.nanovg;
 
 import com.instrumentalist.krs.utils.IMinecraft;
+import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
 import com.mojang.logging.LogUtils;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL13;
@@ -197,7 +198,25 @@ public class NanoVGManager implements IMinecraft {
         if (instance == null || !instance.isCreated())
             return;
 
+        if (GraphicsApiCompatibility.usesCompatibilityRenderer()
+                && !GraphicsApiCompatibility.isLayerActive()) {
+            GraphicsApiCompatibility.renderOffscreenLayer(() -> renderNow(vg));
+            return;
+        }
+
         renderNow(vg);
+    }
+
+    public boolean hasQueuedRenderers() {
+        synchronized (renderQueueLock) {
+            return !renderQueue.isEmpty() || !frameRenderQueue.isEmpty();
+        }
+    }
+
+    public boolean hasQueuedBeforeGuiRenderers() {
+        synchronized (renderQueueLock) {
+            return !beforeGuiRenderQueue.isEmpty() || !beforeGuiFrameRenderQueue.isEmpty();
+        }
     }
 
     public void shutdown() {
@@ -207,6 +226,17 @@ public class NanoVGManager implements IMinecraft {
 
     public void discardQueuedRenderers() {
         clearQueues();
+    }
+
+    public void discardRenderQueue() {
+        synchronized (renderQueueLock) {
+            renderQueue.clear();
+            frameRenderQueue.clear();
+        }
+    }
+
+    public void discardBeforeGuiRenderQueue() {
+        clearBeforeGuiQueues();
     }
 
     private void clearQueues() {
@@ -289,9 +319,16 @@ public class NanoVGManager implements IMinecraft {
 
             int width = mc.getWindow().getScreenWidth();
             int height = mc.getWindow().getScreenHeight();
+            int framebufferWidth = mc.getWindow().getWidth();
+            int framebufferHeight = mc.getWindow().getHeight();
+            if (GraphicsApiCompatibility.usesCompatibilityRenderer()
+                    && GraphicsApiCompatibility.isLayerActive()) {
+                framebufferWidth = GraphicsApiCompatibility.getActiveLayerWidth();
+                framebufferHeight = GraphicsApiCompatibility.getActiveLayerHeight();
+            }
             float devicePixelRatio = Math.max(1.0f, Math.max(
-                    mc.getWindow().getWidth() / (float) Math.max(1, width),
-                    mc.getWindow().getHeight() / (float) Math.max(1, height)
+                    framebufferWidth / (float) Math.max(1, width),
+                    framebufferHeight / (float) Math.max(1, height)
             ));
             float uiScale = getUiScale();
 

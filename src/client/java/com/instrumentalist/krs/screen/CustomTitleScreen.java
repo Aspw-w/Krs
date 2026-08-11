@@ -9,6 +9,7 @@ import com.instrumentalist.krs.utils.math.Interpolation;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.network.FileUtil;
+import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
 import com.mojang.realmsclient.RealmsMainScreen;
 import org.lwjgl.glfw.GLFW;
 import org.nvgu.NVGU;
@@ -269,7 +270,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         manager.renderImmediate(CustomTitleScreen::renderStartupLoadBar);
     }
 
-    private static boolean shouldRenderStartupLoadBar() {
+    public static boolean shouldRenderStartupLoadBar() {
         return mc.gui.screen() instanceof CustomTitleScreen && mc.gui.overlay() != null;
     }
 
@@ -365,6 +366,10 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
             NVGFonts.INTER_MEDIUM.drawText(getCurrentTime(), screenWidth - 10f, 10f, 22f, Color.WHITE, Alignment.RIGHT_TOP, true);
             NVGFonts.INTER.drawText("Currently Logged Into: " + mc.getUser().getName(), centerX, 20f, 21f, Color.WHITE, Alignment.CENTER_TOP, true);
             renderMusicVolumeSlider(vg, centerX, mouseX, mouseY);
+
+            if (GraphicsApiCompatibility.usesCompatibilityRenderer()) {
+                NVGFonts.INTER.drawText("Vulkan support is not yet complete, so performance will be significantly lower than when using OpenGL. Please use OpenGL unless there is a specific reason not to.", centerX, 80f, 21f, Color.CYAN, Alignment.CENTER_TOP, true);
+            }
 
             for (int i = 0; i < visibleMenuButtons.size(); i++)
                 updateUiButtonState(visibleMenuButtons.get(i), centerX, centerY + (45f * i), mouseX, mouseY);

@@ -10,6 +10,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.ViewModel;
 import com.instrumentalist.krs.screen.CustomTitleScreen;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
+import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.mojang.blaze3d.platform.Window;
 import org.nvgu.NVGU;
@@ -59,7 +60,8 @@ public abstract class MinecraftClientMixin implements IMinecraft {
 
     @Inject(method = "<init>", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/RenderSystem;initRenderer(Lcom/mojang/blaze3d/systems/GpuDevice;)V", shift = At.Shift.AFTER))
     private void initNanoVG(CallbackInfo ci) {
-        NVGU.INSTANCE.create();
+        GraphicsApiCompatibility.initialize();
+        GraphicsApiCompatibility.runWithOpenGlContext(NVGU.INSTANCE::create);
     }
 
     @Inject(method = "<init>", at = @At("TAIL"))

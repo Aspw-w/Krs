@@ -21,7 +21,7 @@ public class SpeedModule extends Module {
     @Setting
     private static final ListValue speedMode = new ListValue(
             "Speed Mode",
-            new String[]{"Vanilla", "Smooth Vanilla", "Hypixel NCP Hop", "Boost", "Flag Boost", "NCP", "Verus", "Vulcan", "Vulcan Old", "Miniblox", "Rounding Error"},
+            new String[]{"Vanilla", "Smooth Vanilla", "Hypixel NCP Hop", "Modern MMC", "Boost", "Flag Boost", "NCP", "Verus", "Vulcan", "Vulcan Old", "Miniblox"},
             "Vanilla"
     );
 
@@ -49,9 +49,6 @@ public class SpeedModule extends Module {
             if (mc.player != null)
                 MovementUtil.stopMoving();
             VanillaSpeed.cancelledOnce = false;
-        } else if (speedModeManager.currentMode instanceof RoundingErrorSpeed) {
-            RoundingErrorSpeed.cancelledOnce = false;
-            TimerUtil.reset();
         } else if (speedModeManager.currentMode instanceof FlagBoostSpeed) {
             FlagBoostSpeed.tick1 = 0;
             if (mc.player != null)

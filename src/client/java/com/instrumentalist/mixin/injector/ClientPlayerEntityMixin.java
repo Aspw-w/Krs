@@ -266,7 +266,7 @@ public abstract class ClientPlayerEntityMixin extends Player {
         this.sendIsSprintingIfNeeded();
 
         if (this.isControlledCamera()) {
-            MotionEvent event = new MotionEvent(this.getX(), this.getY(), this.getZ(), this.getYRot(), this.getXRot(), this.onGround(), false);
+            MotionEvent event = new MotionEvent(this.getX(), this.getY(), this.getZ(), this.getYRot(), this.getXRot(), this.onGround(), false, false, false);
 
             double initialXDiff = event.x - this.xLast;
             double initialYDiff = event.y - this.yLast;
@@ -325,6 +325,9 @@ public abstract class ClientPlayerEntityMixin extends Player {
             this.lastOnGround = event.onGround;
             this.lastHorizontalCollision = this.horizontalCollision;
             this.autoJumpEnabled = (Boolean) this.minecraft.options.autoJump().get();
+
+            MotionEvent postEvent = new MotionEvent(event.x, event.y, event.z, event.yaw, event.pitch, event.onGround, false, false, true);
+            if (Client.eventManager != null && event.callInPost) Client.eventManager.call(postEvent);
 
             Client.rotationManager.postMotionVisualTick();
         }

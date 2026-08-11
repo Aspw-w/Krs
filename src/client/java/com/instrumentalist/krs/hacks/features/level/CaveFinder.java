@@ -2,7 +2,9 @@ package com.instrumentalist.krs.hacks.features.level;
 
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
+import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.systems.RenderSystem;
 import org.lwjgl.glfw.GLFW;
 
 public class CaveFinder extends Module {
@@ -15,12 +17,14 @@ public class CaveFinder extends Module {
     @Override
     public void onEnable() {
         active = true;
+        reloadVulkanPipelines();
         reloadChunks();
     }
 
     @Override
     public void onDisable() {
         active = false;
+        reloadVulkanPipelines();
         reloadChunks();
     }
 
@@ -40,5 +44,10 @@ public class CaveFinder extends Module {
     private void reloadChunks() {
         if (mc.level != null)
             mc.levelExtractor.allChanged();
+    }
+
+    private static void reloadVulkanPipelines() {
+        if (GraphicsApiCompatibility.usesCompatibilityRenderer())
+            RenderSystem.getDevice().clearPipelineCache();
     }
 }

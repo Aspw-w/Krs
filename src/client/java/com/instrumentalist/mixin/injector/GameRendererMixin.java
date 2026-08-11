@@ -9,6 +9,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.hacks.features.render.*;
 import com.instrumentalist.krs.utils.render.DebugOverlayRenderer;
+import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
 import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -115,8 +116,19 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
             )
     )
     private void krs$renderNanoVgBackgroundBeforeGui(DeltaTracker tickCounter, boolean renderLevel, CallbackInfo ci) {
-        if (Client.nanoVgManager != null)
+        if (Client.nanoVgManager == null)
+            return;
+
+        if (GraphicsApiCompatibility.usesCompatibilityRenderer()) {
+            if (Client.nanoVgManager.hasQueuedBeforeGuiRenderers())
+                GraphicsApiCompatibility.renderOffscreenLayer(
+                        GraphicsApiCompatibility.Layer.NANO_VG_BEFORE_GUI,
+                        Client.nanoVgManager::renderQueuedBeforeGui,
+                        Client.nanoVgManager::discardBeforeGuiRenderQueue
+                );
+        } else {
             Client.nanoVgManager.renderQueuedBeforeGui();
+        }
     }
 
     @Inject(at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;bobView(Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V", ordinal = 0), method = "renderLevel(Lnet/minecraft/client/DeltaTracker;)V")

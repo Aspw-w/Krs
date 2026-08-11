@@ -1,7 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.Client;
-import com.instrumentalist.krs.events.BlockEventCollisionGuard;
+import com.instrumentalist.krs.events.guards.BlockEventCollisionGuard;
 import com.instrumentalist.krs.events.features.BlockEvent;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.sugar.Local;

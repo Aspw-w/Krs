@@ -4,10 +4,12 @@ import com.instrumentalist.krs.events.features.*;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.ChatUtil;
+import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundKeepAlivePacket;
 import net.minecraft.network.protocol.common.ServerboundKeepAlivePacket;
+import net.minecraft.network.protocol.common.ServerboundPongPacket;
 import org.lwjgl.glfw.GLFW;
 
 public class TuckMod extends Module {
@@ -27,6 +29,7 @@ public class TuckMod extends Module {
         tick2 = 0;
         tick3 = 0;
         tick4 = 0;
+        TimerUtil.reset();
     }
 
     @Override
@@ -39,6 +42,12 @@ public class TuckMod extends Module {
 
     @Override
     public void onMotion(MotionEvent event) {
+        if (mc.player == null) return;
+        TimerUtil.timerSpeed = 0.4f;
+        if (mc.player.getDeltaMovement().y <= 0) {
+            event.onGround = true;
+            mc.player.setOnGround(true);
+        }
     }
 
     @Override
@@ -51,18 +60,24 @@ public class TuckMod extends Module {
 
     @Override
     public void onSendPacket(SendPacketEvent event) {
-    }
-
-    @Override
-    public void onReceivedPacket(ReceivedPacketEvent event) {
         if (mc.player == null) return;
 
         Packet<?> packet = event.packet;
 
-        if (packet instanceof ClientboundKeepAlivePacket ping) {
-            ChatUtil.printChat(ping.getId() + "");
-            event.cancel();
-            PacketUtil.sendPacketAsSilent(new ServerboundKeepAlivePacket(Integer.MIN_VALUE));
-        }
+        /*if (packet instanceof ServerboundPongPacket ping) {
+            tick++;
+            if (tick <= 15) {
+                ChatUtil.printChat("Nigger");
+                PacketUtil.sendPacketAsSilent(new ServerboundPongPacket(Integer.MAX_VALUE));
+            } else {
+                ChatUtil.printChat("Accept");
+                PacketUtil.sendPacketAsSilent(new ServerboundPongPacket(1));
+                tick = 0;
+            }
+        }*/
+    }
+
+    @Override
+    public void onReceivedPacket(ReceivedPacketEvent event) {
     }
 }

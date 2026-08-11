@@ -1,6 +1,7 @@
 package xyz.breadloaf.imguimc.imgui;
 
 import com.instrumentalist.mixin.Initializer;
+import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
 import com.mojang.logging.LogUtils;
 import imgui.*;
 import imgui.flag.*;
@@ -45,6 +46,19 @@ public class ImguiLoader {
     private static boolean renderedComponentsLastFrame = false;
 
     public static void onGlfwInit(long handle) {
+        if (initialized)
+            return;
+
+        if (GraphicsApiCompatibility.usesCompatibilityRenderer()
+                && !GraphicsApiCompatibility.isLayerActive()) {
+            GraphicsApiCompatibility.runWithOpenGlContext(() -> initialize(handle));
+            return;
+        }
+
+        initialize(handle);
+    }
+
+    private static void initialize(long handle) {
         if (initialized)
             return;
 
@@ -103,6 +117,26 @@ public class ImguiLoader {
     }
 
     public static void onFrameRender() {
+        if (!shouldRenderFrame())
+            return;
+
+        if (GraphicsApiCompatibility.usesCompatibilityRenderer()
+                && !GraphicsApiCompatibility.isLayerActive()) {
+            GraphicsApiCompatibility.renderOffscreenLayer(
+                    GraphicsApiCompatibility.Layer.IMGUI,
+                    ImguiLoader::renderFrame
+            );
+            return;
+        }
+
+        renderFrame();
+    }
+
+    public static boolean shouldRenderFrame() {
+        return initialized && (!Initializer.renderstack.isEmpty() || renderedComponentsLastFrame);
+    }
+
+    private static void renderFrame() {
         if (!initialized) return;
 
         boolean hasComponents = !Initializer.renderstack.isEmpty();
@@ -212,8 +246,10 @@ public class ImguiLoader {
         io.setIniFilename(null);                               // We don't want to save .ini file
         io.addConfigFlags(ImGuiConfigFlags.NavEnableKeyboard); // Enable KeyboardHandler Controls
         io.addConfigFlags(ImGuiConfigFlags.DockingEnable);     // Enable Docking
-        io.addConfigFlags(ImGuiConfigFlags.ViewportsEnable);   // Enable Multi-Viewport / Platform Windows
-        io.setConfigViewportsNoTaskBarIcon(true);
+        if (!GraphicsApiCompatibility.usesCompatibilityRenderer()) {
+            io.addConfigFlags(ImGuiConfigFlags.ViewportsEnable); // Platform windows require Minecraft's OpenGL context
+            io.setConfigViewportsNoTaskBarIcon(true);
+        }
 
         final ImFontAtlas fontAtlas = io.getFonts();
         fontAtlas.addFontDefault();
@@ -328,6 +364,16 @@ public class ImguiLoader {
     }
 
     public static void shutdown() {
+        if (GraphicsApiCompatibility.usesCompatibilityRenderer()
+                && !GraphicsApiCompatibility.isLayerActive()) {
+            GraphicsApiCompatibility.runWithOpenGlContext(ImguiLoader::shutdownInternal);
+            return;
+        }
+
+        shutdownInternal();
+    }
+
+    private static void shutdownInternal() {
         initialized = false;
         fontLoaded = false;
         customFontAvailable = false;

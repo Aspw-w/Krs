@@ -3,8 +3,6 @@ package com.instrumentalist.krs.hacks.features.movement.speed.features;
 
 
 import com.instrumentalist.krs.events.features.*;
-import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.movement.fly.FlyModule;
 import com.instrumentalist.krs.hacks.features.movement.speed.SpeedEvent;
 import com.instrumentalist.krs.hacks.features.movement.speed.SpeedModule;
 import com.instrumentalist.krs.utils.move.MovementUtil;
@@ -30,7 +28,7 @@ public class FlagBoostSpeed implements SpeedEvent {
 
     @Override
     public void onMotion(MotionEvent event) {
-        if (mc.player == null || ModuleManager.getModuleState(FlyModule.class)) return;
+        if (mc.player == null) return;
 
         if (tick1 >= 12) {
             tick1 = 0;

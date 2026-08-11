@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.events;
+package com.instrumentalist.krs.events.guards;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.CollisionGetter;
