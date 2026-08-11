@@ -25,6 +25,7 @@ import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.instrumentalist.mixin.Initializer;
 import com.instrumentalist.krs.utils.math.Tuple;
 import com.instrumentalist.krs.screen.NanoVGClickGuiScreen;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ServerboundPongPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
@@ -275,17 +276,6 @@ public class ModuleManager implements EventListener {
     }
 
     @Override
-    public void onMouseClick(MouseClickEvent event) {
-        if (mc.gui.screen() != null) return;
-
-        for (Module m : allModules) {
-            if (-(event.button + 1) == m.key && event.action == GLFW.GLFW_PRESS) {
-                m.toggle();
-            }
-        }
-    }
-
-    @Override
     public void onKey(KeyboardEvent event) {
         boolean shouldOpenEmptyScreen = false;
 
@@ -295,7 +285,7 @@ public class ModuleManager implements EventListener {
         if (event.key == ClickGui.getOpenGuiKey() && event.action == GLFW.GLFW_PRESS) {
             if (mc.gui.screen() instanceof NanoVGClickGuiScreen screen) {
                 screen.onClose();
-            } else {
+            } else if (!(mc.gui.screen() instanceof ChatScreen)) {
                 GuiInputBlocker.releaseMovementKeys();
                 mc.mouseHandler.releaseMouse();
                 mc.gui.setScreen(new NanoVGClickGuiScreen(mc.gui.screen()));
