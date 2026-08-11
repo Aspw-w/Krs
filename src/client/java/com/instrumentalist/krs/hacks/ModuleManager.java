@@ -264,7 +264,7 @@ public class ModuleManager implements EventListener {
             }
         }
 
-        if (BlinkUtil.INSTANCE.getBlinking() && !BlinkUtil.INSTANCE.getLimiter() && !getModuleState(Freecam.class)) {
+        if (BlinkUtil.INSTANCE.getBlinking() && Blink.shouldBlinkOutgoing() && !BlinkUtil.INSTANCE.getLimiter() && !getModuleState(Freecam.class)) {
             if (packet instanceof ServerboundMovePlayerPacket || ModuleManager.getModuleState(KillAura.class) && KillAura.closestEntity != null && KillAura.shouldCancelUseItemOnWhileBlinking() && packet instanceof ServerboundUseItemOnPacket)
                 event.cancel();
 
@@ -272,6 +272,16 @@ public class ModuleManager implements EventListener {
                 event.cancel();
                 BlinkUtil.INSTANCE.addPacket(packet);
             }
+        }
+    }
+
+    @Override
+    public void onReceivedPacket(ReceivedPacketEvent event) {
+        if (mc.player == null || mc.level == null) return;
+
+        if (BlinkUtil.INSTANCE.getBlinking() && Blink.shouldBlinkIncoming() && !getModuleState(Freecam.class)) {
+            event.cancel();
+            BlinkUtil.INSTANCE.addIncomingPacket(event.packet);
         }
     }
 
