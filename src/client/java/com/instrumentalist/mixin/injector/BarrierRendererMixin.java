@@ -31,7 +31,15 @@ public abstract class BarrierRendererMixin {
     @Shadow public abstract void renderItem(LivingEntity entity, ItemStack stack, ItemDisplayContext renderMode, PoseStack matrices, SubmitNodeCollector submitter, int light);
 
     @Unique
-    private static final ItemStack BARRIER_STACK = new ItemStack(Blocks.BARRIER.asItem());
+    private static ItemStack barrierStack;
+
+    @Unique
+    private static ItemStack getBarrierStack() {
+        if (barrierStack == null) {
+            barrierStack = new ItemStack(Blocks.BARRIER.asItem());
+        }
+        return barrierStack;
+    }
 
     @Inject(method = "submitArmWithItem", at = @At("RETURN"))
     private void renderBarrierBlock(AbstractClientPlayer player, float tickDelta, float pitch, InteractionHand hand,
@@ -59,6 +67,6 @@ public abstract class BarrierRendererMixin {
             ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND
             : ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
 
-        renderItem(livingEntity, BARRIER_STACK, context, matrices, submitter, light);
+        renderItem(livingEntity, getBarrierStack(), context, matrices, submitter, light);
     }
 }
