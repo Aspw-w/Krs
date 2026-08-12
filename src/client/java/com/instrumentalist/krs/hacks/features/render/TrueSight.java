@@ -2,6 +2,7 @@ package com.instrumentalist.krs.hacks.features.render;
 
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
+import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import org.lwjgl.glfw.GLFW;
