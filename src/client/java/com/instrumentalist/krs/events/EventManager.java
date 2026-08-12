@@ -138,7 +138,8 @@ public class EventManager {
         MODIFY_PACKET(ModifyPacketEvent.class, "onModifyPacket"),
         FRAME_BUFFER(FrameBufferEvent.class, "onFrameBuffer"),
         RENDER_3D(Render3DEvent.class, "onRender3D"),
-        BLOCK(BlockEvent.class, "onBlock");
+        BLOCK(BlockEvent.class, "onBlock"),
+        CANCEL_BLOCK_BREAKING(CancelBlockBreakingEvent.class, "onCancelBlockBreaking");
 
         private final Class<? extends EventArgument> eventClass;
         private final String listenerMethodName;
