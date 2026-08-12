@@ -7,9 +7,11 @@ import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import org.lwjgl.glfw.GLFW;
 
-import java.awt.*;
-
 public class TrueSight extends Module {
+
+    public static final int BARRIER_GIZMO_COLOR = 0xFFFF0000;
+    public static final int BARRIER_SCAN_RADIUS_XZ = 32;
+    public static final int BARRIER_SCAN_RADIUS_Y = 32;
 
     @Setting
     public static final BooleanValue entities = new BooleanValue("Entities", true);
