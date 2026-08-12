@@ -95,7 +95,7 @@ public class ModuleManager implements EventListener {
                 new AutoLeave(), new AutoSneak(), new MiddleClick(),
                 new NoWeb(), new AntiLevitation(), new WaterSpeed(), new FastFall(),
                 new Spider(), new AutoRocket(), new AutoTotem(), new ItemDropChanger(),
-                new XCarry(), new PortalGodMode(), new Stasis(), new NoBreakReset()
+                new XCarry(), new PortalGodMode(), new Stasis(), new NoBreakReset(), new TrueSight()
         ));
 
         devModules.addAll(List.of(
