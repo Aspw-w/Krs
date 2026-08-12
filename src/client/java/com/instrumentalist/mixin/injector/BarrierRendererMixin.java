@@ -4,7 +4,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.TrueSight;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.core.BlockPos;
@@ -34,7 +34,7 @@ public abstract class BarrierRendererMixin {
     private static final ItemStack BARRIER_STACK = new ItemStack(Blocks.BARRIER.asItem());
 
     @Inject(method = "submitArmWithItem", at = @At("RETURN"))
-    private void renderBarrierBlock(LocalPlayer player, float tickDelta, float pitch, InteractionHand hand,
+    private void renderBarrierBlock(AbstractClientPlayer player, float tickDelta, float pitch, InteractionHand hand,
                                     float swingProgress, ItemStack stack, float equipProgress,
                                     PoseStack matrices, SubmitNodeCollector submitter, int light, CallbackInfo ci) {
         if (!ModuleManager.getModuleState(TrueSight.class) || !TrueSight.barriers.get()) {
