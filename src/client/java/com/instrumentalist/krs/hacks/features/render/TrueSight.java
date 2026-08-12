@@ -1,7 +1,3 @@
---- src/client/java/com/instrumentalist/krs/hacks/features/render/TrueSight.java (原始)
-
-
-+++ src/client/java/com/instrumentalist/krs/hacks/features/render/TrueSight.java (修改后)
 package com.instrumentalist.krs.hacks.features.render;
 
 import com.instrumentalist.krs.hacks.Module;
@@ -12,11 +8,6 @@ import org.lwjgl.glfw.GLFW;
 
 import java.awt.*;
 
-/**
- * TrueSight module
- * <p>
- * Allows you to see invisible entities and barriers.
- */
 public class TrueSight extends Module {
 
     @Setting
@@ -40,12 +31,6 @@ public class TrueSight extends Module {
     public void onDisable() {
     }
 
-    /**
-     * Check if an entity should be rendered with TrueSight
-     *
-     * @param entity the entity to check
-     * @return true if the entity should be rendered
-     */
     public static boolean shouldRenderEntity(net.minecraft.world.entity.LivingEntity entity) {
         if (!ModuleManager.getModuleState(TrueSight.class)) {
             return false;
@@ -58,12 +43,6 @@ public class TrueSight extends Module {
         return entity.isInvisible();
     }
 
-    /**
-     * Check if ESP module requires TrueSight for this entity
-     *
-     * @param entity the entity to check
-     * @return true if ESP needs TrueSight for this entity
-     */
     public static boolean requiresTrueSight(net.minecraft.world.entity.Entity entity) {
         if (!(entity instanceof net.minecraft.world.entity.LivingEntity livingEntity)) {
             return false;
