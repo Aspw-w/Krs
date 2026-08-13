@@ -37,7 +37,6 @@
     "InGameHudMixin",
     "InGameOverlayRendererMixin",
     "IndigoXrayBlockRendererMixin",
-    "LevelExtractorMixin",
     "InputConstantsMixin",
     "ItemInHandLayerMixin",
     "KeyboardInputMixin",
