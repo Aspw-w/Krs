@@ -1463,9 +1463,9 @@ public class Interface extends Module {
 
             vg.circle(x + 11f, rowY + row.rowHeight / 2f, 2.2f, row.pingColor);
             for (int line = 0; line < row.nameLines.size(); line++) {
-                NVGFonts.INTER.drawText(row.nameLines.get(line), x + 17f, rowY + 3f + line * 14f, 13f, row.nameColor, Alignment.LEFT_TOP, true);
+                NVGFonts.INTER.drawText(row.nameLines.get(line), x + 17f, rowY + 3f + line * 14f, 13f, row.nameColor, Alignment.LEFT_TOP, false);
             }
-            NVGFonts.INTER.drawText(row.pingText, x + 240f - 8f, rowY + 3f, 12f, row.pingColor, Alignment.RIGHT_TOP, true);
+            NVGFonts.INTER.drawText(row.pingText, x + 240f - 8f, rowY + 3f, 12f, row.pingColor, Alignment.RIGHT_TOP, false);
 
             rowY += row.rowHeight;
         }
