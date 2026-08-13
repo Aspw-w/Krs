@@ -52,6 +52,7 @@ public class NanoVGClickGuiScreen extends Screen {
     private static final float CLICK_GUI_SCALE = 1.4f;
     private static final float PANEL_FOOTER_HEIGHT = 22f;
     private static final float SETTINGS_PANEL_HEADER_HEIGHT = 44f;
+    private static final float SETTINGS_DOCK_GAP = 8f;
 
     private static NanoVGClickGuiScreen detachedClosingScreen;
     private static Module rememberedSettingsPanelModule;
@@ -612,8 +613,8 @@ public class NanoVGClickGuiScreen extends Screen {
         tooltipText = "";
         if (settingsPanelModule != null)
             settingsPanelRenderModule = settingsPanelModule;
-        settingsDockReveal = easeOut(animate("settings-panel-open", settingsPanelModule != null, 0.14f));
-        if (settingsDockReveal <= 0.01f)
+        settingsDockReveal = settingsPanelReveal();
+        if (settingsDockReveal <= 0f)
             settingsPanelRenderModule = null;
 
         float screenWidth = NanoVGManager.getScaledScreenWidth();
@@ -884,8 +885,8 @@ public class NanoVGClickGuiScreen extends Screen {
         renderTabs(vg, x + 10f, y + 42f, width - 20f);
         float contentY = y + 42f + 30f + 10f;
         float contentHeight = height - 42f - 30f - 20f - PANEL_FOOTER_HEIGHT;
-        float settingsWidth = settingsDockWidth(width - 20f) * settingsDockReveal;
-        float listWidth = width - 20f - (settingsWidth > 1f ? settingsWidth + 8f : 0f);
+        float contentWidth = width - 20f;
+        float listWidth = contentWidth - settingsDockReservedWidth(contentWidth, settingsDockReveal);
         int visibleCount = configView
                 ? renderConfigList(vg, x + 10f, contentY, listWidth, contentHeight)
                 : renderModuleList(vg, x + 10f, contentY, listWidth, contentHeight);
@@ -897,7 +898,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
         Module module = settingsPanelRenderModule;
         float reveal = settingsDockReveal;
-        if (module == null || reveal <= 0.01f) {
+        if (module == null || reveal <= 0f) {
             settingsPanelRect = new Rect(0f, 0f, 0f, 0f);
             settingsPanelCloseRect = new Rect(0f, 0f, 0f, 0f);
             settingsPanelViewport = new Rect(0f, 0f, 0f, 0f);
@@ -909,11 +910,13 @@ public class NanoVGClickGuiScreen extends Screen {
 
         float contentY = parentPanel.y + 42f + 30f + 10f;
         float contentHeight = parentPanel.height - 42f - 30f - 20f - PANEL_FOOTER_HEIGHT;
-        float width = settingsDockWidth(parentPanel.width - 20f) * reveal;
+        float contentWidth = parentPanel.width - 20f;
+        float dockWidth = settingsDockWidth(contentWidth);
+        float slide = (1f - reveal) * dockWidth;
         settingsPanelRect = new Rect(
-                parentPanel.x + parentPanel.width - 10f - width,
+                parentPanel.x + parentPanel.width - 10f - dockWidth + slide,
                 contentY,
-                width,
+                dockWidth,
                 contentHeight
         );
         settingsPanelCloseRect = new Rect(
@@ -923,7 +926,8 @@ public class NanoVGClickGuiScreen extends Screen {
                 20f
         );
 
-        vg.globalAlpha(reveal, () -> {
+        Rect dockClip = new Rect(parentPanel.x + 10f, contentY, contentWidth, contentHeight);
+        vg.scissor(dockClip.x, dockClip.y, dockClip.width, dockClip.height, () -> vg.globalAlpha(reveal, () -> {
             vg.roundedRectangle(
                     settingsPanelRect.x,
                     settingsPanelRect.y,
@@ -1028,9 +1032,6 @@ public class NanoVGClickGuiScreen extends Screen {
             if (maxSettingsPanelScroll <= 0f)
                 settingsPanelScrollVelocity = 0f;
 
-            if (settingsPanelModule == null)
-                return;
-
             withInputClip(settingsPanelViewport, () -> vg.scissor(
                     settingsPanelViewport.x,
                     settingsPanelViewport.y,
@@ -1045,11 +1046,31 @@ public class NanoVGClickGuiScreen extends Screen {
                     )
             ));
             renderSettingsPanelScrollbar(vg, settingsContentHeight);
-        });
+        }));
+
+        if (settingsPanelModule == null) {
+            while (controls.size() > settingsPanelControlStartIndex)
+                controls.remove(controls.size() - 1);
+        }
+    }
+
+    private float settingsPanelReveal() {
+        float raw = animate("settings-panel-open", settingsPanelModule != null, 0.14f);
+        if (settingsPanelModule == null && raw <= 0.02f) {
+            animations.put("settings-panel-open", 0f);
+            return 0f;
+        }
+
+        float reveal = settingsPanelModule != null ? easeOut(raw) : easeIn(raw);
+        return reveal <= 0.0005f ? 0f : reveal;
     }
 
     private static float settingsDockWidth(float contentWidth) {
         return Math.clamp(contentWidth * 0.40f, 248f, 332f);
+    }
+
+    private static float settingsDockReservedWidth(float contentWidth, float reveal) {
+        return (settingsDockWidth(contentWidth) + SETTINGS_DOCK_GAP) * Math.clamp(reveal, 0f, 1f);
     }
 
     private void renderHeader(NVGU vg, float x, float y, float width) {
@@ -1445,10 +1466,7 @@ public class NanoVGClickGuiScreen extends Screen {
         float nameRight = bindWidth > 0f ? settingsButton.x - 8f - bindWidth : settingsButton.x - 8f;
         float nameMaxWidth = Math.max(36f, nameRight - (row.x + 29f));
         Color nameColor = mix(mix(alpha(255, 255, 255, 208), alpha(255, 255, 255, 235), hover), new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 245), enabled);
-        String nameLabel = !searchQuery.isBlank()
-                ? module.moduleName + "  " + module.moduleCategory.name()
-                : module.moduleName;
-        NVGFonts.INTER.drawText(fitText(nameLabel, NVGFonts.INTER, 13f, nameMaxWidth), row.x + 29f, row.y + 7f, 13f, nameColor, Alignment.LEFT_TOP, true);
+        NVGFonts.INTER.drawText(fitText(module.moduleName, NVGFonts.INTER, 13f, nameMaxWidth), row.x + 29f, row.y + 7f, 13f, nameColor, Alignment.LEFT_TOP, true);
 
         drawSwitch(vg, switchRect.x, switchRect.y, switchRect.width, switchRect.height, enabled);
     }
@@ -2563,6 +2581,11 @@ public class NanoVGClickGuiScreen extends Screen {
     private static float easeOut(float progress) {
         progress = Math.clamp(progress, 0f, 1f);
         return 1f - (1f - progress) * (1f - progress);
+    }
+
+    private static float easeIn(float progress) {
+        progress = Math.clamp(progress, 0f, 1f);
+        return progress * progress;
     }
 
     private static float normalize(float value, float min, float max) {
