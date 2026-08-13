@@ -69,7 +69,6 @@
     "TamableAnimalMixin",
     "TitleScreenMixin",
     "TridentItemMixin",
-    "TrueSightMixin",
     "VulkanRenderPipelineMixin",
     "WorldMixin",
     "XrayBlockStateBaseMixin",
