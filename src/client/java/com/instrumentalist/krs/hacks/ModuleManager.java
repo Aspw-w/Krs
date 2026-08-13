@@ -25,6 +25,7 @@ import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.instrumentalist.mixin.Initializer;
 import com.instrumentalist.krs.utils.math.Tuple;
 import com.instrumentalist.krs.screen.NanoVGClickGuiScreen;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ServerboundPongPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
@@ -263,7 +264,7 @@ public class ModuleManager implements EventListener {
             }
         }
 
-        if (BlinkUtil.INSTANCE.getBlinking() && !BlinkUtil.INSTANCE.getLimiter() && !getModuleState(Freecam.class)) {
+        if (BlinkUtil.INSTANCE.getBlinking() && Blink.shouldBlinkOutgoing() && !BlinkUtil.INSTANCE.getLimiter() && !getModuleState(Freecam.class)) {
             if (KillAura.isSendingSpreadTeleportPacket() || TPStealer.isSendingSpreadTeleportPacket())
                 return;
 
@@ -285,6 +286,16 @@ public class ModuleManager implements EventListener {
     }
 
     @Override
+    public void onReceivedPacket(ReceivedPacketEvent event) {
+        if (mc.player == null || mc.level == null) return;
+
+        if (BlinkUtil.INSTANCE.getBlinking() && Blink.shouldBlinkIncoming() && !getModuleState(Freecam.class)) {
+            event.cancel();
+            BlinkUtil.INSTANCE.addIncomingPacket(event.packet);
+        }
+    }
+
+    @Override
     public void onKey(KeyboardEvent event) {
         boolean shouldOpenEmptyScreen = false;
 
@@ -294,7 +305,7 @@ public class ModuleManager implements EventListener {
         if (event.key == ClickGui.getOpenGuiKey() && event.action == GLFW.GLFW_PRESS) {
             if (mc.gui.screen() instanceof NanoVGClickGuiScreen screen) {
                 screen.onClose();
-            } else {
+            } else if (!(mc.gui.screen() instanceof ChatScreen)) {
                 GuiInputBlocker.releaseMovementKeys();
                 mc.mouseHandler.releaseMouse();
                 mc.gui.setScreen(new NanoVGClickGuiScreen(mc.gui.screen()));
