@@ -26,7 +26,7 @@ public final class BlinkUtil {
 
     public int getPacketCount() {
         synchronized (packets) {
-            return packets.size() + incomingPackets.size();
+            return packets.size();
         }
     }
 

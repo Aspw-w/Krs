@@ -1503,9 +1503,9 @@ public class NanoVGClickGuiScreen extends Screen {
         boolean hovered = isHovered(row);
         vg.roundedRectangle(row.x, row.y + 1f, row.width, row.height - 2f, 4f, hovered ? alpha(255, 205, 92, 34) : alpha(255, 205, 92, 20));
         vg.roundedRectangleBorder(row.x, row.y + 1f, row.width, row.height - 2f, 4f, 1f, alpha(255, 205, 92, hovered ? 70 : 46), Border.INSIDE);
-        NVGFonts.ICON.drawText(MaterialIcon.INFO, row.x + 8f, row.y + 6f, 12f, alpha(255, 205, 92, 235), Alignment.LEFT_TOP, false);
+        NVGFonts.ICON.drawText(MaterialIcon.INFO, row.x + 8f, row.y + 5f, 12f, alpha(255, 205, 92, 235), Alignment.LEFT_TOP, false);
         NVGFonts.INTER_MEDIUM.drawText("Note", row.x + 25f, row.y + 7f, 10f, alpha(255, 205, 92, 235), Alignment.LEFT_TOP, false);
-        NVGFonts.INTER.drawText(fitText(note, NVGFonts.INTER, 10f, row.width - 74f), row.x + 66f, row.y + 8f, 10f, alpha(255, 230, 170, 230), Alignment.LEFT_TOP, false);
+        NVGFonts.INTER.drawText(fitText(note, NVGFonts.INTER, 10f, row.width - 74f), row.x + 66f, row.y + 7f, 10f, alpha(255, 230, 170, 230), Alignment.LEFT_TOP, false);
         return y + 34f;
     }
 
