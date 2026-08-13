@@ -99,36 +99,83 @@ public final class Meteor extends Module {
     }
 
     private void spawnMeteor(ClientLevel level, LocalPlayer player) {
+        Vec3 impactPosition = findNearestSurface(level, player);
+        if (impactPosition == null)
+            return;
+
         ThreadLocalRandom random = ThreadLocalRandom.current();
+        double incomingAngle = random.nextDouble(Math.PI * 2.0);
+        double horizontalRun = random.nextDouble(10.0, 19.0);
+        double spawnHeight = random.nextDouble(36.0, 49.0);
+        Vec3 startPosition = impactPosition.add(
+                -Math.cos(incomingAngle) * horizontalRun,
+                spawnHeight,
+                -Math.sin(incomingAngle) * horizontalRun
+        );
+        Vec3 velocity = impactPosition.subtract(startPosition).normalize().scale(METEOR_SPEED);
+
+        meteors.add(new ClientMeteor(level, startPosition, impactPosition, velocity));
+    }
+
+    private Vec3 findNearestSurface(ClientLevel level, LocalPlayer player) {
+        Vec3 playerPos = player.position();
+        Vec3 closest = null;
+        double closestDistSq = Double.MAX_VALUE;
+
+        Vec3 floorHit = clipSurface(level, player.getEyePosition(), playerPos.subtract(0.0, 256.0, 0.0));
+        if (floorHit != null) {
+            closest = floorHit;
+            closestDistSq = playerPos.distanceToSqr(floorHit);
+        }
+
+        int originX = player.getBlockX();
+        int originZ = player.getBlockZ();
         int spawnRadius = radius.get();
 
-        for (int attempt = 0; attempt < 8; attempt++) {
-            double targetAngle = random.nextDouble(Math.PI * 2.0);
-            double minimumDistance = Math.min(8.0, spawnRadius * 0.5);
-            double targetDistance = minimumDistance + random.nextDouble() * (spawnRadius - minimumDistance);
-            int targetX = (int) Math.floor(player.getX() + Math.cos(targetAngle) * targetDistance);
-            int targetZ = (int) Math.floor(player.getZ() + Math.sin(targetAngle) * targetDistance);
+        for (int dx = -spawnRadius; dx <= spawnRadius; dx++) {
+            for (int dz = -spawnRadius; dz <= spawnRadius; dz++) {
+                if (dx * dx + dz * dz > spawnRadius * spawnRadius)
+                    continue;
 
-            BlockPos loadedChunkProbe = BlockPos.containing(targetX, player.getY(), targetZ);
-            if (!level.isLoaded(loadedChunkProbe))
-                continue;
+                int x = originX + dx;
+                int z = originZ + dz;
+                if (!level.isLoaded(BlockPos.containing(x, playerPos.y, z)))
+                    continue;
 
-            int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, targetX, targetZ);
-            Vec3 impactPosition = new Vec3(targetX + 0.5, surfaceY + 0.05, targetZ + 0.5);
-
-            double incomingAngle = random.nextDouble(Math.PI * 2.0);
-            double horizontalRun = random.nextDouble(10.0, 19.0);
-            double spawnHeight = random.nextDouble(36.0, 49.0);
-            Vec3 startPosition = impactPosition.add(
-                    -Math.cos(incomingAngle) * horizontalRun,
-                    spawnHeight,
-                    -Math.sin(incomingAngle) * horizontalRun
-            );
-            Vec3 velocity = impactPosition.subtract(startPosition).normalize().scale(METEOR_SPEED);
-
-            meteors.add(new ClientMeteor(level, startPosition, impactPosition, velocity));
-            return;
+                int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                Vec3 surface = new Vec3(x + 0.5, surfaceY + 0.05, z + 0.5);
+                double distSq = playerPos.distanceToSqr(surface);
+                if (distSq < closestDistSq) {
+                    closestDistSq = distSq;
+                    closest = surface;
+                }
+            }
         }
+
+        if (closest != null)
+            return closest;
+
+        BlockPos fallback = player.blockPosition();
+        if (level.isLoaded(fallback))
+            return new Vec3(player.getX(), player.getY(), player.getZ());
+
+        return null;
+    }
+
+    private static Vec3 clipSurface(ClientLevel level, Vec3 start, Vec3 end) {
+        HitResult hit = level.clip(new ClipContext(
+                start,
+                end,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
+                CollisionContext.empty()
+        ));
+
+        if (hit.getType() != HitResult.Type.BLOCK)
+            return null;
+
+        Vec3 location = hit.getLocation();
+        return new Vec3(location.x, location.y + 0.05, location.z);
     }
 
     private void clearMeteors() {
