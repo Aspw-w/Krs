@@ -264,6 +264,15 @@ public class ModuleManager implements EventListener {
         }
 
         if (BlinkUtil.INSTANCE.getBlinking() && !BlinkUtil.INSTANCE.getLimiter() && !getModuleState(Freecam.class)) {
+            if (KillAura.isSendingSpreadTeleportPacket())
+                return;
+
+            if (packet instanceof ServerboundMovePlayerPacket
+                    && KillAura.shouldSuppressMovementDuringSpreadTeleport()) {
+                event.cancel();
+                return;
+            }
+
             if (packet instanceof ServerboundMovePlayerPacket || ModuleManager.getModuleState(KillAura.class) && KillAura.closestEntity != null && KillAura.shouldCancelUseItemOnWhileBlinking() && packet instanceof ServerboundUseItemOnPacket)
                 event.cancel();
 

@@ -4,6 +4,7 @@ package com.instrumentalist.krs.hacks.features.combat;
 
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.HandleInputEvent;
+import com.instrumentalist.krs.events.features.SendPacketEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
@@ -217,7 +218,17 @@ public class KillAura extends Module {
             "TP Extended Reach",
             40f,
             0f,
-            100f,
+            200f,
+            tpReach::get
+    );
+
+    @Setting
+    private final IntValue tpTicks = new IntValue(
+            "TP Ticks",
+            0,
+            0,
+            60,
+            "tick",
             tpReach::get
     );
 
@@ -243,6 +254,8 @@ public class KillAura extends Module {
     private final ArrayList<TargetCandidate> targetCandidateBuffer = new ArrayList<>();
     private final ArrayList<TargetCandidate> targetCandidatePool = new ArrayList<>();
     private int targetCandidatePoolCursor;
+    private PendingTeleportSequence pendingTeleportSequence;
+    private boolean sendingTeleportSequencePacket;
 
     private long lastAttackTime = 0;
     private long lastOpenBlockTime = 0;
@@ -280,6 +293,50 @@ public class KillAura extends Module {
     }
 
     private record SmartRotationTarget(float yaw, float pitch) {
+    }
+
+    private interface TeleportStep {
+    }
+
+    private record TeleportMoveStep(Vec3 position) implements TeleportStep {
+    }
+
+    private record TeleportAttackStep(Entity target, Vec3 clientPosition) implements TeleportStep {
+    }
+
+    private static final class PendingTeleportSequence {
+        private final ArrayList<TeleportStep> steps;
+        private final ArrayList<Vec3> sentPositions = new ArrayList<>();
+        private final int totalMovePackets;
+        private final int totalTicks;
+        private final String swingMode;
+        private final String autoBlockMode;
+        private final float yaw;
+        private final float pitch;
+        private final Entity blockTarget;
+        private final boolean canAutoBlock;
+        private final boolean onGround;
+        private final boolean horizontalCollision;
+        private int nextStep;
+        private int sentMovePackets;
+        private int elapsedTicks;
+
+        private PendingTeleportSequence(ArrayList<TeleportStep> steps, int totalMovePackets, int totalTicks,
+                                        String swingMode, String autoBlockMode, float yaw, float pitch,
+                                        Entity blockTarget, boolean canAutoBlock, boolean onGround,
+                                        boolean horizontalCollision) {
+            this.steps = steps;
+            this.totalMovePackets = totalMovePackets;
+            this.totalTicks = totalTicks;
+            this.swingMode = swingMode;
+            this.autoBlockMode = autoBlockMode;
+            this.yaw = yaw;
+            this.pitch = pitch;
+            this.blockTarget = blockTarget;
+            this.canAutoBlock = canAutoBlock;
+            this.onGround = onGround;
+            this.horizontalCollision = horizontalCollision;
+        }
     }
 
     private float getRealTargetReach() {
@@ -324,6 +381,8 @@ public class KillAura extends Module {
 
     @Override
     public void onDisable() {
+        cancelPendingTeleportSequence();
+
         if (mc.player != null)
             resetPacketUnblocking();
 
@@ -337,11 +396,36 @@ public class KillAura extends Module {
     }
 
     @Override
+    public void onSendPacket(SendPacketEvent event) {
+        if (pendingTeleportSequence != null
+                && !sendingTeleportSequencePacket
+                && event.packet instanceof ServerboundMovePlayerPacket)
+            event.cancel();
+    }
+
+    @Override
     public void onHandleInput(HandleInputEvent event) {
-        if (mc.player == null || mc.level == null || mc.gameMode == null || mc.gameMode.getPlayerMode() == GameType.SPECTATOR) return;
+        if (mc.player == null || mc.level == null || mc.gameMode == null) {
+            pendingTeleportSequence = null;
+            sendingTeleportSequencePacket = false;
+            return;
+        }
+
+        if (mc.gameMode.getPlayerMode() == GameType.SPECTATOR) {
+            reset();
+            return;
+        }
 
         if (BehaviorUtils.noKillAura || mc.player.isSpectator()) {
             reset();
+            return;
+        }
+
+        if (pendingTeleportSequence != null) {
+            if (!tpReach.get())
+                reset();
+            else
+                advancePendingTeleportSequence();
             return;
         }
 
@@ -521,57 +605,73 @@ public class KillAura extends Module {
                         break;
                 }
 
+                ArrayList<Entity> attackTargets = new ArrayList<>(multiMode ? multiTargets.size() : 1);
                 switch (targetMode.get().toLowerCase(Locale.ROOT)) {
                     case "single":
-                        attackToEntity(closestEntity, tpReach.get() && closest.squaredDistance() >= baseAttackReachSquared);
+                        attackTargets.add(closestEntity);
                         break;
 
                     case "multi":
-                        for (int i = 0, n = multiTargets.size(); i < n; i++) {
-                            Entity target = multiTargets.get(i);
-                            double squaredDistance = EntityExtension.squaredBoxedDistanceTo(target, mc.player);
-                            attackToEntity(target, tpReach.get() && squaredDistance >= baseAttackReachSquared);
-                        }
+                        attackTargets.addAll(multiTargets);
                         break;
                 }
 
-                switch (currentAutoBlockMode) {
-                    case "vanilla":
-                        if (mc.player.getOffhandItem().getItem() instanceof ShieldItem)
-                            PacketUtil.sendPacket(new ServerboundUseItemPacket(InteractionHand.OFF_HAND, 0, yaw, pitch));
-                        else if (ToolUtil.INSTANCE.isSword(mc.player.getMainHandItem()) && wasPacketBlocking)
-                            PacketUtil.sendPacket(new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, 0, yaw, pitch));
-                        wasPacketBlocking = true;
-                        break;
+                if (startSpreadTeleportSequence(
+                        attackTargets,
+                        baseAttackReachSquared,
+                        currentAutoBlockMode,
+                        yaw,
+                        pitch,
+                        closestEntity,
+                        canAutoBlock
+                )) return;
 
-                    case "blink1":
-                        if (ToolUtil.INSTANCE.isSword(mc.player.getMainHandItem()) && abTick >= 1) {
-                            BlinkUtil.INSTANCE.sync(true, true);
-                            PacketUtil.sendPacket(new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, 0, yaw, pitch));
-                            BlinkUtil.INSTANCE.stopBlink();
-                            abTick = 0;
-                        }
-                        break;
-
-                    case "hypixel ncp":
-                    case "blink2":
-                    case "swap":
-                    case "legit":
-                    case "packet":
-                    case "interact1":
-                    case "basic":
-                    case "interact2":
-                    case "spoof":
-                    case "delayed":
-                    case "post attack":
-                        if (canAutoBlock)
-                            startAutoBlock(currentAutoBlockMode, yaw, pitch, closestEntity, true);
-                        break;
+                for (Entity target : attackTargets) {
+                    double squaredDistance = EntityExtension.squaredBoxedDistanceTo(target, mc.player);
+                    attackToEntity(target, tpReach.get() && squaredDistance >= baseAttackReachSquared);
                 }
+
+                finishAttackCycle(currentAutoBlockMode, yaw, pitch, closestEntity, canAutoBlock);
             } else if (visualSwing.get()) {
                 PlayerUtil.INSTANCE.swingHandWithoutPacket(InteractionHand.MAIN_HAND);
                 renderParticles(closestEntity);
             }
+        }
+    }
+
+    private void finishAttackCycle(String autoBlockMode, float yaw, float pitch, Entity blockTarget, boolean canAutoBlock) {
+        switch (autoBlockMode) {
+            case "vanilla":
+                if (mc.player.getOffhandItem().getItem() instanceof ShieldItem)
+                    PacketUtil.sendPacket(new ServerboundUseItemPacket(InteractionHand.OFF_HAND, 0, yaw, pitch));
+                else if (ToolUtil.INSTANCE.isSword(mc.player.getMainHandItem()) && wasPacketBlocking)
+                    PacketUtil.sendPacket(new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, 0, yaw, pitch));
+                wasPacketBlocking = true;
+                break;
+
+            case "blink1":
+                if (ToolUtil.INSTANCE.isSword(mc.player.getMainHandItem()) && abTick >= 1) {
+                    BlinkUtil.INSTANCE.sync(true, true);
+                    PacketUtil.sendPacket(new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, 0, yaw, pitch));
+                    BlinkUtil.INSTANCE.stopBlink();
+                    abTick = 0;
+                }
+                break;
+
+            case "hypixel ncp":
+            case "blink2":
+            case "swap":
+            case "legit":
+            case "packet":
+            case "interact1":
+            case "basic":
+            case "interact2":
+            case "spoof":
+            case "delayed":
+            case "post attack":
+                if (canAutoBlock)
+                    startAutoBlock(autoBlockMode, yaw, pitch, blockTarget, true);
+                break;
         }
     }
 
@@ -833,6 +933,20 @@ public class KillAura extends Module {
         return mode.equalsIgnoreCase("vanilla")
                 || mode.equalsIgnoreCase("blink1")
                 || usesBlink(mode);
+    }
+
+    public static boolean isSendingSpreadTeleportPacket() {
+        KillAura killAura = ModuleManager.getModule(KillAura.class);
+        return killAura != null
+                && killAura.pendingTeleportSequence != null
+                && killAura.sendingTeleportSequencePacket;
+    }
+
+    public static boolean shouldSuppressMovementDuringSpreadTeleport() {
+        KillAura killAura = ModuleManager.getModule(KillAura.class);
+        return killAura != null
+                && killAura.pendingTeleportSequence != null
+                && !killAura.sendingTeleportSequencePacket;
     }
 
     private boolean canAutoBlock(String mode, double squaredDistance, boolean targetVisible) {
@@ -1285,6 +1399,161 @@ public class KillAura extends Module {
         }
     }
 
+    private boolean startSpreadTeleportSequence(List<Entity> attackTargets, double baseAttackReachSquared,
+                                                String autoBlockMode, float yaw, float pitch,
+                                                Entity blockTarget, boolean canAutoBlock) {
+        int spreadTicks = Math.clamp(tpTicks.get(), 0, 60);
+        if (spreadTicks == 0 || attackTargets.isEmpty())
+            return false;
+        int totalTicks = spreadTicks + 1;
+
+        boolean returnAfterAttack = tpBack.get();
+        ArrayList<TeleportStep> steps = new ArrayList<>();
+        Vec3 simulatedPosition = mc.player.position();
+        Vec3 simulatedEyePosition = mc.player.getEyePosition();
+        double eyeHeight = mc.player.getEyeHeight();
+        int totalMovePackets = 0;
+
+        for (Entity target : attackTargets) {
+            boolean teleport = tpReach.get()
+                    && EntityExtension.squaredBoxedDistanceTo(target, simulatedEyePosition) >= baseAttackReachSquared;
+            if (!teleport) {
+                steps.add(new TeleportAttackStep(target, null));
+                continue;
+            }
+
+            Vec3 destination = target.position();
+            ArrayList<Vec3> paths = MainPathFinder.computePath(simulatedPosition, destination);
+            if (paths == null || paths.isEmpty())
+                continue;
+
+            for (Vec3 path : paths) {
+                steps.add(new TeleportMoveStep(path));
+                totalMovePackets++;
+            }
+
+            steps.add(new TeleportAttackStep(target, returnAfterAttack ? null : destination));
+
+            if (returnAfterAttack) {
+                for (int i = paths.size() - 1; i >= 0; i--) {
+                    steps.add(new TeleportMoveStep(paths.get(i)));
+                    totalMovePackets++;
+                }
+            } else {
+                simulatedPosition = destination;
+                simulatedEyePosition = destination.add(0.0D, eyeHeight, 0.0D);
+            }
+        }
+
+        if (totalMovePackets == 0)
+            return false;
+
+        if (wasBlinking)
+            BlinkUtil.INSTANCE.sync(true, true);
+
+        pendingTeleportSequence = new PendingTeleportSequence(
+                steps,
+                totalMovePackets,
+                totalTicks,
+                swingOrderMode.get().toLowerCase(Locale.ROOT),
+                autoBlockMode,
+                yaw,
+                pitch,
+                blockTarget,
+                canAutoBlock,
+                tpOnGroundPacket.get(),
+                mc.player.horizontalCollision
+        );
+        advancePendingTeleportSequence();
+        return true;
+    }
+
+    private void advancePendingTeleportSequence() {
+        PendingTeleportSequence sequence = pendingTeleportSequence;
+        if (sequence == null || mc.player == null || mc.gameMode == null)
+            return;
+
+        sequence.elapsedTicks = Math.min(sequence.elapsedTicks + 1, sequence.totalTicks);
+        int movePacketTarget = (int) ((long) sequence.totalMovePackets
+                * sequence.elapsedTicks / sequence.totalTicks);
+
+        while (sequence.nextStep < sequence.steps.size()) {
+            TeleportStep step = sequence.steps.get(sequence.nextStep);
+            if (step instanceof TeleportMoveStep moveStep) {
+                if (sequence.sentMovePackets >= movePacketTarget)
+                    break;
+
+                sendTeleportMovePacket(moveStep.position(), sequence.onGround, sequence.horizontalCollision);
+                sequence.sentPositions.add(moveStep.position());
+                sequence.sentMovePackets++;
+            } else if (step instanceof TeleportAttackStep attackStep) {
+                if (attackStep.clientPosition() != null) {
+                    mc.player.setPos(attackStep.clientPosition());
+                    sequence.sentPositions.clear();
+                }
+                performSpreadTeleportAttack(attackStep.target(), sequence.swingMode);
+            }
+            sequence.nextStep++;
+        }
+
+        if (sequence.nextStep < sequence.steps.size())
+            return;
+
+        pendingTeleportSequence = null;
+        finishAttackCycle(
+                sequence.autoBlockMode,
+                sequence.yaw,
+                sequence.pitch,
+                sequence.blockTarget,
+                sequence.canAutoBlock
+        );
+    }
+
+    private void cancelPendingTeleportSequence() {
+        PendingTeleportSequence sequence = pendingTeleportSequence;
+        if (sequence == null)
+            return;
+
+        try {
+            if (mc.player == null || sequence.sentPositions.isEmpty())
+                return;
+
+            for (int i = sequence.sentPositions.size() - 1; i >= 0; i--)
+                sendTeleportMovePacket(sequence.sentPositions.get(i), sequence.onGround, sequence.horizontalCollision);
+
+            sendTeleportMovePacket(mc.player.position(), sequence.onGround, mc.player.horizontalCollision);
+        } finally {
+            pendingTeleportSequence = null;
+            sendingTeleportSequencePacket = false;
+        }
+    }
+
+    private void sendTeleportMovePacket(Vec3 position, boolean onGround, boolean horizontalCollision) {
+        boolean wasSendingTeleportSequencePacket = sendingTeleportSequencePacket;
+        sendingTeleportSequencePacket = true;
+        try {
+            PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(
+                    position.x,
+                    position.y,
+                    position.z,
+                    onGround,
+                    horizontalCollision
+            ));
+        } finally {
+            sendingTeleportSequencePacket = wasSendingTeleportSequencePacket;
+        }
+    }
+
+    private void performSpreadTeleportAttack(Entity target, String currentSwingMode) {
+        boolean wasSendingTeleportSequencePacket = sendingTeleportSequencePacket;
+        sendingTeleportSequencePacket = true;
+        try {
+            performAttack(target, currentSwingMode);
+        } finally {
+            sendingTeleportSequencePacket = wasSendingTeleportSequencePacket;
+        }
+    }
+
     private void attackToEntity(Entity target, boolean tpMode) {
         ArrayList<Vec3> paths = null;
 
@@ -1301,7 +1570,19 @@ public class KillAura extends Module {
                 mc.player.setPos(target.position());
         }
 
-        switch (swingOrderMode.get().toLowerCase(Locale.ROOT)) {
+        performAttack(target, swingOrderMode.get().toLowerCase(Locale.ROOT));
+
+        if (tpMode && !paths.isEmpty() && tpBack.get()) {
+            List<Vec3> reversedPaths = paths.reversed();
+
+            for (Vec3 path : reversedPaths) {
+                PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(path.x, path.y, path.z, tpOnGroundPacket.get(), mc.player.horizontalCollision));
+            }
+        }
+    }
+
+    private void performAttack(Entity target, String currentSwingMode) {
+        switch (currentSwingMode) {
             case "1.8":
                 mc.player.swing(InteractionHand.MAIN_HAND);
                 mc.gameMode.attack(mc.player, target);
@@ -1319,17 +1600,11 @@ public class KillAura extends Module {
         }
 
         renderParticles(target);
-
-        if (tpMode && !paths.isEmpty() && tpBack.get()) {
-            List<Vec3> reversedPaths = paths.reversed();
-
-            for (Vec3 path : reversedPaths) {
-                PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(path.x, path.y, path.z, tpOnGroundPacket.get(), mc.player.horizontalCollision));
-            }
-        }
     }
 
     private void reset() {
+        cancelPendingTeleportSequence();
+
         if (closestEntity != null)
             Client.rotationManager.stopRotation();
 

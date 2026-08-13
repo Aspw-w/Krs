@@ -16,6 +16,7 @@ import com.instrumentalist.krs.hacks.features.exploit.disabler.features.HypixelD
 import com.instrumentalist.krs.hacks.features.level.Breaker;
 import com.instrumentalist.krs.hacks.features.level.CivBreak;
 import com.instrumentalist.krs.hacks.features.level.Nuker;
+import com.instrumentalist.krs.hacks.features.player.Stalker;
 import com.instrumentalist.krs.utils.entity.StreamConverter;
 import com.instrumentalist.krs.utils.math.Interpolation;
 import com.instrumentalist.krs.utils.math.BehaviorUtils;
@@ -2084,6 +2085,7 @@ public class Interface extends Module {
     public boolean isHandlingTabGuiKey(int key, int action) {
         return tempEnabled
                 && tabGui.get()
+                && !ModuleManager.getModuleState(Stalker.class)
                 && mc.gui.screen() == null
                 && (action == GLFW.GLFW_PRESS || action == GLFW.GLFW_REPEAT)
                 && isTabGuiArrowKey(key);

@@ -14,7 +14,10 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
@@ -43,6 +46,11 @@ public class Stalker extends Module {
 
     @Override
     public void onEnable() {
+        reset();
+        if (mc.player != null && mc.level != null) {
+            updatePlayerList();
+            selectClosestTarget();
+        }
     }
 
     @Override
@@ -54,16 +62,13 @@ public class Stalker extends Module {
     public void onMotion(MotionEvent event) {
         if (mc.player == null || mc.level == null) return;
 
-        if (players == null || players.isEmpty()) {
-            currentTarget = null;
-            updatePlayerList();
-            return;
-        }
+        updatePlayerList();
 
-        if (currentTarget == null || currentTarget.isRemoved() || !players.contains((AbstractClientPlayer) currentTarget)) {
-            updatePlayerList();
+        if (players.isEmpty())
+            return;
+
+        if (currentTarget == null)
             selectClosestTarget();
-        }
 
         if (currentTarget == null) return;
 
@@ -80,19 +85,67 @@ public class Stalker extends Module {
     }
 
     private void updatePlayerList() {
-        players.clear();
+        if (mc.player == null || mc.level == null) {
+            reset();
+            return;
+        }
+
+        UUID selectedTargetId = currentTarget == null ? null : currentTarget.getUUID();
+        Map<UUID, AbstractClientPlayer> livePlayers = new HashMap<>();
         for (AbstractClientPlayer player : mc.level.players()) {
             if (!player.isRemoved() && !(player instanceof LocalPlayer))
-                players.add(player);
+                livePlayers.put(player.getUUID(), player);
         }
-        players.sort(Comparator.comparingDouble(player -> mc.player.distanceToSqr(player)));
-        if (targetIndex >= players.size())
+
+        ArrayList<AbstractClientPlayer> refreshedPlayers = new ArrayList<>(livePlayers.size());
+        for (AbstractClientPlayer player : players) {
+            AbstractClientPlayer refreshedPlayer = livePlayers.remove(player.getUUID());
+            if (refreshedPlayer != null)
+                refreshedPlayers.add(refreshedPlayer);
+        }
+
+        ArrayList<AbstractClientPlayer> newPlayers = new ArrayList<>(livePlayers.values());
+        newPlayers.sort(Comparator
+                .comparingDouble((AbstractClientPlayer player) -> mc.player.distanceToSqr(player))
+                .thenComparing(AbstractClientPlayer::getUUID));
+        refreshedPlayers.addAll(newPlayers);
+
+        players.clear();
+        players.addAll(refreshedPlayers);
+
+        if (players.isEmpty()) {
             targetIndex = 0;
+            currentTarget = null;
+            return;
+        }
+
+        if (selectedTargetId != null) {
+            for (int i = 0; i < players.size(); i++) {
+                AbstractClientPlayer player = players.get(i);
+                if (player.getUUID().equals(selectedTargetId)) {
+                    targetIndex = i;
+                    currentTarget = player;
+                    return;
+                }
+            }
+        }
+
+        targetIndex = 0;
+        currentTarget = null;
     }
 
     @Override
     public void onKey(KeyboardEvent event) {
         if (mc.player == null || mc.level == null || event.action != GLFW.GLFW_PRESS) return;
+        if (event.key != GLFW.GLFW_KEY_LEFT && event.key != GLFW.GLFW_KEY_RIGHT) return;
+
+        updatePlayerList();
+        if (players.isEmpty()) return;
+
+        if (currentTarget == null) {
+            selectClosestTarget();
+            return;
+        }
 
         if (event.key == GLFW.GLFW_KEY_LEFT) {
             selectPreviousTarget();
@@ -109,7 +162,17 @@ public class Stalker extends Module {
 
     private void selectClosestTarget() {
         if (!players.isEmpty()) {
-            targetIndex = 0;
+            int closestIndex = 0;
+            double closestDistance = mc.player.distanceToSqr(players.getFirst());
+            for (int i = 1; i < players.size(); i++) {
+                double distance = mc.player.distanceToSqr(players.get(i));
+                if (distance < closestDistance) {
+                    closestIndex = i;
+                    closestDistance = distance;
+                }
+            }
+
+            targetIndex = closestIndex;
             currentTarget = players.get(targetIndex);
         }
     }
