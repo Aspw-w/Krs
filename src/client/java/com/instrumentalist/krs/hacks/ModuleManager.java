@@ -94,7 +94,7 @@ public class ModuleManager implements EventListener {
                 new AutoLeave(), new AutoSneak(), new MiddleClick(),
                 new NoWeb(), new AntiLevitation(), new WaterSpeed(), new FastFall(),
                 new Spider(), new AutoRocket(), new AutoTotem(), new ItemDropChanger(),
-                new XCarry(), new PortalGodMode(), new Stasis()
+                new XCarry(), new PortalGodMode(), new Stasis(), new TPStealer()
         ));
 
         devModules.addAll(List.of(
@@ -264,11 +264,12 @@ public class ModuleManager implements EventListener {
         }
 
         if (BlinkUtil.INSTANCE.getBlinking() && !BlinkUtil.INSTANCE.getLimiter() && !getModuleState(Freecam.class)) {
-            if (KillAura.isSendingSpreadTeleportPacket())
+            if (KillAura.isSendingSpreadTeleportPacket() || TPStealer.isSendingSpreadTeleportPacket())
                 return;
 
             if (packet instanceof ServerboundMovePlayerPacket
-                    && KillAura.shouldSuppressMovementDuringSpreadTeleport()) {
+                    && (KillAura.shouldSuppressMovementDuringSpreadTeleport()
+                    || TPStealer.shouldSuppressMovement())) {
                 event.cancel();
                 return;
             }
