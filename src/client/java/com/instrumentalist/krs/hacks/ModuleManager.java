@@ -232,7 +232,7 @@ public class ModuleManager implements EventListener {
 
         BehaviorUtils.noKillAura = false;
 
-        PlayerUtil.INSTANCE.stopSpoof();
+        PlayerUtil.INSTANCE.fullResetSpoofState();
 
         if (Client.nanoVgManager != null)
             Client.nanoVgManager.discardQueuedRenderers();
