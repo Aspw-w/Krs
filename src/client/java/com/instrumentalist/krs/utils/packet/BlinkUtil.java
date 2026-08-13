@@ -13,6 +13,7 @@ public final class BlinkUtil {
 
     public final Minecraft mc = Minecraft.getInstance();
     private final ArrayDeque<Packet<?>> packets = new ArrayDeque<>();
+    private final ArrayDeque<Packet<?>> incomingPackets = new ArrayDeque<>();
     private final Object flushLock = new Object();
     private Vec3 resetPosition;
     private Double prevYMotion = null;
@@ -25,7 +26,7 @@ public final class BlinkUtil {
 
     public int getPacketCount() {
         synchronized (packets) {
-            return packets.size();
+            return packets.size() + incomingPackets.size();
         }
     }
 
@@ -62,6 +63,23 @@ public final class BlinkUtil {
         }
     }
 
+    public void addIncomingPacket(Packet<?> packet) {
+        if (packet == null)
+            return;
+
+        synchronized (flushLock) {
+            ArrayDeque<Packet<?>> overflowPackets = null;
+            synchronized (incomingPackets) {
+                incomingPackets.addLast(packet);
+                if (incomingPackets.size() >= MAX_BUFFERED_PACKETS)
+                    overflowPackets = drainIncomingPackets();
+            }
+
+            if (overflowPackets != null)
+                flushIncomingPackets(overflowPackets);
+        }
+    }
+
     public void doBlink() {
         var player = mc.player;
         if (player == null) return;
@@ -87,10 +105,15 @@ public final class BlinkUtil {
         if (blinkSync) {
             synchronized (flushLock) {
                 ArrayDeque<Packet<?>> pendingPackets;
+                ArrayDeque<Packet<?>> pendingIncomingPackets;
                 synchronized (packets) {
                     pendingPackets = drainPackets();
                 }
+                synchronized (incomingPackets) {
+                    pendingIncomingPackets = drainIncomingPackets();
+                }
                 flushPackets(pendingPackets);
+                flushIncomingPackets(pendingIncomingPackets);
             }
             resetPosition = null;
         } else {
@@ -100,6 +123,9 @@ public final class BlinkUtil {
                     limiter = true;
                     synchronized (packets) {
                         packets.clear();
+                    }
+                    synchronized (incomingPackets) {
+                        incomingPackets.clear();
                     }
                 } finally {
                     limiter = previousLimiter;
@@ -120,6 +146,9 @@ public final class BlinkUtil {
             synchronized (packets) {
                 packets.clear();
             }
+            synchronized (incomingPackets) {
+                incomingPackets.clear();
+            }
         }
         resetPosition = null;
         prevYMotion = null;
@@ -130,6 +159,12 @@ public final class BlinkUtil {
     private ArrayDeque<Packet<?>> drainPackets() {
         ArrayDeque<Packet<?>> drained = new ArrayDeque<>(packets);
         packets.clear();
+        return drained;
+    }
+
+    private ArrayDeque<Packet<?>> drainIncomingPackets() {
+        ArrayDeque<Packet<?>> drained = new ArrayDeque<>(incomingPackets);
+        incomingPackets.clear();
         return drained;
     }
 
@@ -156,6 +191,26 @@ public final class BlinkUtil {
             }
         } finally {
             limiter = previousLimiter;
+        }
+    }
+
+    private void flushIncomingPackets(ArrayDeque<Packet<?>> pendingPackets) {
+        if (pendingPackets.isEmpty())
+            return;
+
+        while (!pendingPackets.isEmpty()) {
+            Packet<?> packet = pendingPackets.removeFirst();
+            try {
+                PacketUtil.handlePacket(packet);
+            } catch (RuntimeException failure) {
+                pendingPackets.addFirst(packet);
+                while (pendingPackets.size() > MAX_BUFFERED_PACKETS)
+                    pendingPackets.removeLast();
+                synchronized (incomingPackets) {
+                    incomingPackets.addAll(pendingPackets);
+                }
+                return;
+            }
         }
     }
 }

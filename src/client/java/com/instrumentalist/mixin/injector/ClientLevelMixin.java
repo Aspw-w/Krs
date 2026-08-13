@@ -1,8 +1,12 @@
 package com.instrumentalist.mixin.injector;
 
+import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.render.TrueSight;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
@@ -12,6 +16,14 @@ import java.util.NoSuchElementException;
 
 @Mixin(ClientLevel.class)
 public abstract class ClientLevelMixin {
+
+    @ModifyReturnValue(method = "getMarkerParticleTarget", at = @At("RETURN"))
+    private Block krs$trueSightBarriers(Block original) {
+        if (ModuleManager.getModuleState(TrueSight.class) && TrueSight.barriers.get())
+            return Blocks.BARRIER;
+
+        return original;
+    }
 
     @ModifyReturnValue(method = "entitiesForRendering", at = @At("RETURN"))
     private Iterable<Entity> krs$skipNullRenderEntities(Iterable<Entity> original) {
