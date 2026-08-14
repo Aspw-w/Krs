@@ -12,6 +12,7 @@ import com.instrumentalist.krs.hacks.features.render.ImGui;
 import com.instrumentalist.krs.hacks.features.render.Interface;
 import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.network.FileUtil;
+import com.instrumentalist.krs.utils.network.ServerLookup;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.pathfinder.MainPathFinder;
 import com.instrumentalist.krs.utils.value.*;
@@ -526,6 +527,14 @@ public class ModuleRenderable implements Renderable, IMinecraft {
             showLog(chatMode, "vclip <height> -> teleport up from current position");
             showLog(chatMode, "tp <x> <y> <z> or <player> -> teleport to everywhere");
             showLog(chatMode, "notify <title> <message> -> show custom notification");
+            showLog(chatMode, "server <address> -> dump raw IP, vulns, linked servers, and all lookup data");
+        } else if (command.equalsIgnoreCase("server") || command.toLowerCase(Locale.ROOT).startsWith("server ")) {
+            String target = command.length() > 7 ? command.substring(7).trim() : "";
+            String error = ServerLookup.start(target, lines -> mc.execute(() -> {
+                for (String line : lines)
+                    showLog(chatMode, line);
+            }));
+            showLog(chatMode, Objects.requireNonNullElse(error, "Looking up server..."));
         } else if (command.toLowerCase().startsWith("t " ) || command.toLowerCase().startsWith("toggle " )) {
             String moduleName = "";
 
