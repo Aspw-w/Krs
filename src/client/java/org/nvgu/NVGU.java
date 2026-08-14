@@ -52,6 +52,8 @@ public class NVGU {
     private final float[] effectTransform = new float[6];
     private final float[] shaderTransform = new float[6];
     private final ShaderRect reusableShaderRect = new ShaderRect();
+    private final ArrayList<Shader2DRenderer.IndicatorRequest> transformedIndicatorRequests = new ArrayList<>();
+    private final ArrayList<Shader2DRenderer.IndicatorRequest> transformedIndicatorRequestPool = new ArrayList<>();
     private final float[] textBounds = new float[4];
     private final float[] textAscender = new float[1];
     private final float[] textDescender = new float[1];
@@ -731,6 +733,72 @@ public class NVGU {
                 offsetY * offsetScaleY,
                 effectiveColour
         );
+
+        return this;
+    }
+
+    /**
+     * Draws a batch of directional chevrons with the signed-distance-field indicator shader.
+     * Request coordinates use the current NanoVG coordinate system and transform.
+     */
+    public NVGU directionalIndicators(List<Shader2DRenderer.IndicatorRequest> requests) {
+        if (requests == null || requests.isEmpty() || !frameActive)
+            return this;
+
+        if (effectBatch != null)
+            flushEffectBatch();
+
+        nvgCurrentTransform(handle, shaderTransform);
+        float scaleX = (float) Math.hypot(shaderTransform[0], shaderTransform[1]);
+        float scaleY = (float) Math.hypot(shaderTransform[2], shaderTransform[3]);
+        float scale = Math.max(0.001f, Math.max(scaleX, scaleY));
+        transformedIndicatorRequests.clear();
+
+        for (Shader2DRenderer.IndicatorRequest request : requests) {
+            if (request == null || request.color == null || request.color.getAlpha() <= 0 || request.size <= 0f)
+                continue;
+
+            float directionX = (float) Math.sin(request.angle);
+            float directionY = (float) -Math.cos(request.angle);
+            float transformedDirectionX = directionX * shaderTransform[0] + directionY * shaderTransform[2];
+            float transformedDirectionY = directionX * shaderTransform[1] + directionY * shaderTransform[3];
+            float transformedAngle = (float) Math.atan2(transformedDirectionX, -transformedDirectionY);
+            Color effectiveColor = withGlobalAlpha(request.color);
+            if (effectiveColor.getAlpha() <= 0)
+                continue;
+
+            int index = transformedIndicatorRequests.size();
+            while (transformedIndicatorRequestPool.size() <= index)
+                transformedIndicatorRequestPool.add(new Shader2DRenderer.IndicatorRequest());
+
+            transformedIndicatorRequests.add(transformedIndicatorRequestPool.get(index).set(
+                    transformX(shaderTransform, request.centerX, request.centerY),
+                    transformY(shaderTransform, request.centerX, request.centerY),
+                    transformedAngle,
+                    request.size * scale,
+                    request.thickness * scale,
+                    request.glowRadius * scale,
+                    request.pulse,
+                    effectiveColor
+            ));
+        }
+
+        if (transformedIndicatorRequests.isEmpty())
+            return this;
+
+        nvgCurrentTransform(handle, effectTransform);
+        endNativeFrame();
+
+        Shader2DRenderer.INSTANCE.drawDirectionalIndicators(
+                frameWidth,
+                frameHeight,
+                transformedIndicatorRequests
+        );
+
+        beginFrameInternal(frameWidth, frameHeight, frameDevicePixelRatio, false);
+        nvgSave(handle);
+        nvgTransform(handle, effectTransform[0], effectTransform[1], effectTransform[2], effectTransform[3], effectTransform[4], effectTransform[5]);
+        nvgGlobalAlpha(handle, currentGlobalAlpha);
 
         return this;
     }

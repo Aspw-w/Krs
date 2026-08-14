@@ -84,7 +84,7 @@ public class ModuleManager implements EventListener {
                 new FastBreak(), new ViewModel(), new EntityDesync(), new Step(), new AntiVoid(),
                 new AutoFish(), new NoJumpCooldown(), new AlwaysRiptide(),
                 new WorldTime(), new ChatCommands(), new Rotations(),
-                new PluginsDetector(), new NameTags(), new ESP(), new MovementFix(), new LongThrow(),
+                new PluginsDetector(), new NameTags(), new ESP(), new PlayerIndicators(), new MovementFix(), new LongThrow(),
                 new MaceExploit(), new NoPush(), new LookTP(),
                 new AntiCheatDetector(), new HackerDetector(), new PackSpoofer(),
                 new EntityFly(), new WidelyPutin(), new Imposter(), new Stalker(),

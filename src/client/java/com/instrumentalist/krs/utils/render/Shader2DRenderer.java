@@ -22,6 +22,7 @@ public final class Shader2DRenderer {
     public static final Shader2DRenderer INSTANCE = new Shader2DRenderer();
     private static final int HUD_BLUR_BASE_DOWNSCALE = 2;
     private static final int EFFECT_BATCH_SIZE = 64;
+    private static final int INDICATOR_BATCH_SIZE = 64;
 
     private static String rectVertexShader() {
         return """
@@ -335,6 +336,107 @@ public final class Shader2DRenderer {
             """.formatted(EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE);
     }
 
+    private static String indicatorVertexShader() {
+        return """
+            #version 330 core
+
+            uniform vec4 uIndicators[%d];
+            uniform vec2 uScreenSize;
+
+            out vec2 vLocalPosition;
+            flat out int vIndicatorIndex;
+
+            const vec2 POSITIONS[6] = vec2[](
+                vec2(-1.0, -1.0),
+                vec2( 1.0, -1.0),
+                vec2( 1.0,  1.0),
+                vec2(-1.0, -1.0),
+                vec2( 1.0,  1.0),
+                vec2(-1.0,  1.0)
+            );
+
+            void main() {
+                int indicatorIndex = gl_InstanceID;
+                vec4 indicator = uIndicators[indicatorIndex];
+                vec2 localPosition = POSITIONS[gl_VertexID] * indicator.z;
+                float sine = sin(indicator.w);
+                float cosine = cos(indicator.w);
+                vec2 rotatedPosition = vec2(
+                    localPosition.x * cosine - localPosition.y * sine,
+                    localPosition.x * sine + localPosition.y * cosine
+                );
+                vec2 pixelPosition = indicator.xy + rotatedPosition;
+
+                vLocalPosition = localPosition;
+                vIndicatorIndex = indicatorIndex;
+
+                vec2 ndc = vec2(
+                    pixelPosition.x / uScreenSize.x * 2.0 - 1.0,
+                    1.0 - pixelPosition.y / uScreenSize.y * 2.0
+                );
+                gl_Position = vec4(ndc, 0.0, 1.0);
+            }
+            """.formatted(INDICATOR_BATCH_SIZE);
+    }
+
+    private static String indicatorFragmentShader() {
+        return """
+            #version 330 core
+
+            uniform vec4 uIndicatorParams[%d];
+            uniform vec4 uIndicatorColors[%d];
+
+            in vec2 vLocalPosition;
+            flat in int vIndicatorIndex;
+            out vec4 fragColor;
+
+            float segmentDistance(vec2 point, vec2 start, vec2 end) {
+                vec2 segment = end - start;
+                float denominator = max(dot(segment, segment), 0.0001);
+                float amount = clamp(dot(point - start, segment) / denominator, 0.0, 1.0);
+                return length(point - (start + segment * amount));
+            }
+
+            void main() {
+                vec4 params = uIndicatorParams[vIndicatorIndex];
+                vec4 color = uIndicatorColors[vIndicatorIndex];
+                float size = max(params.x, 1.0);
+                float thickness = max(params.y, 0.75);
+                float glowRadius = max(params.z, 0.0);
+                float pulse = clamp(params.w, 0.0, 1.0);
+
+                vec2 tip = vec2(0.0, -size * 0.66);
+                vec2 leftWing = vec2(-size * 0.62, size * 0.08);
+                vec2 rightWing = vec2(size * 0.62, size * 0.08);
+                float distanceToArrow = min(
+                    segmentDistance(vLocalPosition, tip, leftWing),
+                    segmentDistance(vLocalPosition, tip, rightWing)
+                );
+
+                float antialiasWidth = max(fwidth(distanceToArrow), 0.7);
+                float core = 1.0 - smoothstep(
+                    thickness - antialiasWidth,
+                    thickness + antialiasWidth,
+                    distanceToArrow
+                );
+                float glow = 0.0;
+                if (glowRadius > 0.01) {
+                    glow = 1.0 - smoothstep(thickness, thickness + glowRadius, distanceToArrow);
+                    glow *= glow;
+                }
+
+                float glowStrength = glow * (0.24 + pulse * 0.18) * (1.0 - core * 0.55);
+                float alpha = clamp(core + glowStrength, 0.0, 1.0) * color.a;
+                if (alpha <= 0.001) {
+                    discard;
+                }
+
+                vec3 highlightedColor = mix(color.rgb, vec3(1.0), 0.16 + pulse * 0.10);
+                fragColor = vec4(mix(color.rgb, highlightedColor, core), alpha);
+            }
+            """.formatted(INDICATOR_BATCH_SIZE, INDICATOR_BATCH_SIZE);
+    }
+
     private static String silhouetteCompositeFragmentShader() {
         return """
             #version 330 core
@@ -438,6 +540,7 @@ public final class Shader2DRenderer {
     private int blurProgram = 0;
     private int roundedBlurProgram = 0;
     private int shadowProgram = 0;
+    private int indicatorProgram = 0;
     private int maskProgram = 0;
     private int occludedMaskProgram = 0;
     private int silhouetteCompositeProgram = 0;
@@ -456,6 +559,10 @@ public final class Shader2DRenderer {
     private int shadowBoxRectsUniform = -1;
     private int shadowEffectParamsUniform = -1;
     private int shadowColorsUniform = -1;
+    private int indicatorTransformsUniform = -1;
+    private int indicatorScreenSizeUniform = -1;
+    private int indicatorParamsUniform = -1;
+    private int indicatorColorsUniform = -1;
     private int maskScreenSizeUniform = -1;
     private int maskDepthScaleUniform = -1;
     private int maskDepthOffsetUniform = -1;
@@ -501,6 +608,9 @@ public final class Shader2DRenderer {
     private final FloatBuffer effectBoxRects = BufferUtils.createFloatBuffer(EFFECT_BATCH_SIZE * 4);
     private final FloatBuffer effectParams = BufferUtils.createFloatBuffer(EFFECT_BATCH_SIZE * 4);
     private final FloatBuffer effectColors = BufferUtils.createFloatBuffer(EFFECT_BATCH_SIZE * 4);
+    private final FloatBuffer indicatorTransforms = BufferUtils.createFloatBuffer(INDICATOR_BATCH_SIZE * 4);
+    private final FloatBuffer indicatorParams = BufferUtils.createFloatBuffer(INDICATOR_BATCH_SIZE * 4);
+    private final FloatBuffer indicatorColors = BufferUtils.createFloatBuffer(INDICATOR_BATCH_SIZE * 4);
     private boolean blurCacheValid = false;
     private int cachedBlurWidth = 0;
     private int cachedBlurHeight = 0;
@@ -531,6 +641,74 @@ public final class Shader2DRenderer {
 
     public void drawShadowRoundedRects(float frameWidth, float frameHeight, List<ShadowRequest> requests) {
         drawEffects(frameWidth, frameHeight, null, requests);
+    }
+
+    public void drawDirectionalIndicators(float frameWidth, float frameHeight, List<IndicatorRequest> requests) {
+        if (frameWidth <= 0f || frameHeight <= 0f || requests == null || requests.isEmpty())
+            return;
+
+        ensureInitialized();
+
+        GLState state = GLState.capture();
+        try {
+            prepareCommonState();
+            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, state.drawFramebuffer);
+            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, state.readFramebuffer);
+            GL11.glViewport(state.viewportX, state.viewportY, state.viewportWidth, state.viewportHeight);
+            GL11.glEnable(GL11.GL_BLEND);
+            GL20.glBlendEquationSeparate(GL14.GL_FUNC_ADD, GL14.GL_FUNC_ADD);
+            GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+
+            GL20.glUseProgram(indicatorProgram);
+            GL20.glUniform2f(indicatorScreenSizeUniform, frameWidth, frameHeight);
+            GL30.glBindVertexArray(vertexArray);
+
+            int requestIndex = 0;
+            while (requestIndex < requests.size()) {
+                indicatorTransforms.clear();
+                indicatorParams.clear();
+                indicatorColors.clear();
+                int batchCount = 0;
+
+                while (requestIndex < requests.size() && batchCount < INDICATOR_BATCH_SIZE) {
+                    IndicatorRequest request = requests.get(requestIndex++);
+                    if (!isDrawableIndicatorRequest(request))
+                        continue;
+
+                    float size = Math.max(1f, request.size);
+                    float thickness = Math.max(0.75f, request.thickness);
+                    float glowRadius = Math.max(0f, request.glowRadius);
+                    float halfExtent = size * 0.72f + thickness + glowRadius + 2f;
+                    indicatorTransforms.put(request.centerX)
+                            .put(request.centerY)
+                            .put(halfExtent)
+                            .put(request.angle);
+                    indicatorParams.put(size)
+                            .put(thickness)
+                            .put(glowRadius)
+                            .put(clamp(request.pulse, 0f, 1f));
+                    Color color = request.color;
+                    indicatorColors.put(color.getRed() / 255f)
+                            .put(color.getGreen() / 255f)
+                            .put(color.getBlue() / 255f)
+                            .put(color.getAlpha() / 255f);
+                    batchCount++;
+                }
+
+                if (batchCount <= 0)
+                    continue;
+
+                indicatorTransforms.flip();
+                indicatorParams.flip();
+                indicatorColors.flip();
+                GL20.glUniform4fv(indicatorTransformsUniform, indicatorTransforms);
+                GL20.glUniform4fv(indicatorParamsUniform, indicatorParams);
+                GL20.glUniform4fv(indicatorColorsUniform, indicatorColors);
+                GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, batchCount);
+            }
+        } finally {
+            state.restore();
+        }
     }
 
     public void drawSilhouetteShadow(float frameWidth, float frameHeight, float[] vertices, float blurRadius, float insetPixels, float lineAlpha, Color color) {
@@ -1056,6 +1234,16 @@ public final class Shader2DRenderer {
                 && request.color.getAlpha() > 0;
     }
 
+    private static boolean isDrawableIndicatorRequest(IndicatorRequest request) {
+        return request != null
+                && Float.isFinite(request.centerX)
+                && Float.isFinite(request.centerY)
+                && Float.isFinite(request.angle)
+                && request.size > 0f
+                && request.color != null
+                && request.color.getAlpha() > 0;
+    }
+
     private void clearEffectBuffers() {
         effectDrawRects.clear();
         effectBoxRects.clear();
@@ -1093,6 +1281,10 @@ public final class Shader2DRenderer {
         if (shadowProgram != 0) {
             GL20.glDeleteProgram(shadowProgram);
             shadowProgram = 0;
+        }
+        if (indicatorProgram != 0) {
+            GL20.glDeleteProgram(indicatorProgram);
+            indicatorProgram = 0;
         }
         if (maskProgram != 0) {
             GL20.glDeleteProgram(maskProgram);
@@ -1193,6 +1385,9 @@ public final class Shader2DRenderer {
         if (shadowProgram == 0) {
             shadowProgram = createProgram(rectVertexShader(), shadowFragmentShader());
         }
+        if (indicatorProgram == 0) {
+            indicatorProgram = createProgram(indicatorVertexShader(), indicatorFragmentShader());
+        }
         if (maskProgram == 0) {
             maskProgram = createProgram(triangleMaskVertexShader(), maskFragmentShader());
         }
@@ -1202,7 +1397,8 @@ public final class Shader2DRenderer {
         if (silhouetteCompositeProgram == 0) {
             silhouetteCompositeProgram = createProgram(fullscreenVertexShader(), silhouetteCompositeFragmentShader());
         }
-        if (blurTextureUniform < 0 || roundedBlurTextureUniform < 0 || shadowColorsUniform < 0 || occludedDepthTextureUniform < 0 || silhouetteColorUniform < 0) {
+        if (blurTextureUniform < 0 || roundedBlurTextureUniform < 0 || shadowColorsUniform < 0
+                || indicatorColorsUniform < 0 || occludedDepthTextureUniform < 0 || silhouetteColorUniform < 0) {
             loadUniformLocations();
         }
     }
@@ -1224,6 +1420,11 @@ public final class Shader2DRenderer {
         shadowBoxRectsUniform = uniform(shadowProgram, "uBoxRects[0]");
         shadowEffectParamsUniform = uniform(shadowProgram, "uEffectParams[0]");
         shadowColorsUniform = uniform(shadowProgram, "uColors[0]");
+
+        indicatorTransformsUniform = uniform(indicatorProgram, "uIndicators[0]");
+        indicatorScreenSizeUniform = uniform(indicatorProgram, "uScreenSize");
+        indicatorParamsUniform = uniform(indicatorProgram, "uIndicatorParams[0]");
+        indicatorColorsUniform = uniform(indicatorProgram, "uIndicatorColors[0]");
 
         maskScreenSizeUniform = uniform(maskProgram, "uScreenSize");
         maskDepthScaleUniform = uniform(maskProgram, "uDepthScale");
@@ -1270,6 +1471,10 @@ public final class Shader2DRenderer {
         shadowBoxRectsUniform = -1;
         shadowEffectParamsUniform = -1;
         shadowColorsUniform = -1;
+        indicatorTransformsUniform = -1;
+        indicatorScreenSizeUniform = -1;
+        indicatorParamsUniform = -1;
+        indicatorColorsUniform = -1;
         maskScreenSizeUniform = -1;
         maskDepthScaleUniform = -1;
         maskDepthOffsetUniform = -1;
@@ -1351,6 +1556,38 @@ public final class Shader2DRenderer {
             GL11.glEnable(capability);
         } else {
             GL11.glDisable(capability);
+        }
+    }
+
+    public static final class IndicatorRequest {
+        public float centerX;
+        public float centerY;
+        public float angle;
+        public float size;
+        public float thickness;
+        public float glowRadius;
+        public float pulse;
+        public Color color;
+
+        public IndicatorRequest() {
+        }
+
+        public IndicatorRequest(float centerX, float centerY, float angle, float size,
+                                float thickness, float glowRadius, float pulse, Color color) {
+            set(centerX, centerY, angle, size, thickness, glowRadius, pulse, color);
+        }
+
+        public IndicatorRequest set(float centerX, float centerY, float angle, float size,
+                                    float thickness, float glowRadius, float pulse, Color color) {
+            this.centerX = centerX;
+            this.centerY = centerY;
+            this.angle = angle;
+            this.size = size;
+            this.thickness = thickness;
+            this.glowRadius = glowRadius;
+            this.pulse = pulse;
+            this.color = color;
+            return this;
         }
     }
 
