@@ -306,7 +306,7 @@ public class ModuleManager implements EventListener {
         if (event.key == ClickGui.getOpenGuiKey() && event.action == GLFW.GLFW_PRESS) {
             if (mc.gui.screen() instanceof NanoVGClickGuiScreen screen) {
                 screen.onClose();
-            } else if (!(mc.gui.screen() instanceof ChatScreen)) {
+            } else {
                 GuiInputBlocker.releaseMovementKeys();
                 mc.mouseHandler.releaseMouse();
                 mc.gui.setScreen(new NanoVGClickGuiScreen(mc.gui.screen()));
