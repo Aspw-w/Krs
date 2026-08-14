@@ -128,6 +128,9 @@ public class NanoVGClickGuiScreen extends Screen {
     private TextFocus textFocus = TextFocus.NONE;
     private TextValue focusedTextValue;
     private Module focusedTextModule;
+    private SettingValue<?> focusedNumberValue;
+    private String numberInput = "";
+    private boolean replaceNumberInputOnType;
     private Module bindingModule;
     private KeyBindValue bindingValue;
     private Module openedListModule;
@@ -228,7 +231,9 @@ public class NanoVGClickGuiScreen extends Screen {
             }
 
             if (settingsPanelRect.contains(mouseX, mouseY)
-                    && (button == GLFW.GLFW_MOUSE_BUTTON_LEFT || button == GLFW.GLFW_MOUSE_BUTTON_RIGHT)) {
+                    && (button == GLFW.GLFW_MOUSE_BUTTON_LEFT
+                    || button == GLFW.GLFW_MOUSE_BUTTON_RIGHT
+                    || button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE)) {
                 for (int i = settingsPanelControlStartIndex; i < controls.size(); i++) {
                     ControlBounds control = controls.get(i);
                     if (control.rect.contains(mouseX, mouseY) && handleControlClick(control, mouseX, button))
@@ -255,7 +260,9 @@ public class NanoVGClickGuiScreen extends Screen {
             return true;
         }
 
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT || button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT
+                || button == GLFW.GLFW_MOUSE_BUTTON_RIGHT
+                || button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
             for (ControlBounds control : controls) {
                 if (control.rect.contains(mouseX, mouseY) && handleControlClick(control, mouseX, button))
                     return true;
@@ -412,6 +419,10 @@ public class NanoVGClickGuiScreen extends Screen {
 
         if (textFocus != TextFocus.NONE) {
             if (key == GLFW.GLFW_KEY_ESCAPE) {
+                if (textFocus == TextFocus.NUMBER) {
+                    cancelNumberInput();
+                    return true;
+                }
                 if (textFocus == TextFocus.SEARCH && !searchQuery.isBlank())
                     clearSearch();
                 clearTextFocus();
@@ -421,8 +432,17 @@ public class NanoVGClickGuiScreen extends Screen {
             if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
                 if (textFocus == TextFocus.CONFIG_NAME)
                     createConfigFromInput();
+                else if (textFocus == TextFocus.NUMBER) {
+                    if (commitNumberInput())
+                        resetTextFocus();
+                }
                 else
                     clearTextFocus();
+                return true;
+            }
+
+            if (key == GLFW.GLFW_KEY_A && commandModifier && textFocus == TextFocus.NUMBER) {
+                replaceNumberInputOnType = true;
                 return true;
             }
 
@@ -471,8 +491,12 @@ public class NanoVGClickGuiScreen extends Screen {
             return false;
 
         String input = event.codepointAsString();
-        if (input != null && !input.isEmpty())
-            setFocusedText(getFocusedText() + input);
+        if (input != null && !input.isEmpty()) {
+            if (textFocus == TextFocus.NUMBER)
+                appendNumberInput(input);
+            else
+                setFocusedText(getFocusedText() + input);
+        }
 
         return true;
     }
@@ -1147,6 +1171,8 @@ public class NanoVGClickGuiScreen extends Screen {
             return "Enter to create  •  Ctrl+V paste";
         if (textFocus == TextFocus.SEARCH)
             return "Type to filter  •  Ctrl+V paste  •  Esc clear";
+        if (textFocus == TextFocus.NUMBER)
+            return "Type a number  •  Enter confirm  •  Esc cancel";
         if (textFocus == TextFocus.SETTING)
             return "Type to edit  •  Enter confirm  •  Ctrl+V paste";
         if (openedListValue != null)
@@ -1622,17 +1648,56 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private void renderFloatSetting(NVGU vg, Rect row, FloatValue value) {
-        renderSettingRow(vg, row, value.name, String.format(Locale.ROOT, "%.2f%s", value.get(), value.suffix == null ? "" : value.suffix));
+        boolean active = textFocus == TextFocus.NUMBER && focusedNumberValue == value;
+        addControl(ControlType.FLOAT_INPUT, row, value, null, 0);
+        renderSettingRow(vg, row, value.name, active ? null : String.format(Locale.ROOT, "%.2f%s", value.get(), value.suffix == null ? "" : value.suffix));
+        if (active) {
+            renderNumberInput(vg, row, value.suffix);
+            return;
+        }
+
         Rect track = new Rect(row.x + row.width - 168f, row.y + 12f, 102f, 5f);
         addControl(ControlType.FLOAT_SLIDER, track.expand(8f, 10f), value, null, 0);
         drawSlider(vg, track, normalize(value.get(), value.minimum, value.maximum));
     }
 
     private void renderIntSetting(NVGU vg, Rect row, IntValue value) {
-        renderSettingRow(vg, row, value.name, value.get() + (value.suffix == null ? "" : value.suffix));
+        boolean active = textFocus == TextFocus.NUMBER && focusedNumberValue == value;
+        addControl(ControlType.INT_INPUT, row, value, null, 0);
+        renderSettingRow(vg, row, value.name, active ? null : value.get() + (value.suffix == null ? "" : value.suffix));
+        if (active) {
+            renderNumberInput(vg, row, value.suffix);
+            return;
+        }
+
         Rect track = new Rect(row.x + row.width - 168f, row.y + 12f, 102f, 5f);
         addControl(ControlType.INT_SLIDER, track.expand(8f, 10f), value, null, 0);
         drawSlider(vg, track, normalize(value.get(), value.minimum, value.maximum));
+    }
+
+    private void renderNumberInput(NVGU vg, Rect row, String suffix) {
+        float inputWidth = Math.clamp(row.width * 0.44f, 92f, 160f);
+        Rect input = new Rect(row.x + row.width - inputWidth - 8f, row.y + 4f, inputWidth, 19f);
+        boolean valid = parseNumberInput() != null;
+        Color borderColor = valid ? alpha(0, 255, 255, 100) : alpha(255, 88, 88, 150);
+        vg.roundedRectangle(input.x, input.y, input.width, input.height, 4f, alpha(255, 255, 255, 28));
+        vg.roundedRectangleBorder(input.x, input.y, input.width, input.height, 4f, 1f, borderColor, Border.INSIDE);
+
+        String shownSuffix = suffix == null ? "" : suffix;
+        float suffixWidth = shownSuffix.isEmpty() ? 0f : NVGFonts.INTER.getWidth(shownSuffix, 9f) + 7f;
+        String text = inputText(numberInput, true, "");
+        NVGFonts.INTER.drawText(
+                fitText(text, NVGFonts.INTER, 10f, input.width - suffixWidth - 12f),
+                input.x + 6f,
+                input.y + 5f,
+                10f,
+                valid ? alpha(255, 255, 255, 240) : alpha(255, 175, 175, 240),
+                Alignment.LEFT_TOP,
+                false
+        );
+        if (!shownSuffix.isEmpty())
+            NVGFonts.INTER.drawText(shownSuffix, input.x + input.width - 6f, input.y + 5f, 9f,
+                    alpha(150, 160, 170, 220), Alignment.RIGHT_TOP, false);
     }
 
     private void renderColorSetting(NVGU vg, Rect row, ColorValue value) {
@@ -1714,6 +1779,25 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private boolean handleControlClick(ControlBounds control, float mouseX, int button) {
+        if (control.type == ControlType.FLOAT_INPUT || control.type == ControlType.INT_INPUT) {
+            if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
+                focusNumberInput((SettingValue<?>) control.target);
+                return true;
+            }
+
+            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT
+                    && textFocus == TextFocus.NUMBER
+                    && focusedNumberValue == control.target) {
+                replaceNumberInputOnType = false;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE)
+            return false;
+
         clearTextFocus();
         if (control.type != ControlType.MODULE_KEY) bindingModule = null;
         if (control.type != ControlType.KEY_VALUE) bindingValue = null;
@@ -1782,6 +1866,8 @@ public class NanoVGClickGuiScreen extends Screen {
             case FLOAT_SLIDER, INT_SLIDER, COLOR_SLIDER -> {
                 activeSlider = new SliderDrag(control);
                 updateSlider(activeSlider, mouseX);
+            }
+            case FLOAT_INPUT, INT_INPUT -> {
             }
             case TEXT_VALUE -> {
                 textFocus = TextFocus.SETTING;
@@ -2304,6 +2390,24 @@ public class NanoVGClickGuiScreen extends Screen {
         textFocus = TextFocus.SEARCH;
     }
 
+    private void focusNumberInput(SettingValue<?> value) {
+        if (!(value instanceof FloatValue) && !(value instanceof IntValue))
+            return;
+
+        clearTextFocus();
+        bindingModule = null;
+        bindingValue = null;
+        activeSlider = null;
+        closeListDropdown();
+
+        focusedNumberValue = value;
+        numberInput = value instanceof FloatValue floatValue
+                ? Float.toString(floatValue.get())
+                : Integer.toString(((IntValue) value).get());
+        replaceNumberInputOnType = true;
+        textFocus = TextFocus.NUMBER;
+    }
+
     private void clearSearch() {
         searchQuery = "";
         if (!configView && selectedCategory != null)
@@ -2435,6 +2539,10 @@ public class NanoVGClickGuiScreen extends Screen {
             return;
 
         String sanitized = clipboard.replace('\n', ' ').replace('\r', ' ');
+        if (textFocus == TextFocus.NUMBER) {
+            appendNumberInput(sanitized.trim());
+            return;
+        }
         if (textFocus != TextFocus.SETTING)
             sanitized = sanitized.replace('\t', ' ');
         if (sanitized.isEmpty())
@@ -2493,15 +2601,86 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private void clearTextFocus() {
+        if (textFocus == TextFocus.NUMBER)
+            commitNumberInput();
+        resetTextFocus();
+    }
+
+    private void resetTextFocus() {
         textFocus = TextFocus.NONE;
         focusedTextValue = null;
         focusedTextModule = null;
+        focusedNumberValue = null;
+        numberInput = "";
+        replaceNumberInputOnType = false;
+    }
+
+    private void cancelNumberInput() {
+        resetTextFocus();
+    }
+
+    private boolean commitNumberInput() {
+        Number parsed = parseNumberInput();
+        if (parsed == null)
+            return false;
+
+        if (focusedNumberValue instanceof FloatValue value) {
+            value.set(Math.clamp(parsed.floatValue(), value.minimum, value.maximum));
+            return true;
+        }
+
+        if (focusedNumberValue instanceof IntValue value) {
+            long parsedValue = parsed.longValue();
+            long clamped = Math.max(value.minimum, Math.min(value.maximum, parsedValue));
+            value.set((int) clamped);
+            return true;
+        }
+
+        return false;
+    }
+
+    private Number parseNumberInput() {
+        String input = numberInput.trim();
+        if (input.isEmpty())
+            return null;
+
+        try {
+            if (focusedNumberValue instanceof FloatValue) {
+                float parsed = Float.parseFloat(input);
+                return Float.isFinite(parsed) ? parsed : null;
+            }
+            if (focusedNumberValue instanceof IntValue)
+                return Long.parseLong(input);
+        } catch (NumberFormatException ignored) {
+        }
+        return null;
+    }
+
+    private void appendNumberInput(String input) {
+        if (textFocus != TextFocus.NUMBER || input == null || input.isEmpty())
+            return;
+
+        String candidate = replaceNumberInputOnType ? input : numberInput + input;
+        if (candidate.length() > 64 || !isPotentialNumberInput(candidate))
+            return;
+
+        numberInput = candidate;
+        replaceNumberInputOnType = false;
+    }
+
+    private boolean isPotentialNumberInput(String input) {
+        if (focusedNumberValue instanceof FloatValue)
+            return input.matches("[+-]?(?:\\d*(?:\\.\\d*)?)(?:[eE][+-]?\\d*)?");
+        if (focusedNumberValue instanceof IntValue)
+            return input.matches("[+-]?\\d*");
+        return false;
     }
 
     private String getFocusedText() {
         if (textFocus == TextFocus.SEARCH) return searchQuery;
         if (textFocus == TextFocus.CONFIG_NAME) return newConfigName;
         if (textFocus == TextFocus.SETTING && focusedTextValue != null) return focusedTextValue.get();
+        if (textFocus == TextFocus.NUMBER) return numberInput;
         return "";
     }
 
@@ -2522,10 +2701,22 @@ public class NanoVGClickGuiScreen extends Screen {
 
         if (textFocus == TextFocus.SETTING && focusedTextValue != null) {
             focusedTextValue.set(text == null ? "" : text);
+            return;
+        }
+
+        if (textFocus == TextFocus.NUMBER) {
+            numberInput = text == null ? "" : text;
+            replaceNumberInputOnType = false;
         }
     }
 
     private void removeLastFocusedCharacter() {
+        if (textFocus == TextFocus.NUMBER && replaceNumberInputOnType) {
+            numberInput = "";
+            replaceNumberInputOnType = false;
+            return;
+        }
+
         String text = getFocusedText();
         if (text.isEmpty()) return;
 
@@ -2725,6 +2916,7 @@ public class NanoVGClickGuiScreen extends Screen {
         NONE,
         SEARCH,
         SETTING,
+        NUMBER,
         CONFIG_NAME
     }
 
@@ -2741,6 +2933,8 @@ public class NanoVGClickGuiScreen extends Screen {
         BOOLEAN,
         LIST_VALUE,
         LIST_OPTION,
+        FLOAT_INPUT,
+        INT_INPUT,
         FLOAT_SLIDER,
         INT_SLIDER,
         COLOR_SLIDER,
