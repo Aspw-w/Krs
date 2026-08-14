@@ -358,7 +358,7 @@ public class NanoVGClickGuiScreen extends Screen {
         float scaledX = toClickGuiMouseX(NanoVGManager.toScaledMouseX(mouseX));
         float scaledY = toClickGuiMouseY(NanoVGManager.toScaledMouseY(mouseY));
 
-        if (nudgeHoveredSlider(scaledX, scaledY, vertical))
+        if (nudgeHoveredColorSlider(scaledX, scaledY, vertical))
             return true;
 
         if (settingsPanelModule != null
@@ -2473,43 +2473,21 @@ public class NanoVGClickGuiScreen extends Screen {
         });
     }
 
-    private boolean nudgeHoveredSlider(float mouseX, float mouseY, double vertical) {
+    private boolean nudgeHoveredColorSlider(float mouseX, float mouseY, double vertical) {
         if (Math.abs(vertical) < 0.01d)
             return false;
 
         for (ControlBounds control : controls) {
-            if ((control.type != ControlType.FLOAT_SLIDER
-                    && control.type != ControlType.INT_SLIDER
-                    && control.type != ControlType.COLOR_SLIDER)
-                    || !control.rect.contains(mouseX, mouseY))
+            if (control.type != ControlType.COLOR_SLIDER || !control.rect.contains(mouseX, mouseY))
                 continue;
 
-            switch (control.type) {
-                case FLOAT_SLIDER -> {
-                    FloatValue value = (FloatValue) control.target;
-                    float range = value.maximum - value.minimum;
-                    float step = range <= 1f ? 0.01f : range <= 10f ? 0.05f : range / 50f;
-                    value.set(Math.clamp(Math.round((value.get() + step * (float) vertical) * 100f) / 100f, value.minimum, value.maximum));
-                }
-                case INT_SLIDER -> {
-                    IntValue value = (IntValue) control.target;
-                    int range = Math.max(1, value.maximum - value.minimum);
-                    int step = range > 50 ? Math.max(1, range / 50) : 1;
-                    value.set(Math.clamp(value.get() + step * (int) Math.signum(vertical), value.minimum, value.maximum));
-                }
-                case COLOR_SLIDER -> {
-                    ColorValue value = (ColorValue) control.target;
-                    Color color = value.get();
-                    int delta = (int) Math.round(vertical * 5d);
-                    int red = control.index == 0 ? Math.clamp(color.getRed() + delta, 0, 255) : color.getRed();
-                    int green = control.index == 1 ? Math.clamp(color.getGreen() + delta, 0, 255) : color.getGreen();
-                    int blue = control.index == 2 ? Math.clamp(color.getBlue() + delta, 0, 255) : color.getBlue();
-                    value.set(new Color(red, green, blue, color.getAlpha()));
-                }
-                default -> {
-                    return false;
-                }
-            }
+            ColorValue value = (ColorValue) control.target;
+            Color color = value.get();
+            int delta = (int) Math.round(vertical * 5d);
+            int red = control.index == 0 ? Math.clamp(color.getRed() + delta, 0, 255) : color.getRed();
+            int green = control.index == 1 ? Math.clamp(color.getGreen() + delta, 0, 255) : color.getGreen();
+            int blue = control.index == 2 ? Math.clamp(color.getBlue() + delta, 0, 255) : color.getBlue();
+            value.set(new Color(red, green, blue, color.getAlpha()));
             return true;
         }
         return false;
