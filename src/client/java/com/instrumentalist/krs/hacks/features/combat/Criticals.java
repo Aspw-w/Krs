@@ -58,7 +58,11 @@ public class Criticals extends Module {
         if (!player.onGround()
                 || player.getMainHandItem().getItem() instanceof MaceItem
                 || ModuleManager.getModuleState(FlyModule.class)
-                || ModuleManager.getModuleState(KillAura.class) && KillAura.closestEntity != null && KillAura.tpReach.get() && mc.player.distanceTo(KillAura.closestEntity) >= KillAura.square(ModuleManager.getModule(KillAura.class).attackRange.get()))
+                || (ModuleManager.getModuleState(KillAura.class)
+                && KillAura.closestEntity != null
+                && (KillAura.randomTp.get()
+                || (KillAura.tpReach.get()
+                && mc.player.distanceTo(KillAura.closestEntity) >= KillAura.square(ModuleManager.getModule(KillAura.class).attackRange.get())))))
             return;
         if (cooldownCheck.get() && player.getAttackStrengthScale(0f) < 0.8) return;
 

@@ -46,6 +46,9 @@ import org.lwjgl.glfw.GLFW;
 import java.util.*;
 
 public class KillAura extends Module {
+    private static final int RANDOM_TP_ATTEMPTS = 32;
+    private static final int[] RANDOM_TP_VERTICAL_OFFSETS = {0, 1, -1, 2, -2};
+    private static final double RANDOM_TP_COLLISION_MARGIN = 0.05D;
     private static final double[] SMART_ROTATION_OFFSETS = {
             0.0D, 0.03125D, 0.0625D, 0.09375D,
             0.125D, 0.15625D, 0.1875D, 0.21875D,
@@ -214,6 +217,12 @@ public class KillAura extends Module {
     );
 
     @Setting
+    public static final BooleanValue randomTp = new BooleanValue(
+            "Random TP",
+            false
+    );
+
+    @Setting
     private final FloatValue tpExtendedReach = new FloatValue(
             "TP Extended Reach",
             40f,
@@ -229,21 +238,21 @@ public class KillAura extends Module {
             0,
             60,
             "tick",
-            tpReach::get
+            () -> tpReach.get() || randomTp.get()
     );
 
     @Setting
     private final BooleanValue tpBack = new BooleanValue(
             "TP Back",
             true,
-            tpReach::get
+            () -> tpReach.get() || randomTp.get()
     );
 
     @Setting
     private final BooleanValue tpOnGroundPacket = new BooleanValue(
             "TP OnGround Packet",
             true,
-            tpReach::get
+            () -> tpReach.get() || randomTp.get()
     );
 
     @Setting
@@ -302,6 +311,9 @@ public class KillAura extends Module {
     }
 
     private record TeleportAttackStep(Entity target, Vec3 clientPosition) implements TeleportStep {
+    }
+
+    private record ResolvedTeleportPath(Vec3 arrivalPosition, ArrayList<Vec3> positions) {
     }
 
     private static final class PendingTeleportSequence {
@@ -422,7 +434,7 @@ public class KillAura extends Module {
         }
 
         if (pendingTeleportSequence != null) {
-            if (!tpReach.get())
+            if (!tpReach.get() && !randomTp.get())
                 reset();
             else
                 advancePendingTeleportSequence();
@@ -569,7 +581,7 @@ public class KillAura extends Module {
         }
 
         boolean attackReady = attackCooldownMath(closestEntity);
-        boolean canHitAtRotation = !rotations.get() || noHitCheck.get() || tpReach.get();
+        boolean canHitAtRotation = !rotations.get() || noHitCheck.get() || tpReach.get() || randomTp.get();
         if (!canHitAtRotation) {
             canHitAtRotation = canAttackThroughWalls
                     ? Client.rotationManager.canHitEntityAtRotation(closestEntity, yaw, pitch, realAttackReach, true)
@@ -628,7 +640,12 @@ public class KillAura extends Module {
 
                 for (Entity target : attackTargets) {
                     double squaredDistance = EntityExtension.squaredBoxedDistanceTo(target, mc.player);
-                    attackToEntity(target, tpReach.get() && squaredDistance >= baseAttackReachSquared);
+                    boolean needsExtendedTeleport = squaredDistance >= baseAttackReachSquared;
+                    attackToEntity(
+                            target,
+                            randomTp.get() || (tpReach.get() && needsExtendedTeleport),
+                            needsExtendedTeleport
+                    );
                 }
 
                 finishAttackCycle(currentAutoBlockMode, yaw, pitch, closestEntity, canAutoBlock);
@@ -1415,24 +1432,33 @@ public class KillAura extends Module {
         int totalMovePackets = 0;
 
         for (Entity target : attackTargets) {
-            boolean teleport = tpReach.get()
-                    && EntityExtension.squaredBoxedDistanceTo(target, simulatedEyePosition) >= baseAttackReachSquared;
+            boolean needsExtendedTeleport = EntityExtension.squaredBoxedDistanceTo(target, simulatedEyePosition)
+                    >= baseAttackReachSquared;
+            boolean teleport = randomTp.get() || (tpReach.get() && needsExtendedTeleport);
             if (!teleport) {
                 steps.add(new TeleportAttackStep(target, null));
                 continue;
             }
 
-            Vec3 destination = target.position();
-            ArrayList<Vec3> paths = MainPathFinder.computePath(simulatedPosition, destination);
-            if (paths == null || paths.isEmpty())
+            ResolvedTeleportPath resolvedPath = resolveTeleportPath(simulatedPosition, target, randomTp.get());
+            if (resolvedPath == null && randomTp.get() && needsExtendedTeleport)
+                resolvedPath = resolveTeleportPath(simulatedPosition, target, false);
+
+            if (resolvedPath == null) {
+                if (!needsExtendedTeleport)
+                    steps.add(new TeleportAttackStep(target, null));
                 continue;
+            }
+
+            ArrayList<Vec3> paths = resolvedPath.positions();
+            Vec3 arrivalPosition = resolvedPath.arrivalPosition();
 
             for (Vec3 path : paths) {
                 steps.add(new TeleportMoveStep(path));
                 totalMovePackets++;
             }
 
-            steps.add(new TeleportAttackStep(target, returnAfterAttack ? null : destination));
+            steps.add(new TeleportAttackStep(target, returnAfterAttack ? null : arrivalPosition));
 
             if (returnAfterAttack) {
                 for (int i = paths.size() - 1; i >= 0; i--) {
@@ -1440,8 +1466,8 @@ public class KillAura extends Module {
                     totalMovePackets++;
                 }
             } else {
-                simulatedPosition = destination;
-                simulatedEyePosition = destination.add(0.0D, eyeHeight, 0.0D);
+                simulatedPosition = arrivalPosition;
+                simulatedEyePosition = arrivalPosition.add(0.0D, eyeHeight, 0.0D);
             }
         }
 
@@ -1554,26 +1580,119 @@ public class KillAura extends Module {
         }
     }
 
-    private void attackToEntity(Entity target, boolean tpMode) {
-        ArrayList<Vec3> paths = null;
+    private ResolvedTeleportPath resolveTeleportPath(Vec3 from, Entity target, boolean randomize) {
+        if (!randomize) {
+            ArrayList<Vec3> paths = MainPathFinder.computePath(from, target.position());
+            if (paths == null || paths.isEmpty())
+                return null;
+
+            return new ResolvedTeleportPath(paths.getLast(), paths);
+        }
+
+        double attackReach = attackRange.get();
+        if (mc.player == null || mc.level == null || !Double.isFinite(attackReach) || attackReach <= 0.0D)
+            return null;
+
+        double minimumRadius = (target.getBbWidth() + mc.player.getBbWidth()) * 0.5D
+                + RANDOM_TP_COLLISION_MARGIN;
+        double maximumRadius = attackReach + target.getBbWidth() * 0.5D
+                - RANDOM_TP_COLLISION_MARGIN;
+        if (maximumRadius < minimumRadius)
+            return null;
+
+        double minimumRadiusSquared = square(minimumRadius);
+        double maximumRadiusSquared = square(maximumRadius);
+        double attackReachSquared = square(attackReach);
+        int baseY = Mth.floor(target.getBoundingBox().minY);
+
+        for (int attempt = 0; attempt < RANDOM_TP_ATTEMPTS; attempt++) {
+            double angle = RandomUtil.nextDouble(0.0D, Math.PI * 2.0D);
+            double radius = Math.sqrt(RandomUtil.nextDouble(minimumRadiusSquared, maximumRadiusSquared));
+            int blockX = Mth.floor(target.getX() + Math.cos(angle) * radius);
+            int blockZ = Mth.floor(target.getZ() + Math.sin(angle) * radius);
+            int verticalOffsetStart = RandomUtil.nextInt(0, RANDOM_TP_VERTICAL_OFFSETS.length);
+
+            for (int index = 0; index < RANDOM_TP_VERTICAL_OFFSETS.length; index++) {
+                int verticalOffset = RANDOM_TP_VERTICAL_OFFSETS[
+                        (verticalOffsetStart + index) % RANDOM_TP_VERTICAL_OFFSETS.length
+                ];
+                Vec3 candidate = Vec3.atBottomCenterOf(new BlockPos(blockX, baseY + verticalOffset, blockZ));
+                if (isSameBlockPosition(from, candidate)
+                        || !isValidRandomTeleportPosition(target, candidate, attackReachSquared))
+                    continue;
+
+                ArrayList<Vec3> paths = MainPathFinder.computePath(from, candidate);
+                if (paths == null || paths.isEmpty())
+                    continue;
+
+                Vec3 arrivalPosition = paths.getLast();
+                if (isSameBlockPosition(from, arrivalPosition)
+                        || !isValidRandomTeleportPosition(target, arrivalPosition, attackReachSquared))
+                    continue;
+
+                return new ResolvedTeleportPath(arrivalPosition, paths);
+            }
+        }
+
+        return null;
+    }
+
+    private static boolean isSameBlockPosition(Vec3 first, Vec3 second) {
+        return Mth.floor(first.x) == Mth.floor(second.x)
+                && Mth.floor(first.y) == Mth.floor(second.y)
+                && Mth.floor(first.z) == Mth.floor(second.z);
+    }
+
+    private boolean isValidRandomTeleportPosition(Entity target, Vec3 position, double attackReachSquared) {
+        if (position == null
+                || !Double.isFinite(position.x)
+                || !Double.isFinite(position.y)
+                || !Double.isFinite(position.z))
+            return false;
+
+        int blockX = Mth.floor(position.x);
+        int blockY = Mth.floor(position.y);
+        int blockZ = Mth.floor(position.z);
+        if (!MainPathFinder.isValid(blockX, blockY, blockZ, false))
+            return false;
+
+        AABB playerBox = mc.player.getBoundingBox().move(
+                position.x - mc.player.getX(),
+                position.y - mc.player.getY(),
+                position.z - mc.player.getZ()
+        ).deflate(1.0E-7D);
+        if (playerBox.intersects(target.getBoundingBox()) || !mc.level.noCollision(mc.player, playerBox))
+            return false;
+
+        Vec3 eyePosition = position.add(0.0D, mc.player.getEyeHeight(), 0.0D);
+        return EntityExtension.squaredBoxedDistanceTo(target, eyePosition) <= attackReachSquared;
+    }
+
+    private void attackToEntity(Entity target, boolean tpMode, boolean needsExtendedTeleport) {
+        ResolvedTeleportPath resolvedPath = null;
 
         if (tpMode) {
-            paths = MainPathFinder.computePath(mc.player.position(), target.position());
+            resolvedPath = resolveTeleportPath(mc.player.position(), target, randomTp.get());
+            if (resolvedPath == null && randomTp.get() && needsExtendedTeleport)
+                resolvedPath = resolveTeleportPath(mc.player.position(), target, false);
 
-            if (paths == null || paths.isEmpty()) return;
+            if (resolvedPath == null && needsExtendedTeleport)
+                return;
 
-            for (Vec3 path : paths) {
-                PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(path.x, path.y, path.z, tpOnGroundPacket.get(), mc.player.horizontalCollision));
+            if (resolvedPath != null) {
+                for (Vec3 path : resolvedPath.positions()) {
+                    PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(path.x, path.y, path.z, tpOnGroundPacket.get(), mc.player.horizontalCollision));
+                }
+
+                if (!tpBack.get())
+                    mc.player.setPos(resolvedPath.arrivalPosition());
             }
-
-            if (!tpBack.get())
-                mc.player.setPos(target.position());
         }
 
         performAttack(target, swingOrderMode.get().toLowerCase(Locale.ROOT));
 
-        if (tpMode && !paths.isEmpty() && tpBack.get()) {
-            List<Vec3> reversedPaths = paths.reversed();
+        if (resolvedPath != null && tpBack.get()) {
+            List<Vec3> reversedPaths = resolvedPath.positions().reversed();
 
             for (Vec3 path : reversedPaths) {
                 PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(path.x, path.y, path.z, tpOnGroundPacket.get(), mc.player.horizontalCollision));
