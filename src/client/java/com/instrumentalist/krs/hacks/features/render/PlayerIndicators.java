@@ -9,6 +9,7 @@ import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.combat.AntiBot;
 import com.instrumentalist.krs.hacks.features.combat.Teams;
+import com.instrumentalist.krs.utils.entity.StreamConverter;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.render.RenderUtil;
@@ -27,8 +28,13 @@ import org.nvgu.NVGU;
 import org.nvgu.util.Alignment;
 
 import java.awt.Color;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * Shader-backed, off-screen player indicators with compact tactical metadata.
@@ -38,9 +44,13 @@ public class PlayerIndicators extends Module {
     private static final int MAX_LABELED_PLAYERS = 32;
     private static final float TAU = (float) (Math.PI * 2.0);
     private static final float LABEL_FONT_SIZE = 13f;
+    private static final float PLAYER_HEAD_SIZE_SCALE = 0.95f;
+    private static final float PLAYER_HEAD_OFFSET_SCALE = 0.72f;
+    private static final long PLAYER_HEAD_RETRY_DELAY_NANOS = 5_000_000_000L;
     private static final Color LABEL_BACKGROUND = new Color(8, 11, 16, 180);
     private static final Color LABEL_BORDER = new Color(255, 255, 255, 32);
     private static final Color LABEL_TEXT = new Color(245, 248, 255, 235);
+    private static final Color PLAYER_HEAD_BACKGROUND = new Color(8, 11, 16, 225);
     private static final Comparator<IndicatorData> NEAREST_FIRST = Comparator.comparingDouble(data -> data.distanceSquared);
 
     @Setting
@@ -54,7 +64,7 @@ public class PlayerIndicators extends Module {
     private static final FloatValue radius = new FloatValue("Radius", 42f, 24f, 48f, "%");
 
     @Setting
-    private static final FloatValue size = new FloatValue("Size", 14f, 8f, 24f, "px");
+    private static final FloatValue size = new FloatValue("Size", 20f, 8f, 24f, "px");
 
     @Setting
     private static final FloatValue thickness = new FloatValue("Thickness", 2.2f, 1f, 5f, "px");
@@ -103,7 +113,9 @@ public class PlayerIndicators extends Module {
     private final ArrayList<IndicatorData> placedIndicators = new ArrayList<>(32);
     private final ArrayList<Shader2DRenderer.IndicatorRequest> shaderRequests = new ArrayList<>(32);
     private final ArrayList<Shader2DRenderer.IndicatorRequest> shaderRequestPool = new ArrayList<>(32);
+    private final Map<String, PlayerHeadTextureState> playerHeadTextures = new HashMap<>();
     private final float[] projectedPosition = new float[3];
+    private long playerHeadTextureGeneration;
 
     public PlayerIndicators() {
         super("Player Indicators", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, false, true);
@@ -116,11 +128,13 @@ public class PlayerIndicators extends Module {
     @Override
     public void onDisable() {
         clearFrameData();
+        clearPlayerHeadTextureStates();
     }
 
     @Override
     public void onWorld(WorldEvent event) {
         clearFrameData();
+        clearPlayerHeadTextureStates();
     }
 
     @Override
@@ -175,6 +189,7 @@ public class PlayerIndicators extends Module {
                 indicatorPool.add(new IndicatorData());
             IndicatorData data = indicatorPool.get(pooledCount++);
             data.update(
+                    player,
                     relativeAngle,
                     screenX,
                     screenY,
@@ -189,6 +204,12 @@ public class PlayerIndicators extends Module {
         indicators.sort(NEAREST_FIRST);
         if (indicators.size() > MAX_TRACKED_PLAYERS)
             indicators.subList(MAX_TRACKED_PLAYERS, indicators.size()).clear();
+
+        for (IndicatorData data : indicators) {
+            requestPlayerHeadTexture(data.player, data.playerTextureIdentifier);
+        }
+        for (int index = 0; index < pooledCount; index++)
+            indicatorPool.get(index).player = null;
     }
 
     @Override
@@ -216,6 +237,8 @@ public class PlayerIndicators extends Module {
         float edgePadding = size.get() + Math.max(14f, glow.get() ? glowRadius.get() : 0f) + 8f;
         float radiusX = Math.max(18f, Math.min(ringRadius, centerX - edgePadding));
         float radiusY = Math.max(18f, Math.min(ringRadius, centerY - edgePadding));
+        float playerHeadDiameter = Math.max(8f, size.get() * PLAYER_HEAD_SIZE_SCALE);
+        float playerHeadOffset = size.get() * PLAYER_HEAD_OFFSET_SCALE;
         float time = (System.nanoTime() % 20_000_000_000L) / 1_000_000_000f;
 
         shaderRequests.clear();
@@ -238,6 +261,7 @@ public class PlayerIndicators extends Module {
             data.drawX = positionX;
             data.drawY = positionY;
             separateOverlappingIndicator(data, centerX, centerY, radiusX, radiusY, onScreenPlacement, edgePadding, screenWidth, screenHeight);
+            preparePlayerHeadPlacement(data, centerX, centerY, playerHeadDiameter, playerHeadOffset);
             placedIndicators.add(data);
 
             float pulseAmount = pulse.get()
@@ -263,9 +287,12 @@ public class PlayerIndicators extends Module {
 
         vg.directionalIndicators(shaderRequests);
 
+        for (IndicatorData data : placedIndicators)
+            drawPlayerHead(vg, data);
+
         for (int index = 0; index < placedIndicators.size(); index++) {
             IndicatorData data = placedIndicators.get(index);
-            prepareLabel(data, centerX, centerY);
+            prepareLabel(data);
             data.labelVisible = index < MAX_LABELED_PLAYERS && !data.label.isEmpty();
             if (data.labelVisible)
                 separateOverlappingLabel(data, index, screenWidth, screenHeight);
@@ -370,7 +397,7 @@ public class PlayerIndicators extends Module {
                 && first.labelY + first.labelHeight + padding > second.labelY;
     }
 
-    private void prepareLabel(IndicatorData data, float centerX, float centerY) {
+    private void prepareLabel(IndicatorData data) {
         StringBuilder builder = data.labelBuilder;
         builder.setLength(0);
 
@@ -382,23 +409,138 @@ public class PlayerIndicators extends Module {
         data.labelWidth = textWidth + 14f;
         data.labelHeight = 20f;
 
-        float directionX = data.drawX - centerX;
-        float directionY = data.drawY - centerY;
-        float length = (float) Math.hypot(directionX, directionY);
-        if (length < 0.001f) {
-            directionX = 0f;
-            directionY = -1f;
-            length = 1f;
-        }
-        directionX /= length;
-        directionY /= length;
-
-        float labelCenterX = data.drawX - directionX * (size.get() + 11f);
-        float labelCenterY = data.drawY - directionY * (size.get() + 11f);
+        float labelOffset = data.playerHeadRadius + data.labelHeight * 0.5f + 3f;
+        float labelCenterX = data.playerHeadX - data.outwardDirectionX * labelOffset;
+        float labelCenterY = data.playerHeadY - data.outwardDirectionY * labelOffset;
         float screenWidth = NanoVGManager.getScaledScreenWidth();
         float screenHeight = NanoVGManager.getScaledScreenHeight();
         data.labelX = Mth.clamp(labelCenterX - data.labelWidth * 0.5f, 3f, Math.max(3f, screenWidth - data.labelWidth - 3f));
         data.labelY = Mth.clamp(labelCenterY - data.labelHeight * 0.5f, 3f, Math.max(3f, screenHeight - data.labelHeight - 3f));
+    }
+
+    private static void preparePlayerHeadPlacement(IndicatorData data, float centerX, float centerY,
+                                                   float diameter, float offset) {
+        float directionX = data.drawX - centerX;
+        float directionY = data.drawY - centerY;
+        float length = (float) Math.hypot(directionX, directionY);
+        if (length < 0.001f) {
+            directionX = (float) Math.sin(data.drawAngle);
+            directionY = (float) -Math.cos(data.drawAngle);
+            length = 1f;
+        }
+
+        data.outwardDirectionX = directionX / length;
+        data.outwardDirectionY = directionY / length;
+        data.playerHeadRadius = diameter * 0.5f;
+        data.playerHeadX = data.drawX - data.outwardDirectionX * offset;
+        data.playerHeadY = data.drawY - data.outwardDirectionY * offset;
+    }
+
+    private void drawPlayerHead(NVGU vg, IndicatorData data) {
+        float borderThickness = Math.max(1f, thickness.get() * 0.55f);
+        float backgroundRadius = data.playerHeadRadius + borderThickness;
+        vg.circle(data.playerHeadX, data.playerHeadY, backgroundRadius, PLAYER_HEAD_BACKGROUND);
+
+        if (uploadPlayerHeadTexture(vg, data.playerTextureIdentifier)) {
+            float diameter = data.playerHeadRadius * 2f;
+            vg.texturedRoundedRectangle(
+                    data.playerHeadX - data.playerHeadRadius,
+                    data.playerHeadY - data.playerHeadRadius,
+                    diameter,
+                    diameter,
+                    data.playerHeadRadius,
+                    data.playerTextureIdentifier
+            );
+        }
+
+        vg.circleBorder(
+                data.playerHeadX,
+                data.playerHeadY,
+                data.playerHeadRadius + borderThickness * 0.5f,
+                borderThickness,
+                withAlpha(data.drawColor, 225)
+        );
+    }
+
+    private void requestPlayerHeadTexture(AbstractClientPlayer player, String identifier) {
+        if (player == null || identifier == null || identifier.isEmpty())
+            return;
+
+        NVGU vg = NVGU.INSTANCE;
+        PlayerHeadTextureState state = playerHeadTextures.computeIfAbsent(identifier, ignored -> new PlayerHeadTextureState());
+        if (vg != null && vg.isCreated() && vg.hasTexture(identifier)) {
+            discardPlayerHeadTextureData(state);
+            return;
+        }
+
+        long now = System.nanoTime();
+        if (state.requestPending || state.textureData != null || now < state.retryAfterNanos)
+            return;
+
+        state.requestPending = true;
+        long requestGeneration = playerHeadTextureGeneration;
+        StreamConverter.getPlayerFaceAsInputStream(player, inputStream -> {
+            if (requestGeneration != playerHeadTextureGeneration || playerHeadTextures.get(identifier) != state) {
+                closeInputStream(inputStream);
+                return;
+            }
+
+            state.requestPending = false;
+            if (inputStream == null) {
+                state.retryAfterNanos = System.nanoTime() + PLAYER_HEAD_RETRY_DELAY_NANOS;
+                return;
+            }
+
+            closeInputStream(state.textureData);
+            state.textureData = inputStream;
+        });
+    }
+
+    private boolean uploadPlayerHeadTexture(NVGU vg, String identifier) {
+        if (identifier == null || identifier.isEmpty())
+            return false;
+
+        PlayerHeadTextureState state = playerHeadTextures.get(identifier);
+        if (vg.hasTexture(identifier)) {
+            discardPlayerHeadTextureData(state);
+            return true;
+        }
+        if (state == null || state.textureData == null)
+            return false;
+
+        InputStream textureData = state.textureData;
+        state.textureData = null;
+        try {
+            vg.createTexture(identifier, textureData);
+        } catch (RuntimeException ignored) {
+            state.retryAfterNanos = System.nanoTime() + PLAYER_HEAD_RETRY_DELAY_NANOS;
+        } finally {
+            closeInputStream(textureData);
+        }
+        return vg.hasTexture(identifier);
+    }
+
+    private static void discardPlayerHeadTextureData(PlayerHeadTextureState state) {
+        if (state == null || state.textureData == null)
+            return;
+        closeInputStream(state.textureData);
+        state.textureData = null;
+    }
+
+    private void clearPlayerHeadTextureStates() {
+        playerHeadTextureGeneration++;
+        for (PlayerHeadTextureState state : playerHeadTextures.values())
+            discardPlayerHeadTextureData(state);
+        playerHeadTextures.clear();
+    }
+
+    private static void closeInputStream(InputStream inputStream) {
+        if (inputStream == null)
+            return;
+        try {
+            inputStream.close();
+        } catch (IOException ignored) {
+        }
     }
 
     private Color indicatorColor(float healthRatio) {
@@ -432,12 +574,16 @@ public class PlayerIndicators extends Module {
     }
 
     private void clearFrameData() {
+        for (IndicatorData data : indicatorPool)
+            data.player = null;
         indicators.clear();
         placedIndicators.clear();
         shaderRequests.clear();
     }
 
     private static final class IndicatorData {
+        private AbstractClientPlayer player;
+        private String playerTextureIdentifier;
         private float angle;
         private float drawAngle;
         private float screenX;
@@ -448,6 +594,11 @@ public class PlayerIndicators extends Module {
         private boolean onScreen;
         private float drawX;
         private float drawY;
+        private float outwardDirectionX;
+        private float outwardDirectionY;
+        private float playerHeadX;
+        private float playerHeadY;
+        private float playerHeadRadius;
         private Color drawColor;
         private String label = "";
         private float labelX;
@@ -457,9 +608,11 @@ public class PlayerIndicators extends Module {
         private boolean labelVisible;
         private final StringBuilder labelBuilder = new StringBuilder(48);
 
-        private void update(float angle, float screenX, float screenY,
+        private void update(AbstractClientPlayer player, float angle, float screenX, float screenY,
                             double distance, float healthRatio,
                             double distanceSquared, boolean onScreen) {
+            this.player = player;
+            this.playerTextureIdentifier = player.getStringUUID().toLowerCase(Locale.ROOT);
             this.angle = angle;
             this.screenX = screenX;
             this.screenY = screenY;
@@ -468,5 +621,11 @@ public class PlayerIndicators extends Module {
             this.distanceSquared = distanceSquared;
             this.onScreen = onScreen;
         }
+    }
+
+    private static final class PlayerHeadTextureState {
+        private InputStream textureData;
+        private boolean requestPending;
+        private long retryAfterNanos;
     }
 }
