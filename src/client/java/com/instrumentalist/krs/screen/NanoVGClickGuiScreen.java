@@ -418,14 +418,8 @@ public class NanoVGClickGuiScreen extends Screen {
         }
 
         if (textFocus != TextFocus.NONE) {
-            if (key == GLFW.GLFW_KEY_ESCAPE) {
-                if (textFocus == TextFocus.NUMBER) {
-                    cancelNumberInput();
-                    return true;
-                }
-                if (textFocus == TextFocus.SEARCH && !searchQuery.isBlank())
-                    clearSearch();
-                clearTextFocus();
+            if (key == GLFW.GLFW_KEY_ESCAPE && textFocus == TextFocus.NUMBER) {
+                cancelNumberInput();
                 return true;
             }
 
@@ -470,15 +464,6 @@ public class NanoVGClickGuiScreen extends Screen {
         if (key == GLFW.GLFW_KEY_PAGE_UP || key == GLFW.GLFW_KEY_PAGE_DOWN
                 || key == GLFW.GLFW_KEY_HOME || key == GLFW.GLFW_KEY_END) {
             scrollWithKeyboard(key);
-            return true;
-        }
-
-        if (key == GLFW.GLFW_KEY_ESCAPE) {
-            if (!searchQuery.isBlank()) {
-                clearSearch();
-                return true;
-            }
-            onClose();
             return true;
         }
 
