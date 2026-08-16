@@ -54,6 +54,7 @@ public class NanoVGClickGuiScreen extends Screen {
     private static final float PANEL_FOOTER_HEIGHT = 22f;
     private static final float SETTINGS_PANEL_HEADER_HEIGHT = 44f;
     private static final float SETTINGS_DOCK_GAP = 8f;
+    private static final int BACKGROUND_ALPHA_OFFSET = 80;
 
     private static NanoVGClickGuiScreen detachedClosingScreen;
     private static Module rememberedSettingsPanelModule;
@@ -887,7 +888,7 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private void renderPanel(NVGU vg, float x, float y, float width, float height) {
-        NanoVGTheme.renderPanel(vg, x, y, width, height, 9f, 1f);
+        NanoVGTheme.renderPanel(vg, x, y, width, height, 9f, 1f, BACKGROUND_ALPHA_OFFSET);
 
         renderHeader(vg, x, y, width);
         renderTabs(vg, x + 10f, y + 42f, width - 20f);
@@ -943,7 +944,8 @@ public class NanoVGClickGuiScreen extends Screen {
                     settingsPanelRect.width,
                     settingsPanelRect.height,
                     8f,
-                    1f
+                    1f,
+                    BACKGROUND_ALPHA_OFFSET
             );
             vg.rectangle(
                     settingsPanelRect.x + 1f,
@@ -1199,7 +1201,7 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private int renderModuleList(NVGU vg, float x, float y, float width, float height) {
-        NanoVGTheme.renderCompact(vg, x, y, width, height, 7f, 1f);
+        NanoVGTheme.renderCompact(vg, x, y, width, height, 7f, 1f, BACKGROUND_ALPHA_OFFSET);
 
         List<Module> modules = visibleModules();
         listViewport = new Rect(x + 5f, y + 5f, width - 10f, height - 10f);
@@ -1238,7 +1240,7 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private int renderConfigList(NVGU vg, float x, float y, float width, float height) {
-        NanoVGTheme.renderCompact(vg, x, y, width, height, 7f, 1f);
+        NanoVGTheme.renderCompact(vg, x, y, width, height, 7f, 1f, BACKGROUND_ALPHA_OFFSET);
 
         float innerX = x + 8f;
         float innerWidth = width - 16f;
@@ -1590,7 +1592,7 @@ public class NanoVGClickGuiScreen extends Screen {
         Rect dropdownClip = new Rect(x - 3f, y - 3f, width + 6f, visibleHeight + 6f);
         vg.scissor(dropdownClip.x, dropdownClip.y, dropdownClip.width, dropdownClip.height, () ->
                 withInputClip(dropdownClip, () -> vg.globalAlpha(progress, () -> {
-                    NanoVGTheme.renderPanel(vg, x, drawY, width, height, 5f, 1f);
+                    NanoVGTheme.renderPanel(vg, x, drawY, width, height, 5f, 1f, BACKGROUND_ALPHA_OFFSET);
 
                     for (int i = 0; i < value.values.length; i++) {
                         String option = value.values[i];
@@ -2453,7 +2455,7 @@ public class NanoVGClickGuiScreen extends Screen {
                 : tooltipY;
 
         vg.globalAlpha(easeOut(progress), () -> {
-            NanoVGTheme.renderPanel(vg, drawX, drawY, width, height, 5f, 1f);
+            NanoVGTheme.renderPanel(vg, drawX, drawY, width, height, 5f, 1f, BACKGROUND_ALPHA_OFFSET);
             NVGFonts.INTER.drawText(text, drawX + paddingX, drawY + 6f, 10f, alpha(230, 235, 240, 240), Alignment.LEFT_TOP, false);
         });
     }

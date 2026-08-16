@@ -56,6 +56,11 @@ public final class NanoVGTheme {
 
     public static void renderPanel(NVGU vg, float x, float y, float width, float height,
                                    float radius, float alpha) {
+        renderPanel(vg, x, y, width, height, radius, alpha, 0);
+    }
+
+    public static void renderPanel(NVGU vg, float x, float y, float width, float height,
+                                   float radius, float alpha, int backgroundAlphaOffset) {
         float opacity = opacity(alpha);
         if (!isDrawable(width, height, opacity))
             return;
@@ -65,8 +70,8 @@ public final class NanoVGTheme {
                 x, y, width, height, radius,
                 vg.linearGradient(
                         x, y, width, height, feather,
-                        scaledAlpha(PANEL_TOP, opacity),
-                        scaledAlpha(PANEL_BOTTOM, opacity),
+                        scaledAlpha(PANEL_TOP, opacity, backgroundAlphaOffset),
+                        scaledAlpha(PANEL_BOTTOM, opacity, backgroundAlphaOffset),
                         LinearGradientDirection.TOP_TO_BOTTOM
                 )
         );
@@ -84,12 +89,23 @@ public final class NanoVGTheme {
 
     public static void renderCompact(NVGU vg, float x, float y, float width, float height,
                                      float radius, float alpha) {
-        renderCompact(vg, x, y, width, height, radius, radius, radius, radius, alpha);
+        renderCompact(vg, x, y, width, height, radius, alpha, 0);
+    }
+
+    public static void renderCompact(NVGU vg, float x, float y, float width, float height,
+                                     float radius, float alpha, int backgroundAlphaOffset) {
+        renderCompact(vg, x, y, width, height, radius, radius, radius, radius, alpha, backgroundAlphaOffset);
     }
 
     public static void renderCompact(NVGU vg, float x, float y, float width, float height,
                                      float topLeft, float topRight, float bottomRight, float bottomLeft,
                                      float alpha) {
+        renderCompact(vg, x, y, width, height, topLeft, topRight, bottomRight, bottomLeft, alpha, 0);
+    }
+
+    public static void renderCompact(NVGU vg, float x, float y, float width, float height,
+                                     float topLeft, float topRight, float bottomRight, float bottomLeft,
+                                     float alpha, int backgroundAlphaOffset) {
         float opacity = opacity(alpha);
         if (!isDrawable(width, height, opacity))
             return;
@@ -97,7 +113,7 @@ public final class NanoVGTheme {
         vg.roundedRectangle(
                 x, y, width, height,
                 topLeft, topRight, bottomRight, bottomLeft,
-                scaledAlpha(COMPACT_BACKGROUND, opacity)
+                scaledAlpha(COMPACT_BACKGROUND, opacity, backgroundAlphaOffset)
         );
     }
 
@@ -118,12 +134,25 @@ public final class NanoVGTheme {
     }
 
     public static Color scaledAlpha(Color color, float alpha) {
+        return scaledAlpha(color, alpha, 0);
+    }
+
+    public static Color scaledAlpha(Color color, float alpha, int baseAlphaOffset) {
         float opacity = opacity(alpha);
         return new Color(
                 color.getRed(),
                 color.getGreen(),
                 color.getBlue(),
-                Math.clamp(Math.round(color.getAlpha() * opacity), 0, 255)
+                Math.clamp(Math.round(Math.clamp(color.getAlpha() + baseAlphaOffset, 0, 255) * opacity), 0, 255)
+        );
+    }
+
+    public static Color offsetAlpha(Color color, int alphaOffset) {
+        return new Color(
+                color.getRed(),
+                color.getGreen(),
+                color.getBlue(),
+                Math.clamp(color.getAlpha() + alphaOffset, 0, 255)
         );
     }
 
