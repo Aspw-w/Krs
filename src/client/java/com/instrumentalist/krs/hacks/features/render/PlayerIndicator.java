@@ -37,9 +37,6 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
-/**
- * Shader-backed, off-screen player indicators with compact tactical metadata.
- */
 public class PlayerIndicator extends Module {
     private static final int MAX_TRACKED_PLAYERS = 128;
     private static final int MAX_LABELED_PLAYERS = 32;
