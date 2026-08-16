@@ -16,6 +16,7 @@ import com.instrumentalist.krs.hacks.features.exploit.disabler.features.HypixelD
 import com.instrumentalist.krs.hacks.features.level.Breaker;
 import com.instrumentalist.krs.hacks.features.level.CivBreak;
 import com.instrumentalist.krs.hacks.features.level.Nuker;
+import com.instrumentalist.krs.hacks.features.player.Stalker;
 import com.instrumentalist.krs.utils.entity.StreamConverter;
 import com.instrumentalist.krs.utils.math.Interpolation;
 import com.instrumentalist.krs.utils.math.BehaviorUtils;
@@ -1462,9 +1463,9 @@ public class Interface extends Module {
 
             vg.circle(x + 11f, rowY + row.rowHeight / 2f, 2.2f, row.pingColor);
             for (int line = 0; line < row.nameLines.size(); line++) {
-                NVGFonts.INTER.drawText(row.nameLines.get(line), x + 17f, rowY + 3f + line * 14f, 13f, row.nameColor, Alignment.LEFT_TOP, true);
+                NVGFonts.INTER.drawText(row.nameLines.get(line), x + 17f, rowY + 3f + line * 14f, 13f, row.nameColor, Alignment.LEFT_TOP, false);
             }
-            NVGFonts.INTER.drawText(row.pingText, x + 240f - 8f, rowY + 3f, 12f, row.pingColor, Alignment.RIGHT_TOP, true);
+            NVGFonts.INTER.drawText(row.pingText, x + 240f - 8f, rowY + 3f, 12f, row.pingColor, Alignment.RIGHT_TOP, false);
 
             rowY += row.rowHeight;
         }
@@ -2084,6 +2085,7 @@ public class Interface extends Module {
     public boolean isHandlingTabGuiKey(int key, int action) {
         return tempEnabled
                 && tabGui.get()
+                && !ModuleManager.getModuleState(Stalker.class)
                 && mc.gui.screen() == null
                 && (action == GLFW.GLFW_PRESS || action == GLFW.GLFW_REPEAT)
                 && isTabGuiArrowKey(key);

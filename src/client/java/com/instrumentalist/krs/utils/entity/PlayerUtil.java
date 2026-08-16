@@ -16,8 +16,11 @@ import net.minecraft.world.phys.Vec3;
 public final class PlayerUtil implements IMinecraft {
     public static final PlayerUtil INSTANCE = new PlayerUtil();
 
+    private static final int MAX_SPOOF_RELEASE_TICKS = 10;
+
     private boolean spoofing = false;
     private Integer spoofSlot = null;
+    private int spoofReleaseTicks = 0;
 
     private PlayerUtil() {
     }
@@ -140,15 +143,49 @@ public final class PlayerUtil implements IMinecraft {
         if (spoofTargetSlot != null && spoofTargetSlot >= 0 && spoofTargetSlot <= 8) {
             spoofSlot = spoofTargetSlot;
             spoofing = true;
+            spoofReleaseTicks = 0;
         }
     }
 
     public void stopSpoof() {
         spoofing = false;
+        if (canClearSpoofSlot())
+            fullResetSpoofState();
+        else
+            spoofReleaseTicks = 0;
+    }
+
+    public void tickSpoofRelease() {
+        if (spoofing || spoofSlot == null)
+            return;
+
+        if (canClearSpoofSlot() || ++spoofReleaseTicks >= MAX_SPOOF_RELEASE_TICKS)
+            fullResetSpoofState();
+    }
+
+    public void finishSpoofReleaseIfReady() {
+        if (spoofing || spoofSlot == null)
+            return;
+
+        if (canClearSpoofSlot())
+            fullResetSpoofState();
     }
 
     public void fullResetSpoofState() {
         spoofing = false;
         spoofSlot = null;
+        spoofReleaseTicks = 0;
+    }
+
+    private boolean canClearSpoofSlot() {
+        var player = mc.player;
+        if (player == null || spoofSlot == null || spoofSlot < 0 || spoofSlot > 8)
+            return true;
+
+        // Restored to the visually spoofed slot: no transition left to hide.
+        if (player.getInventory().getSelectedSlot() == spoofSlot)
+            return true;
+
+        return player.isUsingItem();
     }
 }

@@ -64,6 +64,7 @@ public class CivBreak extends Module {
             }
             BehaviorUtils.noKillAura = false;
         }
+        PlayerUtil.INSTANCE.stopSpoof();
         if (wasBreaking)
             Client.rotationManager.stopRotation();
         if (wasBreaking)

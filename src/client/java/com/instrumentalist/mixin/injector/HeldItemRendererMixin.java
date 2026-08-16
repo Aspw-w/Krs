@@ -474,24 +474,18 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
 
     @Unique
     private boolean shouldRenderFirstPersonSpoof(LocalPlayer player, ItemStack spoofedStack) {
-        if (player == null || spoofedStack == null)
+        if (player == null) {
+            PlayerUtil.INSTANCE.fullResetSpoofState();
+            return false;
+        }
+        if (spoofedStack == null)
             return false;
 
         if (PlayerUtil.INSTANCE.getSpoofing())
             return true;
 
-        Integer spoofSlot = PlayerUtil.INSTANCE.getSpoofSlot();
-        if (spoofSlot == null || player.getInventory().getSelectedSlot() != spoofSlot || player.isUsingItem() || player.swinging) {
-            PlayerUtil.INSTANCE.fullResetSpoofState();
-            return false;
-        }
-
-        if (this.isFirstPersonSpoofSwapReady(player)) {
-            PlayerUtil.INSTANCE.fullResetSpoofState();
-            return false;
-        }
-
-        return true;
+        PlayerUtil.INSTANCE.finishSpoofReleaseIfReady();
+        return PlayerUtil.INSTANCE.getSpoofSlot() != null;
     }
 
     @Unique
@@ -564,13 +558,10 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
             this.mainHandItem = mainHandTarget;
     }
 
-    @Unique
-    private boolean isFirstPersonSpoofSwapReady(LocalPlayer player) {
-        return player.getItemSwapScale(1.0F) >= 0.999F;
-    }
-
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
     public void firstPersonItemSpoofHook(CallbackInfo ci) {
+        PlayerUtil.INSTANCE.tickSpoofRelease();
+
         LocalPlayer currentPlayer = mc.player;
 
         if (OldHitting.shouldBlock() || shouldKeepOldEatSwingItemVisible(currentPlayer)) {
@@ -599,16 +590,6 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
             ItemStack itemStack = PlayerUtil.INSTANCE.getSpoofing() && spoofedStack != null ? spoofedStack : clientPlayerEntity.getMainHandItem();
             boolean spoofStateActive = PlayerUtil.INSTANCE.getSpoofSlot() != null;
             updateSpoofedHeldItems(clientPlayerEntity, itemStack, spoofStateActive);
-
-            if (PlayerUtil.INSTANCE.getSpoofSlot() != null && !PlayerUtil.INSTANCE.getSpoofing()) {
-                Integer spoofSlot = PlayerUtil.INSTANCE.getSpoofSlot();
-                if (spoofSlot == null
-                        || clientPlayerEntity.getInventory().getSelectedSlot() != spoofSlot
-                        || clientPlayerEntity.isUsingItem()
-                        || clientPlayerEntity.swinging
-                        || this.isFirstPersonSpoofSwapReady(clientPlayerEntity))
-                    PlayerUtil.INSTANCE.fullResetSpoofState();
-            }
         }
     }
 }

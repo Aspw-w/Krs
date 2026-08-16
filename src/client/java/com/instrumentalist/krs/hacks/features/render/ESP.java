@@ -82,6 +82,7 @@ public class ESP extends Module {
     private static boolean captureOpen = false;
     private static boolean projectionReady = false;
     private static boolean reversedDepth = false;
+    private static boolean zeroToOneDepth = false;
     private static Object itemCaptureState = null;
     private static Object equipmentCaptureState = null;
     private static boolean itemCaptureArmor = false;
@@ -124,6 +125,7 @@ public class ESP extends Module {
         captureId++;
         captureOpen = true;
         reversedDepth = false;
+        zeroToOneDepth = false;
 
         updateProjection();
     }
@@ -321,6 +323,7 @@ public class ESP extends Module {
 
         VIEW_PROJECTION.set(projectionMatrix).mul(viewRotationMatrix);
         reversedDepth = isReversedDepthProjection(projectionMatrix);
+        zeroToOneDepth = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
         projectionReady = true;
     }
 
@@ -355,6 +358,7 @@ public class ESP extends Module {
             return false;
 
         mc.gameRenderer.mainCamera().getViewRotationProjectionMatrix(VIEW_PROJECTION.identity());
+        zeroToOneDepth = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
         projectionReady = true;
         return true;
     }
@@ -371,6 +375,7 @@ public class ESP extends Module {
         captureOpen = false;
         projectionReady = false;
         reversedDepth = false;
+        zeroToOneDepth = false;
         itemCaptureState = null;
         equipmentCaptureState = null;
         itemCaptureArmor = false;
@@ -611,16 +616,25 @@ public class ESP extends Module {
     }
 
     private static final class SilhouetteVertexConsumer implements VertexConsumer {
+        private static final int CLIP_PLANE_COUNT = 7;
+        private static final int MAX_CLIPPED_VERTICES = 12;
+        private static final float MIN_CLIP_W = 1.0e-6f;
+
         private Matrix4fc viewProjection;
         private int width;
         private int height;
+        private boolean zeroToOneDepth;
         private AlphaMask fallbackAlphaMask;
         private FloatArrayBuilder target;
         private final Vector4f vector = new Vector4f();
         private final Vector3f itemVector = new Vector3f();
-        private final float[] quadX = new float[4];
-        private final float[] quadY = new float[4];
-        private final float[] quadZ = new float[4];
+        private final float[] quadClip = new float[4 * 4];
+        private final float[] subQuadClip = new float[4 * 4];
+        private final float[] clipBufferA = new float[MAX_CLIPPED_VERTICES * 4];
+        private final float[] clipBufferB = new float[MAX_CLIPPED_VERTICES * 4];
+        private final float[] clippedScreenX = new float[MAX_CLIPPED_VERTICES];
+        private final float[] clippedScreenY = new float[MAX_CLIPPED_VERTICES];
+        private final float[] clippedScreenZ = new float[MAX_CLIPPED_VERTICES];
         private final float[] quadU = new float[4];
         private final float[] quadV = new float[4];
         private final boolean[] valid = new boolean[4];
@@ -635,6 +649,7 @@ public class ESP extends Module {
             this.viewProjection = viewProjection;
             this.width = width;
             this.height = height;
+            this.zeroToOneDepth = ESP.zeroToOneDepth;
             this.fallbackAlphaMask = alphaMask;
             this.activeAlphaMask = alphaMask;
             this.target = target;
@@ -678,36 +693,21 @@ public class ESP extends Module {
 
         private void projectVertex(int index, float x, float y, float z) {
             Vector4f projected = vector.set(x, y, z, 1f).mul(viewProjection);
-            if (Math.abs(projected.w) < 1e-6f || Float.isNaN(projected.w) || Float.isInfinite(projected.w)) {
-                valid[index] = false;
-                return;
-            }
-
-            float ndcX = projected.x / projected.w;
-            float ndcY = projected.y / projected.w;
-            float ndcZ = projected.z / projected.w;
-            if (Float.isNaN(ndcX) || Float.isNaN(ndcY) || Float.isNaN(ndcZ)
-                    || Float.isInfinite(ndcX) || Float.isInfinite(ndcY) || Float.isInfinite(ndcZ)
-                    || ndcZ < -1f || ndcZ > 1f) {
-                valid[index] = false;
-                return;
-            }
-
-            quadX[index] = (ndcX * 0.5f + 0.5f) * width;
-            quadY[index] = (1f - (ndcY * 0.5f + 0.5f)) * height;
-            quadZ[index] = ndcZ;
-            valid[index] = true;
+            int offset = index * 4;
+            quadClip[offset] = projected.x;
+            quadClip[offset + 1] = projected.y;
+            quadClip[offset + 2] = projected.z;
+            quadClip[offset + 3] = projected.w;
+            valid[index] = Float.isFinite(projected.x)
+                    && Float.isFinite(projected.y)
+                    && Float.isFinite(projected.z)
+                    && Float.isFinite(projected.w);
         }
 
         private void emitQuad() {
             if (!valid[0] || !valid[1] || !valid[2] || !valid[3])
                 return;
-
-            float minX = Math.min(Math.min(quadX[0], quadX[1]), Math.min(quadX[2], quadX[3]));
-            float maxX = Math.max(Math.max(quadX[0], quadX[1]), Math.max(quadX[2], quadX[3]));
-            float minY = Math.min(Math.min(quadY[0], quadY[1]), Math.min(quadY[2], quadY[3]));
-            float maxY = Math.max(Math.max(quadY[0], quadY[1]), Math.max(quadY[2], quadY[3]));
-            if (maxX < -64f || minX > width + 64f || maxY < -64f || minY > height + 64f)
+            if (outsideFrustum(quadClip))
                 return;
 
             AlphaMask alphaMask = activeAlphaMask;
@@ -761,21 +761,13 @@ public class ESP extends Module {
         }
 
         private void emitSubQuad(float s0, float t0, float s1, float t1) {
-            float x0 = interpolateQuad(quadX, s0, t0);
-            float y0 = interpolateQuad(quadY, s0, t0);
-            float z0 = interpolateQuad(quadZ, s0, t0);
-            float x1 = interpolateQuad(quadX, s1, t0);
-            float y1 = interpolateQuad(quadY, s1, t0);
-            float z1 = interpolateQuad(quadZ, s1, t0);
-            float x2 = interpolateQuad(quadX, s1, t1);
-            float y2 = interpolateQuad(quadY, s1, t1);
-            float z2 = interpolateQuad(quadZ, s1, t1);
-            float x3 = interpolateQuad(quadX, s0, t1);
-            float y3 = interpolateQuad(quadY, s0, t1);
-            float z3 = interpolateQuad(quadZ, s0, t1);
+            interpolateClipVertex(subQuadClip, 0, s0, t0);
+            interpolateClipVertex(subQuadClip, 1, s1, t0);
+            interpolateClipVertex(subQuadClip, 2, s1, t1);
+            interpolateClipVertex(subQuadClip, 3, s0, t1);
 
-            addTriangle(x0, y0, z0, x1, y1, z1, x2, y2, z2);
-            addTriangle(x0, y0, z0, x2, y2, z2, x3, y3, z3);
+            addTriangle(subQuadClip, 0, 1, 2);
+            addTriangle(subQuadClip, 0, 2, 3);
         }
 
         private float interpolateQuad(float[] values, float s, float t) {
@@ -785,11 +777,151 @@ public class ESP extends Module {
         }
 
         private void addTriangle(int a, int b, int c) {
-            addTriangle(quadX[a], quadY[a], quadZ[a], quadX[b], quadY[b], quadZ[b], quadX[c], quadY[c], quadZ[c]);
+            addTriangle(quadClip, a, b, c);
         }
 
-        private void addTriangle(float ax, float ay, float az, float bx, float by, float bz, float cx, float cy, float cz) {
-            addScreenTriangle(target, ax, ay, az, bx, by, bz, cx, cy, cz);
+        private void interpolateClipVertex(float[] destination, int destinationIndex, float s, float t) {
+            int destinationOffset = destinationIndex * 4;
+            for (int component = 0; component < 4; component++)
+                destination[destinationOffset + component] = interpolateQuadComponent(component, s, t);
+        }
+
+        private float interpolateQuadComponent(int component, float s, float t) {
+            float top = quadClip[component] + (quadClip[4 + component] - quadClip[component]) * s;
+            float bottom = quadClip[12 + component] + (quadClip[8 + component] - quadClip[12 + component]) * s;
+            return top + (bottom - top) * t;
+        }
+
+        private void addTriangle(float[] source, int a, int b, int c) {
+            copyVertex(source, a, clipBufferA, 0);
+            copyVertex(source, b, clipBufferA, 1);
+            copyVertex(source, c, clipBufferA, 2);
+
+            // Clip in homogeneous space before dividing by W. Close entities can
+            // cross the camera plane, where projecting each vertex first would
+            // otherwise create unbounded coordinates or discard the whole face.
+            float[] input = clipBufferA;
+            float[] output = clipBufferB;
+            int vertexCount = 3;
+            for (int plane = 0; plane < CLIP_PLANE_COUNT; plane++) {
+                vertexCount = clipPolygonAgainstPlane(input, vertexCount, output, plane);
+                if (vertexCount < 3)
+                    return;
+
+                float[] swap = input;
+                input = output;
+                output = swap;
+            }
+
+            for (int i = 0; i < vertexCount; i++) {
+                int offset = i * 4;
+                float w = input[offset + 3];
+                if (!Float.isFinite(w) || w <= 0f)
+                    return;
+
+                float ndcX = input[offset] / w;
+                float ndcY = input[offset + 1] / w;
+                float ndcZ = input[offset + 2] / w;
+                if (!Float.isFinite(ndcX) || !Float.isFinite(ndcY) || !Float.isFinite(ndcZ))
+                    return;
+
+                ndcX = Math.clamp(ndcX, -1f, 1f);
+                ndcY = Math.clamp(ndcY, -1f, 1f);
+                ndcZ = zeroToOneDepth
+                        ? Math.clamp(ndcZ, 0f, 1f)
+                        : Math.clamp(ndcZ, -1f, 1f);
+                clippedScreenX[i] = (ndcX * 0.5f + 0.5f) * width;
+                clippedScreenY[i] = (1f - (ndcY * 0.5f + 0.5f)) * height;
+                clippedScreenZ[i] = ndcZ;
+            }
+
+            for (int i = 1; i + 1 < vertexCount; i++) {
+                addScreenTriangle(
+                        target,
+                        clippedScreenX[0], clippedScreenY[0], clippedScreenZ[0],
+                        clippedScreenX[i], clippedScreenY[i], clippedScreenZ[i],
+                        clippedScreenX[i + 1], clippedScreenY[i + 1], clippedScreenZ[i + 1]
+                );
+            }
+        }
+
+        private int clipPolygonAgainstPlane(float[] input, int inputCount, float[] output, int plane) {
+            int outputCount = 0;
+            int previousIndex = inputCount - 1;
+            float previousDistance = clipDistance(input, previousIndex, plane);
+            boolean previousInside = previousDistance >= 0f;
+
+            for (int currentIndex = 0; currentIndex < inputCount; currentIndex++) {
+                float currentDistance = clipDistance(input, currentIndex, plane);
+                boolean currentInside = currentDistance >= 0f;
+
+                if (currentInside != previousInside) {
+                    float denominator = previousDistance - currentDistance;
+                    if (denominator != 0f && outputCount < MAX_CLIPPED_VERTICES) {
+                        float delta = Math.clamp(previousDistance / denominator, 0f, 1f);
+                        interpolateVertex(input, previousIndex, currentIndex, delta, output, outputCount++);
+                    }
+                }
+
+                if (currentInside && outputCount < MAX_CLIPPED_VERTICES)
+                    copyVertex(input, currentIndex, output, outputCount++);
+
+                previousIndex = currentIndex;
+                previousDistance = currentDistance;
+                previousInside = currentInside;
+            }
+
+            return outputCount;
+        }
+
+        private float clipDistance(float[] vertices, int index, int plane) {
+            int offset = index * 4;
+            float x = vertices[offset];
+            float y = vertices[offset + 1];
+            float z = vertices[offset + 2];
+            float w = vertices[offset + 3];
+            return switch (plane) {
+                case 0 -> x + w;
+                case 1 -> w - x;
+                case 2 -> y + w;
+                case 3 -> w - y;
+                case 4 -> zeroToOneDepth ? z : z + w;
+                case 5 -> w - z;
+                default -> w - MIN_CLIP_W;
+            };
+        }
+
+        private boolean outsideFrustum(float[] vertices) {
+            for (int plane = 0; plane < CLIP_PLANE_COUNT; plane++) {
+                boolean allOutside = true;
+                for (int vertex = 0; vertex < 4; vertex++) {
+                    if (clipDistance(vertices, vertex, plane) >= 0f) {
+                        allOutside = false;
+                        break;
+                    }
+                }
+                if (allOutside)
+                    return true;
+            }
+            return false;
+        }
+
+        private void copyVertex(float[] source, int sourceIndex, float[] destination, int destinationIndex) {
+            int sourceOffset = sourceIndex * 4;
+            int destinationOffset = destinationIndex * 4;
+            System.arraycopy(source, sourceOffset, destination, destinationOffset, 4);
+        }
+
+        private void interpolateVertex(float[] source, int startIndex, int endIndex, float delta,
+                                       float[] destination, int destinationIndex) {
+            int startOffset = startIndex * 4;
+            int endOffset = endIndex * 4;
+            int destinationOffset = destinationIndex * 4;
+            for (int component = 0; component < 4; component++) {
+                float start = source[startOffset + component];
+                destination[destinationOffset + component] = start
+                        + (source[endOffset + component] - start) * delta;
+            }
         }
 
         @Override

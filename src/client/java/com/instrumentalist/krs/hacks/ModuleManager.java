@@ -25,6 +25,7 @@ import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.instrumentalist.mixin.Initializer;
 import com.instrumentalist.krs.utils.math.Tuple;
 import com.instrumentalist.krs.screen.NanoVGClickGuiScreen;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ServerboundPongPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
@@ -73,7 +74,7 @@ public class ModuleManager implements EventListener {
                 new SpinBot(), new BrandSpoofer(), new AntiBot(), new AutoPot(), new Criticals(),
                 new Teams(), new Velocity(), new Phase(), new ServerCrasher(), new Spammer(),
                 new PerfectHorseJump(), new InventoryMove(), new Jesus(), new NoSlow(), new LongJump(),
-                new AutoTool(), new ChestStealer(), new FastLadder(), new InvManager(), new NoFall(),
+                new ChestStealer(), new FastLadder(), new InvManager(), new NoFall(),
                 new Sprint(), new ThunderDetector(), new KillEffect(), new CameraNoClip(),
                 new AntiBlind(), new Breaker(), new CivBreak(), new Timer(), new Nuker(),
                 new Xray(), new CaveFinder(), new Scaffold(), new Blink(), new TransactionConfirmBlinker(), new ExploitPatcher(),
@@ -84,20 +85,22 @@ public class ModuleManager implements EventListener {
                 new FastBreak(), new FastPlace(), new ViewModel(), new EntityDesync(), new Step(), new AntiVoid(),
                 new AutoFish(), new NoJumpCooldown(), new AlwaysRiptide(),
                 new WorldTime(), new ChatCommands(), new Rotations(),
-                new PluginsDetector(), new NameTags(), new ESP(), new MovementFix(), new LongThrow(),
+                new PluginsDetector(), new NameTags(), new ESP(), new PlayerIndicators(), new MovementFix(), new LongThrow(),
                 new MaceExploit(), new NoPush(), new LookTP(),
                 new AntiCheatDetector(), new HackerDetector(), new PackSpoofer(),
-                new EntityFly(), new WidelyPutin(), new Stalker(),
+                new EntityFly(), new WidelyPutin(), new Imposter(), new Stalker(),
                 new PacketDuper(), new SneakSpam(), new ImGui(), new ClickGui(), new ConsoleSpammer(),
                 new Reach(), new NoCombatDelay(), new AutoBypass(), new FakePinger(), new QuickMacro(),
                 new FPSBobbing(), new CrossbowExploit(), new WTap(), new HatenaPiano(),
                 new FreeLook(),
                 new SafeWalk(), new Parkour(), new AutoWalk(), new AutoRespawn(),
-                new AutoLeave(), new AutoSneak(), new MiddleClick(),
+                new AutoLeave(), new AutoSneak(), new MiddleClick(), new AntiAFK(),
                 new NoWeb(), new AntiLevitation(), new WaterSpeed(), new FastFall(),
                 new Spider(), new AutoRocket(), new AutoTotem(), new ItemDropChanger(),
                 new XCarry(), new PortalGodMode(), new Stasis(),
                 new BedESP()
+                new XCarry(), new PortalGodMode(), new Stasis(), new TPStealer(), new TPSurround(),
+                new NoBreakReset(), new TrueSight(), new AutoTool(), new DurabilityAlert()
         ));
 
         devModules.addAll(List.of(
@@ -235,7 +238,7 @@ public class ModuleManager implements EventListener {
 
         BehaviorUtils.noKillAura = false;
 
-        PlayerUtil.INSTANCE.stopSpoof();
+        PlayerUtil.INSTANCE.fullResetSpoofState();
 
         if (Client.nanoVgManager != null)
             Client.nanoVgManager.discardQueuedRenderers();
@@ -266,7 +269,20 @@ public class ModuleManager implements EventListener {
             }
         }
 
-        if (BlinkUtil.INSTANCE.getBlinking() && !BlinkUtil.INSTANCE.getLimiter() && !getModuleState(Freecam.class)) {
+        if (BlinkUtil.INSTANCE.getBlinking() && Blink.shouldBlinkOutgoing() && !BlinkUtil.INSTANCE.getLimiter() && !getModuleState(Freecam.class)) {
+            if (KillAura.isSendingSpreadTeleportPacket()
+                    || TPStealer.isSendingSpreadTeleportPacket()
+                    || TPSurround.isSendingSpreadTeleportPacket())
+                return;
+
+            if (packet instanceof ServerboundMovePlayerPacket
+                    && (KillAura.shouldSuppressMovementDuringSpreadTeleport()
+                    || TPStealer.shouldSuppressMovement()
+                    || TPSurround.shouldSuppressMovement())) {
+                event.cancel();
+                return;
+            }
+
             if (packet instanceof ServerboundMovePlayerPacket || ModuleManager.getModuleState(KillAura.class) && KillAura.closestEntity != null && KillAura.shouldCancelUseItemOnWhileBlinking() && packet instanceof ServerboundUseItemOnPacket)
                 event.cancel();
 
@@ -274,6 +290,16 @@ public class ModuleManager implements EventListener {
                 event.cancel();
                 BlinkUtil.INSTANCE.addPacket(packet);
             }
+        }
+    }
+
+    @Override
+    public void onReceivedPacket(ReceivedPacketEvent event) {
+        if (mc.player == null || mc.level == null) return;
+
+        if (BlinkUtil.INSTANCE.getBlinking() && Blink.shouldBlinkIncoming() && !getModuleState(Freecam.class)) {
+            event.cancel();
+            BlinkUtil.INSTANCE.addIncomingPacket(event.packet);
         }
     }
 

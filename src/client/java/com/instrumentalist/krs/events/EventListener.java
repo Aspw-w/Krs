@@ -57,4 +57,7 @@ public interface EventListener extends IMinecraft {
 
     default void onBlock(BlockEvent event) {
     }
+
+    default void onCancelBlockBreaking(CancelBlockBreakingEvent event) {
+    }
 }

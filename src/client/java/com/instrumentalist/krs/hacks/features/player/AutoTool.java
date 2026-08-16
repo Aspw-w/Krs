@@ -97,10 +97,6 @@ public class AutoTool extends Module {
         return ((BlockHitResult) mc.hitResult).getBlockPos();
     }
 
-    private boolean isToolActive() {
-        return breakingPos != null || toolOriginalSlot != -1 || toolSelectedSlot != -1;
-    }
-
     private boolean switchToBestTool(BlockPos pos) {
         var player = mc.player;
         if (player == null) return false;
@@ -126,7 +122,6 @@ public class AutoTool extends Module {
     }
 
     private void resetToolSlot() {
-        boolean wasToolActive = isToolActive();
         var player = mc.player;
 
         if (player != null && toolOriginalSlot >= 0 && toolOriginalSlot <= 8 && player.getInventory().getSelectedSlot() == toolSelectedSlot)
@@ -136,7 +131,7 @@ public class AutoTool extends Module {
         toolOriginalSlot = -1;
         toolSelectedSlot = -1;
         restoreDelayTicks = 0;
-        if (wasToolActive && toolSpoofing)
+        if (toolSpoofing)
             PlayerUtil.INSTANCE.stopSpoof();
         toolSpoofing = false;
     }

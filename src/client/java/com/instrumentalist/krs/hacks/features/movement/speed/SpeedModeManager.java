@@ -32,6 +32,9 @@ public class SpeedModeManager {
             case "modern mmc":
                 currentMode = new ModernMMCSpeed();
                 break;
+            case "5b5t":
+                currentMode = new FiveBFiveTSpeed();
+                break;
             case "boost":
                 currentMode = new BoostSpeed();
                 break;

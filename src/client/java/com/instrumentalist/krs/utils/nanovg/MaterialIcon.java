@@ -18,6 +18,8 @@ public class MaterialIcon {
     public static String RIGHT_ARROW = new String(Character.toChars(0xe5c8));
     public static String BACK_IOS = new String(Character.toChars(0xe5e0));
     public static String FORWARD_IOS = new String(Character.toChars(0xe5e1));
+    public static String EXPAND_MORE = new String(Character.toChars(0xe5cf));
+    public static String EXPAND_LESS = new String(Character.toChars(0xe5ce));
     public static String AUTO_RENEW = new String(Character.toChars(0xe863));
     public static String READER = new String(Character.toChars(0xe8fe));
     public static String OPEN_IN_BROWSER = new String(Character.toChars(0xe89d));
