@@ -1,6 +1,5 @@
 package com.instrumentalist.krs.utils.value;
 
-import com.instrumentalist.krs.hacks.features.render.Interface;
 import com.instrumentalist.krs.utils.ChatUtil;
 
 import java.util.Objects;
@@ -40,9 +39,7 @@ public abstract class SettingValue<T> {
 
     protected void onChange(T oldValue, T newValue) {}
 
-    protected void onChanged(T oldValue, T newValue) {
-        Interface.reloadSortedModules();
-    }
+    protected void onChanged(T oldValue, T newValue) {}
 
     @FunctionalInterface
     public interface DisplayableCondition {

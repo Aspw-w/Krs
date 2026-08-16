@@ -164,6 +164,7 @@ public class ConfigManager implements IMinecraft {
                 if (module.configObject != null)
                     module.configObject.loadBind(moduleData);
             });
+            Interface.reloadSortedModules();
         } catch (Exception e) {
             System.err.println("Failed to load bind config: " + e.getMessage());
         }

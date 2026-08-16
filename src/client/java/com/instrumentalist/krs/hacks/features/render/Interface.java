@@ -174,7 +174,7 @@ public class Interface extends Module {
 
     public static List<Module> sortedModules;
 
-    private static boolean sortedModulesDirty = true;
+    private static volatile boolean sortedModulesDirty = true;
     private static final int INFO_HYPIXEL_DISABLER = 0;
     private static final int INFO_LOOK_TP = 1;
     private static final int INFO_BREAKING = 2;
@@ -199,6 +199,8 @@ public class Interface extends Module {
     private final ArrayList<TargetHudRenderEntry> targetHudVisibleEntryBuffer = new ArrayList<>(4);
     private final List<ModuleListEntry> moduleListEntryBuffer = new ArrayList<>();
     private final Map<Module, ModuleListEntry> moduleListEntryCache = new HashMap<>();
+    private final Map<Module, Float> moduleListSortWidthCache = new HashMap<>();
+    private final List<Module> moduleListChangedSortKeys = new ArrayList<>();
     private final List<ModuleListRenderEntry> moduleListRenderEntryBuffer = new ArrayList<>();
     private final List<ModuleListRenderEntry> moduleListRenderEntryPool = new ArrayList<>();
     private float[] moduleListBackgroundGeometry = new float[32 * 8];
@@ -250,20 +252,16 @@ public class Interface extends Module {
         float textWidth;
         float fullWidth;
 
-        boolean update(String text, String tagText, float progress, float fontSize) {
-            boolean widthChanged = false;
+        void update(String text, String tagText, float progress, float fontSize) {
             if (!Objects.equals(this.text, text) || !Objects.equals(this.tagText, tagText)) {
                 float textWidth = NVGFonts.INTER.getWidth(text, fontSize);
                 float tagWidth = tagText != null ? NVGFonts.INTER.getWidth(tagText, fontSize) : 0f;
-                float fullWidth = textWidth + tagWidth;
-                widthChanged = this.text != null && Float.compare(this.fullWidth, fullWidth) != 0;
                 this.textWidth = textWidth;
-                this.fullWidth = fullWidth;
+                this.fullWidth = textWidth + tagWidth;
             }
             this.text = text;
             this.tagText = tagText;
             this.progress = progress;
-            return widthChanged;
         }
     }
 
@@ -2306,16 +2304,15 @@ public class Interface extends Module {
     }
 
     private List<ModuleListEntry> prepareModuleListEntries(long deltaTime) {
-        boolean sortOrderRefreshed = sortedModulesDirty || sortedModules == null;
-        if (sortOrderRefreshed)
+        if (sortedModulesDirty || sortedModules == null || moduleListSortWidthCache.size() != sortedModules.size())
             refreshSortedModules();
 
         List<Module> sourceModules = sortedModules != null ? sortedModules : Collections.emptyList();
         List<ModuleListEntry> renderEntries = moduleListEntryBuffer;
         renderEntries.clear();
+        moduleListChangedSortKeys.clear();
         float fontSize = 17f;
         float speed = 0.14f * (deltaTime / 16f);
-        boolean displayedWidthChanged = false;
 
         for (Module m : sourceModules) {
             if (!m.showOnArray) continue;
@@ -2338,16 +2335,49 @@ public class Interface extends Module {
 
             String text = m.moduleName;
             String tagText = getModuleListTagText(m);
-            displayedWidthChanged |= entry.update(text, tagText, progress, fontSize);
+            entry.update(text, tagText, progress, fontSize);
+            Float sortedWidth = moduleListSortWidthCache.get(m);
+            if (sortedWidth == null || Float.compare(sortedWidth, entry.fullWidth) != 0) {
+                moduleListSortWidthCache.put(m, entry.fullWidth);
+                moduleListChangedSortKeys.add(m);
+            }
             renderEntries.add(entry);
         }
 
-        if (displayedWidthChanged && !sortOrderRefreshed) {
-            refreshSortedModules();
+        if (!moduleListChangedSortKeys.isEmpty()) {
+            updateChangedModuleSortKeys();
             rebuildModuleListEntriesInSortOrder(renderEntries);
         }
 
         return renderEntries;
+    }
+
+    private void updateChangedModuleSortKeys() {
+        List<Module> reorderedModules = new ArrayList<>(sortedModules);
+        reorderedModules.removeAll(moduleListChangedSortKeys);
+
+        for (Module module : moduleListChangedSortKeys) {
+            int insertionIndex = Collections.binarySearch(reorderedModules, module, this::compareModuleListOrder);
+            if (insertionIndex < 0)
+                insertionIndex = -insertionIndex - 1;
+            reorderedModules.add(insertionIndex, module);
+        }
+
+        sortedModules = List.copyOf(reorderedModules);
+    }
+
+    private int compareModuleListOrder(Module first, Module second) {
+        float firstWidth = moduleListSortWidthCache.getOrDefault(first, 0f);
+        float secondWidth = moduleListSortWidthCache.getOrDefault(second, 0f);
+        int widthComparison = Float.compare(secondWidth, firstWidth);
+        if (widthComparison != 0)
+            return widthComparison;
+
+        int nameComparison = String.CASE_INSENSITIVE_ORDER.compare(first.moduleName, second.moduleName);
+        if (nameComparison != 0)
+            return nameComparison;
+
+        return first.moduleName.compareTo(second.moduleName);
     }
 
     private void rebuildModuleListEntriesInSortOrder(List<ModuleListEntry> renderEntries) {
@@ -2628,12 +2658,17 @@ public class Interface extends Module {
         sortedModulesDirty = true;
     }
 
-    private static void refreshSortedModules() {
+    private void refreshSortedModules() {
         final float fontSize = 17f;
         List<ModuleSortEntry> entries = new ArrayList<>();
+        moduleListSortWidthCache.clear();
         for (Module module : ModuleManager.allModules) {
-            if (module.showOnArray)
-                entries.add(new ModuleSortEntry(module, getModuleListWidth(module, fontSize)));
+            if (!module.showOnArray)
+                continue;
+
+            float width = getModuleListWidth(module, fontSize);
+            moduleListSortWidthCache.put(module, width);
+            entries.add(new ModuleSortEntry(module, width));
         }
 
         entries.sort((first, second) -> {
@@ -2641,7 +2676,11 @@ public class Interface extends Module {
             if (widthComparison != 0)
                 return widthComparison;
 
-            return String.CASE_INSENSITIVE_ORDER.compare(first.module.moduleName, second.module.moduleName);
+            int nameComparison = String.CASE_INSENSITIVE_ORDER.compare(first.module.moduleName, second.module.moduleName);
+            if (nameComparison != 0)
+                return nameComparison;
+
+            return first.module.moduleName.compareTo(second.module.moduleName);
         });
 
         List<Module> modules = new ArrayList<>(entries.size());
