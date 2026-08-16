@@ -4,6 +4,7 @@ import com.instrumentalist.krs.utils.nanovg.MaterialIcon;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.network.IConnection;
+import com.instrumentalist.krs.utils.render.NanoVGTheme;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.TransferState;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
@@ -11,7 +12,6 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import org.nvgu.NVGU;
 import org.nvgu.util.Alignment;
-import org.nvgu.util.Border;
 import org.nvgu.util.NVGFont;
 
 import java.awt.Color;
@@ -124,12 +124,10 @@ public final class ConnectionDetailsPanel {
         List<ConnectionInfoRow> rows = buildConnectionRows(current, hideAddress);
 
         vg.beginEffectBatch();
-        vg.blurRoundedRectangle(panelX, panelY, panelWidth, panelHeight, 8f, 8f, 0.34f);
-        vg.shadowRoundedRectangle(panelX, panelY, panelWidth, panelHeight, 8f, 18f, 4f, 0f, 6f, new Color(0, 0, 0, 135));
+        NanoVGTheme.renderPanelEffects(vg, panelX, panelY, panelWidth, panelHeight, 8f, 1f);
         vg.flushEffectBatch();
 
-        vg.roundedRectangle(panelX, panelY, panelWidth, panelHeight, 8f, new Color(9, 12, 18, 205));
-        vg.roundedRectangleBorder(panelX, panelY, panelWidth, panelHeight, 8f, 1f, new Color(255, 255, 255, 34), Border.INSIDE);
+        NanoVGTheme.renderPanel(vg, panelX, panelY, panelWidth, panelHeight, 8f, 1f);
 
         float elapsedSeconds = current.elapsedMs() / 1000f;
         float pulse = (float) ((Math.sin(elapsedSeconds * 3.4f) + 1.0f) * 0.5f);

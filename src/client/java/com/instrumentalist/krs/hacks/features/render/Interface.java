@@ -25,6 +25,7 @@ import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.nanovg.NanoVGTextFormatter;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.packet.BlinkUtil;
+import com.instrumentalist.krs.utils.render.NanoVGTheme;
 import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.instrumentalist.krs.utils.value.*;
 import com.instrumentalist.krs.utils.math.Tuple;
@@ -75,8 +76,7 @@ public class Interface extends Module {
     private static final long MINIMAP_TERRAIN_REFRESH_NANOS = 5_000_000_000L;
     private static final long PLAYER_LIST_REFRESH_NANOS = 250_000_000L;
     private static final ThreadLocal<DecimalFormat> ONE_DECIMAL_FORMAT = ThreadLocal.withInitial(() -> new DecimalFormat("0.0"));
-    private static final Color MODULE_LIST_BACKGROUND_COLOR = new Color(0, 0, 0, 150);
-    private static final Color MODULE_LIST_SHADOW_COLOR = new Color(0, 0, 0, 120);
+    private static final Color MODULE_LIST_BACKGROUND_COLOR = NanoVGTheme.COMPACT_BACKGROUND;
     private static final Color MODULE_LIST_TAG_COLOR = new Color(128, 128, 128, 255);
     private static long cachedTimeSecond = -1L;
     private static String cachedTimeText = "00:00:00";
@@ -132,8 +132,8 @@ public class Interface extends Module {
 
     @Setting
     private static final BooleanValue tabGui = new BooleanValue(
-            "Tab Gui",
-            true
+            "TabGui",
+            false
     );
 
     @Setting
@@ -156,8 +156,8 @@ public class Interface extends Module {
 
     @Setting
     private static final BooleanValue playerList = new BooleanValue(
-            "Player List",
-            true
+            "Players",
+            false
     );
 
     @Setting
@@ -836,9 +836,8 @@ public class Interface extends Module {
     }
 
     private static void renderConnectedInfoHudChipBodies(NVGU vg, List<InfoHudEntry> entries, float alpha) {
-        Color bgColor = alphaColor(0, 0, 0, (int) (150 * alpha));
         for (int i = 0, n = entries.size(); i < n; i++) {
-            renderConnectedInfoHudChipBackground(vg, entries, i, bgColor);
+            renderConnectedInfoHudChipBackground(vg, entries, i, alpha);
         }
 
         for (InfoHudEntry entry : entries) {
@@ -848,8 +847,7 @@ public class Interface extends Module {
 
     private static void renderPotionHudEffects(NVGU vg, List<PotionHudEntry> potionEntries) {
         for (PotionHudEntry entry : potionEntries) {
-            vg.blurRoundedRectangle(entry.rectX, entry.rectY, entry.width, entry.height, 5f, 7f, 0.4f);
-            vg.shadowRoundedRectangle(entry.rectX, entry.rectY, entry.width, entry.height, 5f, 10f, 2f, 0f, 3f, alphaColor(0, 0, 0, 120));
+            NanoVGTheme.renderCompactEffects(vg, entry.rectX, entry.rectY, entry.width, entry.height, 5f, 1f);
         }
     }
 
@@ -857,21 +855,30 @@ public class Interface extends Module {
         for (int i = 0, n = potionEntries.size(); i < n; i++) {
             PotionHudEntry entry = potionEntries.get(i);
             ConnectedHudCornerRadii radii = getConnectedHudCornerRadii(potionEntries, i, 5f);
-            vg.roundedRectangle(entry.rectX, entry.rectY, entry.width, entry.height, radii.topLeft, radii.topRight, radii.bottomRight, radii.bottomLeft, new Color(0, 0, 0, 150));
-            NVGFonts.INTER.drawText(entry.text, entry.textX, entry.textY, 16f, new Color(0, 255, 255), Alignment.RIGHT_BOTTOM, false);
+            NanoVGTheme.renderCompact(
+                    vg,
+                    entry.rectX, entry.rectY, entry.width, entry.height,
+                    radii.topLeft, radii.topRight, radii.bottomRight, radii.bottomLeft,
+                    1f
+            );
+            NVGFonts.INTER.drawText(entry.text, entry.textX, entry.textY, 16f, new Color(218, 228, 234), Alignment.RIGHT_BOTTOM, false);
         }
     }
 
     private static void renderInfoHudChipEffects(NVGU vg, InfoHudEntry entry, float alpha) {
-        vg.blurRoundedRectangle(entry.x, entry.y, entry.width, entry.height, 5f, 7f, alpha * 0.35f);
-        vg.shadowRoundedRectangle(entry.x, entry.y, entry.width, entry.height, 5f, 10f, 2f, 0f, 3f, alphaColor(0, 0, 0, (int) (120 * alpha)));
+        NanoVGTheme.renderCompactEffects(vg, entry.x, entry.y, entry.width, entry.height, 5f, alpha);
     }
 
-    private static void renderConnectedInfoHudChipBackground(NVGU vg, List<InfoHudEntry> entries, int index, Color bgColor) {
+    private static void renderConnectedInfoHudChipBackground(NVGU vg, List<InfoHudEntry> entries, int index, float alpha) {
         InfoHudEntry entry = entries.get(index);
         ConnectedHudCornerRadii radii = getConnectedHudCornerRadii(entries, index, 5f);
 
-        vg.roundedRectangle(entry.x, entry.y, entry.width, entry.height, radii.topLeft, radii.topRight, radii.bottomRight, radii.bottomLeft, bgColor);
+        NanoVGTheme.renderCompact(
+                vg,
+                entry.x, entry.y, entry.width, entry.height,
+                radii.topLeft, radii.topRight, radii.bottomRight, radii.bottomLeft,
+                alpha
+        );
     }
 
     private static ConnectedHudCornerRadii getConnectedHudCornerRadii(List<? extends ConnectedHudRect> entries, int index, float radius) {
@@ -905,7 +912,7 @@ public class Interface extends Module {
 
     private static void renderInfoHudChipText(InfoHudEntry entry) {
         NVGFonts.ICON.drawText(entry.icon, entry.x + 2.5f, entry.y + 2f, 16f, new Color(0, 255, 255), Alignment.LEFT_TOP, false);
-        NVGFonts.INTER.drawText(entry.text, entry.x + 5f + entry.iconWidth, entry.y + 4f, 16f, new Color(0, 255, 255), Alignment.LEFT_TOP, false);
+        NVGFonts.INTER.drawText(entry.text, entry.x + 5f + entry.iconWidth, entry.y + 4f, 16f, new Color(218, 228, 234), Alignment.LEFT_TOP, false);
     }
 
     private static float getChatScreenOffset() {
@@ -1060,8 +1067,6 @@ public class Interface extends Module {
         final String regenPctStr;
         final int alphaValue;
         final int barAlpha;
-        final int backgroundAlpha;
-        final Color targetBackgroundColor;
         final double depthSquared;
         final HudClipRect bounds;
         List<HudClipRect> visibleRects = List.of();
@@ -1069,8 +1074,7 @@ public class Interface extends Module {
         TargetHudRenderEntry(TargetHudState state, Entity targetEntity, float hudX, float hudY, float hudWidth,
                              float iconFix, float healthBarX, float healthBarY, float regenBarY, float barHeight,
                              float textX, String entityName, String posStr, String healthPctStr, String regenPctStr,
-                             int alphaValue, int barAlpha, int backgroundAlpha, Color targetBackgroundColor,
-                             double depthSquared) {
+                             int alphaValue, int barAlpha, double depthSquared) {
             this.state = state;
             this.targetEntity = targetEntity;
             this.hudX = hudX;
@@ -1088,8 +1092,6 @@ public class Interface extends Module {
             this.regenPctStr = regenPctStr;
             this.alphaValue = alphaValue;
             this.barAlpha = barAlpha;
-            this.backgroundAlpha = backgroundAlpha;
-            this.targetBackgroundColor = targetBackgroundColor;
             this.depthSquared = depthSquared;
             this.bounds = new HudClipRect(hudX, hudY, hudWidth, 95f);
         }
@@ -1213,12 +1215,10 @@ public class Interface extends Module {
 
         int alphaValue = Math.min(255, (int) (state.targetHudAlpha * 250));
         int barAlpha = Math.min(255, (int) (state.targetHudAlpha * 220));
-        int backgroundAlpha = Math.min(255, (int) (state.targetHudAlpha * 170));
 
         float iconFix = state.cachedPlayerTexture != null || state.playerTextureReady ? 81f : 0f;
         float hudWidth = state.previousTargetWidth + textWidth + 40f + iconFix;
 
-        Color targetBackgroundColor = alphaColor(0, 0, 0, backgroundAlpha);
         return new TargetHudRenderEntry(
                 state,
                 state.lastTargetEntity,
@@ -1237,8 +1237,6 @@ public class Interface extends Module {
                 regenPctStr,
                 alphaValue,
                 barAlpha,
-                backgroundAlpha,
-                targetBackgroundColor,
                 depthSquared
         );
     }
@@ -1320,15 +1318,23 @@ public class Interface extends Module {
     }
 
     private static void drawTargetHudEffects(NVGU vg, TargetHudRenderEntry entry) {
-        vg.blurRoundedRectangle(entry.hudX, entry.hudY, entry.hudWidth, 95f, 10f, 7f, entry.state.targetHudAlpha * 0.55f);
-        vg.shadowRoundedRectangle(entry.hudX, entry.hudY, entry.hudWidth, 95f, 10f, 16f, 3f, 0f, 5f, alphaColor(0, 0, 0, Math.min(150, entry.backgroundAlpha)));
+        NanoVGTheme.renderPanelEffects(
+                vg,
+                entry.hudX, entry.hudY, entry.hudWidth, 95f,
+                10f,
+                entry.state.targetHudAlpha
+        );
     }
 
     private static void drawTargetHudBody(NVGU vg, TargetHudRenderEntry entry) {
         TargetHudState state = entry.state;
 
-        vg.roundedRectangle(entry.hudX, entry.hudY, entry.hudWidth, 95f, 10f, entry.targetBackgroundColor);
-        vg.roundedRectangleBorder(entry.hudX, entry.hudY, entry.hudWidth, 95f, 10f, 3f, entry.targetBackgroundColor, Border.MIDDLE);
+        NanoVGTheme.renderPanel(
+                vg,
+                entry.hudX, entry.hudY, entry.hudWidth, 95f,
+                10f,
+                state.targetHudAlpha
+        );
 
         if (entry.targetEntity instanceof Player) {
             String identifier = entry.targetEntity.getStringUUID().toLowerCase(Locale.ROOT);
@@ -1447,9 +1453,8 @@ public class Interface extends Module {
         int visiblePlayers = playerListRowBuffer.size();
         String countText = totalPlayers > visiblePlayers ? visiblePlayers + "/" + totalPlayers : String.valueOf(totalPlayers);
 
-        vg.roundedRectangle(x, y, 240f, height, 8f, new Color(0, 0, 0, 125));
-        vg.roundedRectangleBorder(x, y, 240f, height, 8f, 1f, new Color(255, 255, 255, 50), Border.INSIDE);
-        vg.rectangle(x + 8f, y + 23f - 2f, 240f - 16f, 1f, new Color(255, 255, 255, 55));
+        NanoVGTheme.renderPanel(vg, x, y, 240f, height, 8f, 1f);
+        vg.rectangle(x + 8f, y + 23f - 2f, 240f - 16f, 1f, new Color(255, 255, 255, 38));
 
         NVGFonts.ICON.drawText(MaterialIcon.PERSON, x + 8f, y + 3f, 14f, new Color(0, 255, 255), Alignment.LEFT_TOP, true);
         NVGFonts.INTER.drawText("Players (" + countText + ")", x + 26f, y + 4f, 13f, new Color(255, 255, 255, 225), Alignment.LEFT_TOP, true);
@@ -1479,8 +1484,7 @@ public class Interface extends Module {
         float y = getLeftHudTopY();
         float height = getPlayerListHeight();
 
-        vg.blurRoundedRectangle(x, y, 240f, height, 8f, 7f, 0.45f);
-        vg.shadowRoundedRectangle(x, y, 240f, height, 8f, 14f, 2f, 0f, 4f, alphaColor(0, 0, 0, 115));
+        NanoVGTheme.renderPanelEffects(vg, x, y, 240f, height, 8f, 1f);
     }
 
     private static boolean isSelfPlayerListEntry(PlayerInfo entry) {
@@ -1608,7 +1612,7 @@ public class Interface extends Module {
         float centerX = mapX + halfSize;
         float centerY = mapY + halfSize;
 
-        vg.roundedRectangle(mapX, mapY, 150f, 150f, 20f, new Color(0, 0, 0, 105));
+        NanoVGTheme.renderPanel(vg, mapX, mapY, 150f, 150f, 20f, 1f);
         float blockScale = (150f - 12f) / (MINIMAP_VISIBLE_RADIUS_BLOCKS * 2f);
         renderMinimapTerrain(vg, mapX, mapY, centerX, centerY, blockScale, viewX, viewZ);
         vg.line(centerX, mapY + 7f, centerX, mapY + 150f - 7f, 1f, new Color(255, 255, 255, 28));
@@ -1625,7 +1629,6 @@ public class Interface extends Module {
         float selfY = centerY - 4f / 2f;
         vg.roundedRectangle(selfX, selfY, 4f, 4f, 2f, new Color(0, 255, 255, 240));
 
-        vg.roundedRectangleBorder(mapX, mapY, 150f, 150f, 20f, 1f, new Color(255, 255, 255, 55), Border.INSIDE);
     }
 
     private static void renderMinimapEffects(NVGU vg) {
@@ -1634,8 +1637,7 @@ public class Interface extends Module {
         float mapX = getLeftHudX();
         float mapY = getMinimapY();
 
-        vg.blurRoundedRectangle(mapX, mapY, 150f, 150f, 20f, 7f, 0.45f);
-        vg.shadowRoundedRectangle(mapX, mapY, 150f, 150f, 20f, 14f, 2f, 0f, 4f, alphaColor(0, 0, 0, 115));
+        NanoVGTheme.renderPanelEffects(vg, mapX, mapY, 150f, 150f, 20f, 1f);
     }
 
     private void renderMinimapTerrain(NVGU vg, float mapX, float mapY, float centerX, float centerY, float blockScale, double viewX, double viewZ) {
@@ -2007,8 +2009,12 @@ public class Interface extends Module {
         float textWidth = NVGFonts.INTER.getWidth(entry.text, 16f) + 10f;
         float textHeight = NVGFonts.INTER.getHeight(16f) + 6f;
 
-        vg.blurRoundedRectangle(entry.x - textWidth / 2f, entry.y, textWidth, textHeight, 5f, 7f, entry.alpha * 0.35f);
-        vg.shadowRoundedRectangle(entry.x - textWidth / 2f, entry.y, textWidth, textHeight, 5f, 10f, 2f, 0f, 3f, alphaColor(0, 0, 0, (int) (120 * entry.alpha)));
+        NanoVGTheme.renderCompactEffects(
+                vg,
+                entry.x - textWidth / 2f, entry.y, textWidth, textHeight,
+                5f,
+                entry.alpha
+        );
     }
 
     private static void renderStyledTextBody(NVGU vg, StyledTextRenderEntry entry) {
@@ -2018,11 +2024,10 @@ public class Interface extends Module {
         float alpha = entry.alpha;
         float textWidth = NVGFonts.INTER.getWidth(text, 16f) + 10f;
         float textHeight = NVGFonts.INTER.getHeight(16f) + 6f;
-        Color bgColor = alphaColor(0, 0, 0, (int) (150 * alpha));
         Color textColor = alphaColor(255, 255, 255, (int) (220 * alpha));
 
         Color accent = getFadedColor(0, 1).darker();
-        vg.roundedRectangle(x - textWidth / 2f, y, textWidth, textHeight, 5f, bgColor);
+        NanoVGTheme.renderCompact(vg, x - textWidth / 2f, y, textWidth, textHeight, 5f, alpha);
         vg.roundedRectangle(x + 4f - textWidth / 2f, y + textHeight, textWidth - 8f, 2f, 2f, new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), textColor.getAlpha()));
         NVGFonts.INTER.drawText(text, x, y + 3f, 16f, textColor, Alignment.CENTER_TOP, true);
     }
@@ -2146,8 +2151,7 @@ public class Interface extends Module {
         float categoryHeight = getTabGuiPanelHeight(categories.size());
         float expandProgress = easeTabGuiProgress(tabGuiExpandProgress);
 
-        vg.blurRoundedRectangle(x, y, categoryWidth, categoryHeight, 8f, 7f, 0.42f);
-        vg.shadowRoundedRectangle(x, y, categoryWidth, categoryHeight, 8f, 14f, 2f, 0f, 4f, alphaColor(0, 0, 0, 115));
+        NanoVGTheme.renderPanelEffects(vg, x, y, categoryWidth, categoryHeight, 8f, 1f);
 
         if (expandProgress > 0.01f && !modules.isEmpty()) {
             ModuleCategory category = selectedTabGuiCategory(categories);
@@ -2155,8 +2159,7 @@ public class Interface extends Module {
             float moduleWidth = getTabGuiModulePanelWidth(category, modules) * expandProgress;
             float moduleHeight = getTabGuiVisiblePanelHeight(modules.size(), y);
 
-            vg.blurRoundedRectangle(moduleX, y, moduleWidth, moduleHeight, 8f, 7f, 0.42f * expandProgress);
-            vg.shadowRoundedRectangle(moduleX, y, moduleWidth, moduleHeight, 8f, 14f, 2f, 0f, 4f, alphaColor(0, 0, 0, (int) (115 * expandProgress)));
+            NanoVGTheme.renderPanelEffects(vg, moduleX, y, moduleWidth, moduleHeight, 8f, expandProgress);
         }
     }
 
@@ -2170,9 +2173,8 @@ public class Interface extends Module {
         float categoryHeight = getTabGuiPanelHeight(categories.size());
         float expandProgress = easeTabGuiProgress(tabGuiExpandProgress);
 
-        vg.roundedRectangle(x, y, categoryWidth, categoryHeight, 8f, new Color(0, 0, 0, 145));
-        vg.roundedRectangleBorder(x, y, categoryWidth, categoryHeight, 8f, 1f, new Color(255, 255, 255, 45), Border.INSIDE);
-        vg.rectangle(x + 8f, y + 24f, categoryWidth - 16f, 1f, new Color(255, 255, 255, 50));
+        NanoVGTheme.renderPanel(vg, x, y, categoryWidth, categoryHeight, 8f, 1f);
+        vg.rectangle(x + 8f, y + 24f, categoryWidth - 16f, 1f, new Color(255, 255, 255, 38));
 
         NVGFonts.ICON.drawText(MaterialIcon.MENU, x + 8f, y + 4f, 14f, new Color(0, 255, 255), Alignment.LEFT_TOP, true);
         NVGFonts.INTER_MEDIUM.drawText("Modules", x + 26f, y + 5f, 13f, new Color(255, 255, 255, 225), Alignment.LEFT_TOP, true);
@@ -2212,9 +2214,8 @@ public class Interface extends Module {
 
         vg.pushScissor(x, y, visibleWidth, height);
         vg.globalAlpha(expandProgress, () -> {
-            vg.roundedRectangle(x, y, width, height, 8f, new Color(0, 0, 0, 145));
-            vg.roundedRectangleBorder(x, y, width, height, 8f, 1f, new Color(255, 255, 255, 45), Border.INSIDE);
-            vg.rectangle(x + 8f, y + 24f, width - 16f, 1f, new Color(255, 255, 255, 50));
+            NanoVGTheme.renderPanel(vg, x, y, width, height, 8f, 1f);
+            vg.rectangle(x + 8f, y + 24f, width - 16f, 1f, new Color(255, 255, 255, 38));
 
             NVGFonts.ICON.drawText(MaterialIcon.TUNE, x + 8f, y + 4f, 14f, new Color(0, 255, 255), Alignment.LEFT_TOP, true);
             NVGFonts.INTER_MEDIUM.drawText(category != null ? category.name() : "Modules", x + 26f, y + 5f, 13f, new Color(255, 255, 255, 225), Alignment.LEFT_TOP, true);
@@ -2366,7 +2367,7 @@ public class Interface extends Module {
 
             float textX = rightEdge - entry.fullWidth - 2;
             int alpha = Math.clamp((int) (entry.progress * 255f), 0, 255);
-            int baseAlpha = alpha * 150 / 255;
+            int baseAlpha = alpha * MODULE_LIST_BACKGROUND_COLOR.getAlpha() / 255;
             float rightX = rightEdge + padding;
             float horizontalPadding = rightX - (textX + entry.fullWidth) + 1;
             float leftX = textX - horizontalPadding;
@@ -2418,9 +2419,7 @@ public class Interface extends Module {
         for (ModuleListRenderEntry entry : renderEntries) {
             float radius = Math.min(6f, entry.height / 2f);
             float effectAlpha = entry.alpha / 255f;
-            vg.blurRoundedRectangle(entry.x, entry.y, entry.width, entry.height, radius, 7f, effectAlpha * 0.35f);
-            vg.shadowRoundedRectangle(entry.x, entry.y, entry.width, entry.height, radius, 10f, 2f, 0f, 3f,
-                    entry.alpha == 255 ? MODULE_LIST_SHADOW_COLOR : alphaColor(0, 0, 0, (int) (120 * effectAlpha)));
+            NanoVGTheme.renderCompactEffects(vg, entry.x, entry.y, entry.width, entry.height, radius, effectAlpha);
         }
     }
 
@@ -2459,7 +2458,12 @@ public class Interface extends Module {
                     entry.topRightRadius,
                     entry.bottomRightRadius,
                     entry.bottomLeftRadius,
-                    alphaColor(0, 0, 0, entry.baseAlpha)
+                    alphaColor(
+                            MODULE_LIST_BACKGROUND_COLOR.getRed(),
+                            MODULE_LIST_BACKGROUND_COLOR.getGreen(),
+                            MODULE_LIST_BACKGROUND_COLOR.getBlue(),
+                            entry.baseAlpha
+                    )
             );
         }
 
@@ -2530,7 +2534,7 @@ public class Interface extends Module {
                 after = waterText.substring(1);
                 float boxWidth = NVGFonts.INTER.getWidth(waterText, 20f) + 21f;
                 float boxHeight = NVGFonts.INTER.getHeight(20f) + 13f;
-                vg.roundedRectangle(16f, 16f, boxWidth, boxHeight, 8f, new Color(0, 0, 0, 150));
+                NanoVGTheme.renderPanel(vg, 16f, 16f, boxWidth, boxHeight, 8f, 1f);
                 vg.rectangle(22f, 16f + boxHeight, boxWidth - 11f, 2f, new Color(0, 255, 255));
                 NVGFonts.INTER.drawText(first, 26f, 22f, 20f, new Color(0, 255, 255), Alignment.LEFT_TOP, true);
                 NVGFonts.INTER.drawText(after, NVGFonts.INTER.getWidth(first, 20f) + 26f, 22f, 20f, new Color(255, 255, 255, 255), Alignment.LEFT_TOP, true);
@@ -2546,8 +2550,7 @@ public class Interface extends Module {
                 float fpsWidth = NVGFonts.INTER.getWidth(fpsText, 18f);
                 float width = Math.max(titleWidth, fpsWidth) + padding * 2;
                 float height = NVGFonts.INTER.getHeight(20f) + NVGFonts.INTER.getHeight(18f) + padding * 3;
-                vg.roundedRectangle(x, y, width, height - 6f, 10f, new Color(0, 0, 0, 180));
-                vg.roundedRectangle(x - 1f, y - 1f, width + 2f, height - 4f, 12f, new Color(0, 255, 255, 60));
+                NanoVGTheme.renderPanel(vg, x, y, width, height - 6f, 10f, 1f);
                 vg.rectangle(x + 6f, y + height - 9f, width - 12f, 2f, new Color(0, 255, 255, 180));
                 first = waterText.substring(0, 1);
                 after = waterText.substring(1);
@@ -2566,8 +2569,7 @@ public class Interface extends Module {
                 waterText = waterMarkText.get() + " " + Client.clientVersion + " | " + mc.getFps() + " fps";
                 float boxWidth = NVGFonts.INTER.getWidth(waterText, 20f) + 21f;
                 float boxHeight = NVGFonts.INTER.getHeight(20f) + 13f;
-                vg.blurRoundedRectangle(16f, 16f, boxWidth, boxHeight, 8f, 7f, 0.4f);
-                vg.shadowRoundedRectangle(16f, 16f, boxWidth, boxHeight, 8f, 12f, 2f, 0f, 4f, alphaColor(0, 0, 0, 120));
+                NanoVGTheme.renderPanelEffects(vg, 16f, 16f, boxWidth, boxHeight, 8f, 1f);
                 break;
 
             case "bullshit":
@@ -2580,8 +2582,7 @@ public class Interface extends Module {
                 float fpsWidth = NVGFonts.INTER.getWidth(fpsText, 18f);
                 float width = Math.max(titleWidth, fpsWidth) + padding * 2;
                 float height = NVGFonts.INTER.getHeight(20f) + NVGFonts.INTER.getHeight(18f) + padding * 3;
-                vg.blurRoundedRectangle(x, y, width, height - 6f, 10f, 7f, 0.4f);
-                vg.shadowRoundedRectangle(x, y, width, height - 6f, 10f, 12f, 2f, 0f, 4f, alphaColor(0, 0, 0, 125));
+                NanoVGTheme.renderPanelEffects(vg, x, y, width, height - 6f, 10f, 1f);
                 break;
         }
     }

@@ -3,6 +3,7 @@ package com.instrumentalist.krs.utils;
 import com.instrumentalist.krs.hacks.features.render.Interface;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
+import com.instrumentalist.krs.utils.render.NanoVGTheme;
 import org.nvgu.NVGU;
 import org.nvgu.util.Alignment;
 
@@ -184,24 +185,20 @@ class Notification {
     }
 
     public void renderEffects(NVGU vg, float x, float y) {
-        int bgAlpha = Math.min(255, (int) (fadeProgress * 180));
         float preferWidth = getPreferredWidth();
         float width = 28f + preferWidth;
 
-        vg.blurRoundedRectangle(x - preferWidth, y - 120, width, 58, 8f, 7f, fadeProgress * 0.45f);
-        vg.shadowRoundedRectangle(x - preferWidth, y - 120, width, 58, 8f, 14f, 2f, 0f, 4f, alphaColor(0, 0, 0, Math.min(130, bgAlpha)));
+        NanoVGTheme.renderPanelEffects(vg, x - preferWidth, y - 120, width, 58, 8f, fadeProgress);
     }
 
     public void renderBody(NVGU vg, float x, float y) {
-        int bgAlpha = Math.min(255, (int) (fadeProgress * 180));
         int textAlpha = Math.min(255, (int) (fadeProgress * 255));
-        Color bgColor = alphaColor(0, 0, 0, bgAlpha);
         Color textColor = alphaColor(255, 255, 255, textAlpha);
 
         float preferWidth = getPreferredWidth();
         float width = 28f + preferWidth;
 
-        vg.roundedRectangle(x - preferWidth, y - 120, width, 58, 8f, bgColor);
+        NanoVGTheme.renderPanel(vg, x - preferWidth, y - 120, width, 58, 8f, fadeProgress);
 
         if (fadeProgress > 0.1) {
             NVGFonts.INTER_MEDIUM.drawText(title, x + 14 - preferWidth, y - 114, 24f, textColor, Alignment.LEFT_TOP, true);

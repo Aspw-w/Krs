@@ -12,6 +12,7 @@ import com.instrumentalist.krs.hacks.features.combat.Teams;
 import com.instrumentalist.krs.utils.entity.StreamConverter;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
+import com.instrumentalist.krs.utils.render.NanoVGTheme;
 import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.instrumentalist.krs.utils.render.Shader2DRenderer;
 import com.instrumentalist.krs.utils.value.BooleanValue;
@@ -39,7 +40,7 @@ import java.util.Map;
 /**
  * Shader-backed, off-screen player indicators with compact tactical metadata.
  */
-public class PlayerIndicators extends Module {
+public class PlayerIndicator extends Module {
     private static final int MAX_TRACKED_PLAYERS = 128;
     private static final int MAX_LABELED_PLAYERS = 32;
     private static final float TAU = (float) (Math.PI * 2.0);
@@ -47,8 +48,6 @@ public class PlayerIndicators extends Module {
     private static final float PLAYER_HEAD_SIZE_SCALE = 0.95f;
     private static final float PLAYER_HEAD_OFFSET_SCALE = 0.72f;
     private static final long PLAYER_HEAD_RETRY_DELAY_NANOS = 5_000_000_000L;
-    private static final Color LABEL_BACKGROUND = new Color(8, 11, 16, 180);
-    private static final Color LABEL_BORDER = new Color(255, 255, 255, 32);
     private static final Color LABEL_TEXT = new Color(245, 248, 255, 235);
     private static final Color PLAYER_HEAD_BACKGROUND = new Color(8, 11, 16, 225);
     private static final Comparator<IndicatorData> NEAREST_FIRST = Comparator.comparingDouble(data -> data.distanceSquared);
@@ -117,8 +116,8 @@ public class PlayerIndicators extends Module {
     private final float[] projectedPosition = new float[3];
     private long playerHeadTextureGeneration;
 
-    public PlayerIndicators() {
-        super("Player Indicators", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, false, true);
+    public PlayerIndicator() {
+        super("Player Indicator", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -302,16 +301,14 @@ public class PlayerIndicators extends Module {
         for (IndicatorData data : placedIndicators) {
             if (!data.labelVisible)
                 continue;
-            vg.blurRoundedRectangle(data.labelX, data.labelY, data.labelWidth, data.labelHeight, 5f, 6f, 0.32f);
-            vg.shadowRoundedRectangle(data.labelX, data.labelY, data.labelWidth, data.labelHeight, 5f, 8f, 1f, 0f, 2f, new Color(0, 0, 0, 105));
+            NanoVGTheme.renderCompactEffects(vg, data.labelX, data.labelY, data.labelWidth, data.labelHeight, 5f, 1f);
         }
         vg.flushEffectBatch();
 
         for (IndicatorData data : placedIndicators) {
             if (!data.labelVisible)
                 continue;
-            vg.roundedRectangle(data.labelX, data.labelY, data.labelWidth, data.labelHeight, 5f, LABEL_BACKGROUND);
-            vg.roundedRectangleBorder(data.labelX, data.labelY, data.labelWidth, data.labelHeight, 5f, 1f, LABEL_BORDER, org.nvgu.util.Border.INSIDE);
+            NanoVGTheme.renderCompact(vg, data.labelX, data.labelY, data.labelWidth, data.labelHeight, 5f, 1f);
             vg.roundedRectangle(data.labelX + 3f, data.labelY + 3f, 2f, data.labelHeight - 6f, 1f, withAlpha(data.drawColor, 210));
             NVGFonts.INTER_MEDIUM.drawText(
                     data.label,

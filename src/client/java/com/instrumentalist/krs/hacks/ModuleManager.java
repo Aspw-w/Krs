@@ -25,7 +25,6 @@ import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.instrumentalist.mixin.Initializer;
 import com.instrumentalist.krs.utils.math.Tuple;
 import com.instrumentalist.krs.screen.NanoVGClickGuiScreen;
-import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ServerboundPongPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
@@ -84,7 +83,7 @@ public class ModuleManager implements EventListener {
                 new FastBreak(), new ViewModel(), new EntityDesync(), new Step(), new AntiVoid(),
                 new AutoFish(), new NoJumpCooldown(), new AlwaysRiptide(),
                 new WorldTime(), new ChatCommands(), new Rotations(),
-                new PluginsDetector(), new NameTags(), new ESP(), new PlayerIndicators(), new MovementFix(), new LongThrow(),
+                new PluginsDetector(), new NameTags(), new ESP(), new PlayerIndicator(), new MovementFix(), new LongThrow(),
                 new MaceExploit(), new NoPush(), new LookTP(),
                 new AntiCheatDetector(), new HackerDetector(), new PackSpoofer(),
                 new EntityFly(), new WidelyPutin(), new Imposter(), new Stalker(),

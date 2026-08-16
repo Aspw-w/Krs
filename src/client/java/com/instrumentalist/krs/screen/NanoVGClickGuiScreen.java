@@ -11,6 +11,7 @@ import com.instrumentalist.krs.utils.nanovg.MaterialIcon;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.network.FileUtil;
+import com.instrumentalist.krs.utils.render.NanoVGTheme;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.ColorValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
@@ -821,9 +822,9 @@ public class NanoVGClickGuiScreen extends Screen {
         }
 
         vg.beginEffectBatch();
-        vg.blurRoundedRectangle(0f, 0f, width, height, 0f, 7f, isInGame() ? 0.26f : 0.18f);
+        vg.blurRoundedRectangle(0f, 0f, width, height, 0f, 7f, isInGame() ? 0.48f : 0.34f);
         vg.flushEffectBatch();
-        vg.rectangle(0f, 0f, width, height, alpha(0, 0, 0, isInGame() ? 92 : 86));
+        NanoVGTheme.renderBackdropTint(vg, width, height, 1f);
     }
 
     private Screen getBackgroundScreen() {
@@ -855,9 +856,9 @@ public class NanoVGClickGuiScreen extends Screen {
         }
 
         vg.beginEffectBatch();
-        vg.blurRoundedRectangle(0f, 0f, width, height, 0f, 7f, 0.18f);
+        vg.blurRoundedRectangle(0f, 0f, width, height, 0f, 7f, 0.34f);
         vg.flushEffectBatch();
-        vg.rectangle(0f, 0f, width, height, alpha(0, 0, 0, 86));
+        NanoVGTheme.renderBackdropTint(vg, width, height, 1f);
     }
 
     private boolean isInGame() {
@@ -881,14 +882,12 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private void renderPanelEffects(NVGU vg, float x, float y, float width, float height) {
         vg.beginEffectBatch();
-        vg.blurRoundedRectangle(x, y, width, height, 9f, 7f, 0.42f);
-        vg.shadowRoundedRectangle(x, y, width, height, 9f, 18f, 4f, 0f, 5f, alpha(0, 0, 0, 132));
+        NanoVGTheme.renderPanelEffects(vg, x, y, width, height, 9f, 1f);
         vg.flushEffectBatch();
     }
 
     private void renderPanel(NVGU vg, float x, float y, float width, float height) {
-        vg.roundedRectangle(x, y, width, height, 9f, alpha(0, 0, 0, 154));
-        vg.roundedRectangleBorder(x, y, width, height, 9f, 1f, alpha(255, 255, 255, 44), Border.INSIDE);
+        NanoVGTheme.renderPanel(vg, x, y, width, height, 9f, 1f);
 
         renderHeader(vg, x, y, width);
         renderTabs(vg, x + 10f, y + 42f, width - 20f);
@@ -937,23 +936,14 @@ public class NanoVGClickGuiScreen extends Screen {
 
         Rect dockClip = new Rect(parentPanel.x + 10f, contentY, contentWidth, contentHeight);
         vg.scissor(dockClip.x, dockClip.y, dockClip.width, dockClip.height, () -> vg.globalAlpha(reveal, () -> {
-            vg.roundedRectangle(
+            NanoVGTheme.renderPanel(
+                    vg,
                     settingsPanelRect.x,
                     settingsPanelRect.y,
                     settingsPanelRect.width,
                     settingsPanelRect.height,
                     8f,
-                    alpha(7, 10, 14, 232)
-            );
-            vg.roundedRectangleBorder(
-                    settingsPanelRect.x,
-                    settingsPanelRect.y,
-                    settingsPanelRect.width,
-                    settingsPanelRect.height,
-                    8f,
-                    1f,
-                    alpha(0, 255, 255, 78),
-                    Border.INSIDE
+                    1f
             );
             vg.rectangle(
                     settingsPanelRect.x + 1f,
@@ -1209,8 +1199,7 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private int renderModuleList(NVGU vg, float x, float y, float width, float height) {
-        vg.roundedRectangle(x, y, width, height, 7f, alpha(0, 0, 0, 174));
-        vg.roundedRectangleBorder(x, y, width, height, 7f, 1f, alpha(255, 255, 255, 32), Border.INSIDE);
+        NanoVGTheme.renderCompact(vg, x, y, width, height, 7f, 1f);
 
         List<Module> modules = visibleModules();
         listViewport = new Rect(x + 5f, y + 5f, width - 10f, height - 10f);
@@ -1249,8 +1238,7 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private int renderConfigList(NVGU vg, float x, float y, float width, float height) {
-        vg.roundedRectangle(x, y, width, height, 7f, alpha(0, 0, 0, 174));
-        vg.roundedRectangleBorder(x, y, width, height, 7f, 1f, alpha(255, 255, 255, 32), Border.INSIDE);
+        NanoVGTheme.renderCompact(vg, x, y, width, height, 7f, 1f);
 
         float innerX = x + 8f;
         float innerWidth = width - 16f;
@@ -1602,9 +1590,7 @@ public class NanoVGClickGuiScreen extends Screen {
         Rect dropdownClip = new Rect(x - 3f, y - 3f, width + 6f, visibleHeight + 6f);
         vg.scissor(dropdownClip.x, dropdownClip.y, dropdownClip.width, dropdownClip.height, () ->
                 withInputClip(dropdownClip, () -> vg.globalAlpha(progress, () -> {
-                    vg.roundedRectangle(x + 1f, drawY + 2f, width, height, 5f, alpha(0, 0, 0, 72));
-                    vg.roundedRectangle(x, drawY, width, height, 5f, alpha(0, 0, 0, 190));
-                    vg.roundedRectangleBorder(x, drawY, width, height, 5f, 1f, alpha(255, 255, 255, 38), Border.INSIDE);
+                    NanoVGTheme.renderPanel(vg, x, drawY, width, height, 5f, 1f);
 
                     for (int i = 0; i < value.values.length; i++) {
                         String option = value.values[i];
@@ -2467,8 +2453,7 @@ public class NanoVGClickGuiScreen extends Screen {
                 : tooltipY;
 
         vg.globalAlpha(easeOut(progress), () -> {
-            vg.roundedRectangle(drawX, drawY, width, height, 5f, alpha(8, 12, 16, 236));
-            vg.roundedRectangleBorder(drawX, drawY, width, height, 5f, 1f, alpha(0, 255, 255, 70), Border.INSIDE);
+            NanoVGTheme.renderPanel(vg, drawX, drawY, width, height, 5f, 1f);
             NVGFonts.INTER.drawText(text, drawX + paddingX, drawY + 6f, 10f, alpha(230, 235, 240, 240), Alignment.LEFT_TOP, false);
         });
     }

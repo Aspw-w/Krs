@@ -12,6 +12,7 @@ import com.instrumentalist.krs.hacks.features.player.MurdererDetector;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.nanovg.NanoVGTextFormatter;
+import com.instrumentalist.krs.utils.render.NanoVGTheme;
 import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import net.minecraft.client.player.LocalPlayer;
@@ -34,9 +35,7 @@ import java.util.PriorityQueue;
 public class NameTags extends Module {
     private static final int MAX_RENDERED_NAME_TAGS = 256;
     private static final int MAX_VISIBLE_REGIONS = 64;
-    private static final Color SHADOW_COLOR = new Color(0, 0, 0, 110);
-    private static final Color BACKGROUND_COLOR = new Color(0, 0, 0, 75);
-    private static final Color NAME_COLOR = new Color(255, 255, 255, 200);
+    private static final Color NAME_COLOR = new Color(235, 240, 244, 230);
     private static final Color TAG_COLOR = new Color(255, 30, 30, 200);
     private static final Comparator<NameTagRenderData> DEPTH_ORDER = Comparator.comparingDouble(NameTagRenderData::depthSquared);
     private static final Comparator<NameTagRenderData> FARTHEST_FIRST = DEPTH_ORDER.reversed();
@@ -152,16 +151,16 @@ public class NameTags extends Module {
                 int backgroundCount = 0;
                 for (NameTagRenderEntry entry : visibleEntries) {
                     int offset = backgroundCount++ * 8;
-                    backgroundGeometry[offset] = entry.rectX - 1f;
-                    backgroundGeometry[offset + 1] = entry.rectY - 1f;
-                    backgroundGeometry[offset + 2] = entry.width + 2f;
-                    backgroundGeometry[offset + 3] = entry.height + 2f;
-                    backgroundGeometry[offset + 4] = 7f;
-                    backgroundGeometry[offset + 5] = 7f;
-                    backgroundGeometry[offset + 6] = 7f;
-                    backgroundGeometry[offset + 7] = 7f;
+                    backgroundGeometry[offset] = entry.rectX;
+                    backgroundGeometry[offset + 1] = entry.rectY;
+                    backgroundGeometry[offset + 2] = entry.width;
+                    backgroundGeometry[offset + 3] = entry.height;
+                    backgroundGeometry[offset + 4] = 6f;
+                    backgroundGeometry[offset + 5] = 6f;
+                    backgroundGeometry[offset + 6] = 6f;
+                    backgroundGeometry[offset + 7] = 6f;
                 }
-                vg.roundedRectangles(backgroundGeometry, backgroundCount, BACKGROUND_COLOR);
+                vg.roundedRectangles(backgroundGeometry, backgroundCount, NanoVGTheme.COMPACT_BACKGROUND);
                 for (NameTagRenderEntry entry : visibleEntries)
                     drawNameTagText(entry);
             } else {
@@ -278,12 +277,11 @@ public class NameTags extends Module {
     }
 
     private void drawNameTagEffects(NVGU vg, NameTagRenderEntry entry) {
-        vg.blurRoundedRectangle(entry.rectX, entry.rectY, entry.width, entry.height, 6f, 7f, 0.4f);
-        vg.shadowRoundedRectangle(entry.rectX, entry.rectY, entry.width, entry.height, 6f, 10f, 2f, 0f, 3f, SHADOW_COLOR);
+        NanoVGTheme.renderCompactEffects(vg, entry.rectX, entry.rectY, entry.width, entry.height, 6f, 1f);
     }
 
     private void drawNameTagBody(NVGU vg, NameTagRenderEntry entry) {
-        vg.roundedRectangle(entry.rectX - 1f, entry.rectY - 1f, entry.width + 2f, entry.height + 2f, 7f, BACKGROUND_COLOR);
+        NanoVGTheme.renderCompact(vg, entry.rectX, entry.rectY, entry.width, entry.height, 6f, 1f);
         drawNameTagText(entry);
     }
 
