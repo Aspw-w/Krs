@@ -244,6 +244,8 @@ public class ModuleManager implements EventListener {
         PluginsDetector.plugins = null;
         PluginsDetector.detectedAcs = null;
         needPlReCheck = true;
+
+        ChatUtil.printChat("_ <");
     }
 
     @Override

@@ -90,7 +90,7 @@ public class KillAura extends Module {
     );
 
     @Setting
-    public final FloatValue attackRange = new FloatValue(
+    public static final FloatValue attackRange = new FloatValue(
             "Attack Range",
             3f,
             0f,

@@ -62,7 +62,7 @@ public class Criticals extends Module {
                 && KillAura.closestEntity != null
                 && (KillAura.randomTp.get()
                 || (KillAura.tpReach.get()
-                && mc.player.distanceTo(KillAura.closestEntity) >= KillAura.square(ModuleManager.getModule(KillAura.class).attackRange.get())))))
+                && mc.player.distanceTo(KillAura.closestEntity) >= KillAura.attackRange.get()))))
             return;
         if (cooldownCheck.get() && player.getAttackStrengthScale(0f) < 0.8) return;
 

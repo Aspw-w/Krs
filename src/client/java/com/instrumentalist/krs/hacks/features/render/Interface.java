@@ -250,15 +250,20 @@ public class Interface extends Module {
         float textWidth;
         float fullWidth;
 
-        void update(String text, String tagText, float progress, float fontSize) {
+        boolean update(String text, String tagText, float progress, float fontSize) {
+            boolean widthChanged = false;
             if (!Objects.equals(this.text, text) || !Objects.equals(this.tagText, tagText)) {
-                this.textWidth = NVGFonts.INTER.getWidth(text, fontSize);
+                float textWidth = NVGFonts.INTER.getWidth(text, fontSize);
                 float tagWidth = tagText != null ? NVGFonts.INTER.getWidth(tagText, fontSize) : 0f;
-                this.fullWidth = this.textWidth + tagWidth;
+                float fullWidth = textWidth + tagWidth;
+                widthChanged = this.text != null && Float.compare(this.fullWidth, fullWidth) != 0;
+                this.textWidth = textWidth;
+                this.fullWidth = fullWidth;
             }
             this.text = text;
             this.tagText = tagText;
             this.progress = progress;
+            return widthChanged;
         }
     }
 
@@ -2301,7 +2306,8 @@ public class Interface extends Module {
     }
 
     private List<ModuleListEntry> prepareModuleListEntries(long deltaTime) {
-        if (sortedModulesDirty || sortedModules == null)
+        boolean sortOrderRefreshed = sortedModulesDirty || sortedModules == null;
+        if (sortOrderRefreshed)
             refreshSortedModules();
 
         List<Module> sourceModules = sortedModules != null ? sortedModules : Collections.emptyList();
@@ -2309,6 +2315,7 @@ public class Interface extends Module {
         renderEntries.clear();
         float fontSize = 17f;
         float speed = 0.14f * (deltaTime / 16f);
+        boolean displayedWidthChanged = false;
 
         for (Module m : sourceModules) {
             if (!m.showOnArray) continue;
@@ -2331,11 +2338,25 @@ public class Interface extends Module {
 
             String text = m.moduleName;
             String tagText = getModuleListTagText(m);
-            entry.update(text, tagText, progress, fontSize);
+            displayedWidthChanged |= entry.update(text, tagText, progress, fontSize);
             renderEntries.add(entry);
         }
 
+        if (displayedWidthChanged && !sortOrderRefreshed) {
+            refreshSortedModules();
+            rebuildModuleListEntriesInSortOrder(renderEntries);
+        }
+
         return renderEntries;
+    }
+
+    private void rebuildModuleListEntriesInSortOrder(List<ModuleListEntry> renderEntries) {
+        renderEntries.clear();
+        for (Module module : sortedModules) {
+            ModuleListEntry entry = moduleListEntryCache.get(module);
+            if (entry != null && entry.progress > 0.0f)
+                renderEntries.add(entry);
+        }
     }
 
     private List<ModuleListRenderEntry> prepareModuleListRenderEntries(List<ModuleListEntry> entries) {
@@ -2615,7 +2636,13 @@ public class Interface extends Module {
                 entries.add(new ModuleSortEntry(module, getModuleListWidth(module, fontSize)));
         }
 
-        entries.sort((first, second) -> Float.compare(second.width, first.width));
+        entries.sort((first, second) -> {
+            int widthComparison = Float.compare(second.width, first.width);
+            if (widthComparison != 0)
+                return widthComparison;
+
+            return String.CASE_INSENSITIVE_ORDER.compare(first.module.moduleName, second.module.moduleName);
+        });
 
         List<Module> modules = new ArrayList<>(entries.size());
         for (int i = 0, n = entries.size(); i < n; i++) {
