@@ -42,6 +42,7 @@ public class PlayerIndicator extends Module {
     private static final int MAX_LABELED_PLAYERS = 32;
     private static final float TAU = (float) (Math.PI * 2.0);
     private static final float LABEL_FONT_SIZE = 13f;
+    private static final float INDICATOR_OPACITY = 0.75f;
     private static final float PLAYER_HEAD_SIZE_SCALE = 0.95f;
     private static final float PLAYER_HEAD_OFFSET_SCALE = 0.72f;
     private static final long PLAYER_HEAD_RETRY_DELAY_NANOS = 5_000_000_000L;
@@ -57,13 +58,13 @@ public class PlayerIndicator extends Module {
     );
 
     @Setting
-    private static final FloatValue radius = new FloatValue("Radius", 42f, 24f, 48f, "%");
+    private static final FloatValue radius = new FloatValue("Track Radius", 48f, 24f, 48f, "%");
 
     @Setting
-    private static final FloatValue size = new FloatValue("Size", 20f, 8f, 24f, "px");
+    private static final FloatValue size = new FloatValue("Scale", 15f, 8f, 24f, "px");
 
     @Setting
-    private static final FloatValue thickness = new FloatValue("Thickness", 2.2f, 1f, 5f, "px");
+    private static final FloatValue thickness = new FloatValue("Thick", 1f, 1f, 5f, "px");
 
     @Setting
     private static final BooleanValue glow = new BooleanValue("Glow", true);
@@ -217,7 +218,7 @@ public class PlayerIndicator extends Module {
             return;
         }
 
-        Client.nanoVgManager.load(vg -> renderIndicators(vg));
+        Client.nanoVgManager.load(vg -> vg.globalAlpha(INDICATOR_OPACITY, () -> renderIndicators(vg)));
     }
 
     private void renderIndicators(NVGU vg) {
