@@ -8,7 +8,7 @@ import org.lwjgl.glfw.GLFW;
 public class CameraNoClip extends Module {
 
     @Setting
-    public static final FloatValue distance = new FloatValue("Distance", 0f, -4f, 4f);
+    public static final FloatValue distance = new FloatValue("Distance", 0f, -4f, 100f);
 
     public CameraNoClip() {
         super("Camera No Clip", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, false, false);
