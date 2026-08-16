@@ -74,7 +74,6 @@ public class ModuleManager implements EventListener {
                 new SpinBot(), new BrandSpoofer(), new AntiBot(), new AutoPot(), new Criticals(),
                 new Teams(), new Velocity(), new Phase(), new ServerCrasher(), new Spammer(),
                 new PerfectHorseJump(), new InventoryMove(), new Jesus(), new NoSlow(), new LongJump(),
-                new AutoTool(), new AutoEat(), new HotbarReplenish(), new DurabilityAlert(),
                 new ChestStealer(), new FastLadder(), new InvManager(), new NoFall(),
                 new Sprint(), new ThunderDetector(), new KillEffect(), new CameraNoClip(),
                 new AntiBlind(), new Breaker(), new CivBreak(), new Timer(), new Nuker(),
@@ -93,11 +92,11 @@ public class ModuleManager implements EventListener {
                 new Reach(), new NoCombatDelay(), new AutoBypass(), new FakePinger(), new QuickMacro(),
                 new FPSBobbing(), new CrossbowExploit(), new WTap(), new HatenaPiano(),
                 new SafeWalk(), new Parkour(), new AutoWalk(), new AutoRespawn(),
-                new AutoLeave(), new AutoSneak(), new MiddleClick(), new AntiAFK(), new StashFinder(),
+                new AutoLeave(), new AutoSneak(), new MiddleClick(), new AntiAFK(),
                 new NoWeb(), new AntiLevitation(), new WaterSpeed(), new FastFall(),
                 new Spider(), new AutoRocket(), new AutoTotem(), new ItemDropChanger(),
                 new XCarry(), new PortalGodMode(), new Stasis(), new TPStealer(), new TPSurround(),
-                new NoBreakReset(), new TrueSight()
+                new NoBreakReset(), new TrueSight(), new AutoTool(), new DurabilityAlert()
         ));
 
         devModules.addAll(List.of(
