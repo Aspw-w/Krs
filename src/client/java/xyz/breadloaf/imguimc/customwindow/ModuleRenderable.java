@@ -734,14 +734,13 @@ public class ModuleRenderable implements Renderable, IMinecraft {
                 showLog(chatMode, String.valueOf(mc.getConnection().getLocalGameProfile().id()));
             else showLog(chatMode, "User is null");
         } else if (command.startsWith("notify ")) {
-            String notify;
-            notify = command.toLowerCase().replace("notify ", "");
-
-            String[] parts = notify.split(" ");
+            int index = command.indexOf(" ");
+            String notifies = (index != -1) ? command.substring(index + 1) : "";
+            String[] parts = notifies.split(" ");
 
             if (parts.length == 2) {
                 showLog(chatMode, "Notified");
-                Client.notificationManager.addNotification(parts[0], parts[1]);
+                Client.notificationManager.addNotification(parts[0].replace("|", " "), parts[1].replace("|", " "));
                 return;
             }
 
