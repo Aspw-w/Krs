@@ -499,6 +499,15 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     @Override
+    public void tick() {
+        super.tick();
+
+        Screen backgroundScreen = getBackgroundScreen();
+        if (backgroundScreen != null && minecraft != null && minecraft.gui.screen() == this)
+            backgroundScreen.tick();
+    }
+
+    @Override
     public void resize(int width, int height) {
         super.resize(width, height);
 

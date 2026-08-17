@@ -33,7 +33,6 @@ import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import org.lwjgl.glfw.GLFW;
-import org.nvgu.NVGU;
 import xyz.breadloaf.imguimc.config.WindowConfigManager;
 import xyz.breadloaf.imguimc.customwindow.ModuleRenderable;
 import xyz.breadloaf.imguimc.screen.EmptyScreen;
@@ -237,8 +236,6 @@ public class ModuleManager implements EventListener {
 
         if (Client.nanoVgManager != null)
             Client.nanoVgManager.discardQueuedRenderers();
-        NVGU.INSTANCE.freeResources();
-        NVGU.INSTANCE.clearTexture();
 
         plChecked = false;
         PluginsDetector.plugins = null;
