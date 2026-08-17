@@ -56,6 +56,12 @@ public class Scaffold extends Module {
     private static final double MATH_FACE_CENTER_WEIGHT = 0.12D;
     private static final double MATH_EDGE_HIT_PENALTY = 4.0D;
     private static final double MATH_SAFE_HIT_INSET = 0.0625D;
+    private static final double MATH_SEARCH_BASE_ROTATION_SAVING_TICKS = 0.30D;
+    private static final double MATH_SEARCH_DISTANCE_SAVING_TICKS = 0.42D;
+    private static final double MATH_SEARCH_DISTANCE_SQUARED_SAVING_TICKS = 0.12D;
+    private static final double MATH_SEARCH_ORIGIN_PRIORITY_TICKS = 0.30D;
+    private static final double MATH_SEARCH_PATH_WEIGHT_TICKS = 0.24D;
+    private static final double MATH_SEARCH_PLAYER_DISTANCE_WEIGHT_TICKS = 0.35D;
     private static final int MATH_FACE_SAMPLE_DIVISIONS = 16;
 
     @Setting
@@ -1075,10 +1081,8 @@ public class Scaffold extends Module {
 
             if (targetBlockReplaceable && rotationMode.get().equalsIgnoreCase("math")) {
                 PlacementTarget rotationTarget = findRotationPriorityPlacementTarget(targetBlock);
-                if (rotationTarget != null) {
-                    placementTarget = rotationTarget;
-                    lockedMathPlacementTarget = rotationTarget;
-                }
+                placementTarget = selectAdaptiveMathSearchTarget(targetBlock, placementTarget, rotationTarget);
+                lockedMathPlacementTarget = placementTarget;
             }
         }
 
@@ -1126,18 +1130,13 @@ public class Scaffold extends Module {
 
     private PlacementTarget findRayTracePlacementTarget(BlockPos pos) {
         PlacementTarget rotationTarget = findRotationPriorityPlacementTarget(pos);
-        if (rotationTarget != null) {
-            lockedMathPlacementTarget = rotationTarget;
-            return rotationTarget;
-        }
-
         PlacementTarget lockedTarget = reusableMathPlacementTarget(pos);
-        PlacementTarget bestTarget = null;
+        PlacementTarget nearestTarget = null;
         double bestScore = Double.MAX_VALUE;
 
         for (BlockPos candidate : buildScaffoldCandidates(pos)) {
             int searchDistance = scaffoldSearchDistance(pos, candidate);
-            if (bestTarget != null && searchDistance > bestTarget.searchDistance())
+            if (nearestTarget != null && searchDistance > nearestTarget.searchDistance())
                 break;
 
             PlacementTarget target = findRayTracePlacementTargetForCandidate(pos, candidate, searchDistance);
@@ -1146,12 +1145,13 @@ public class Scaffold extends Module {
 
             double score = placementTargetScore(pos, target);
             if (score < bestScore) {
-                bestTarget = target;
+                nearestTarget = target;
                 bestScore = score;
             }
         }
 
-        PlacementTarget selectedTarget = selectMathPlacementTarget(pos, lockedTarget, bestTarget);
+        PlacementTarget positionTarget = selectMathPositionTarget(pos, lockedTarget, nearestTarget);
+        PlacementTarget selectedTarget = selectAdaptiveMathSearchTarget(pos, positionTarget, rotationTarget);
         lockedMathPlacementTarget = selectedTarget;
         return selectedTarget;
     }
@@ -1219,7 +1219,7 @@ public class Scaffold extends Module {
         return isIdealPlacementHitReachable(updatedTarget) ? updatedTarget : null;
     }
 
-    private PlacementTarget selectMathPlacementTarget(BlockPos currentTargetBlock, PlacementTarget lockedTarget, PlacementTarget bestTarget) {
+    private PlacementTarget selectMathPositionTarget(BlockPos currentTargetBlock, PlacementTarget lockedTarget, PlacementTarget bestTarget) {
         if (lockedTarget == null)
             return bestTarget;
         if (bestTarget == null)
@@ -1227,18 +1227,163 @@ public class Scaffold extends Module {
         if (samePlacementTarget(lockedTarget, bestTarget))
             return lockedTarget;
 
+        if (lockedTarget.searchDistance() != bestTarget.searchDistance())
+            return bestTarget.searchDistance() < lockedTarget.searchDistance() ? bestTarget : lockedTarget;
+
         boolean lockedReady = currentPlacementHit(lockedTarget) != null;
         boolean bestReady = currentPlacementHit(bestTarget) != null;
         if (lockedReady && !bestReady)
             return lockedTarget;
         if (!lockedReady && bestReady)
             return bestTarget;
-        if (lockedTarget.searchDistance() != bestTarget.searchDistance())
-            return bestTarget.searchDistance() < lockedTarget.searchDistance() ? bestTarget : lockedTarget;
 
         double lockedScore = placementTargetScore(currentTargetBlock, lockedTarget);
         double bestScore = placementTargetScore(currentTargetBlock, bestTarget);
         return bestScore + 10.0D < lockedScore ? bestTarget : lockedTarget;
+    }
+
+    private PlacementTarget selectAdaptiveMathSearchTarget(BlockPos searchOrigin, PlacementTarget positionTarget, PlacementTarget rotationTarget) {
+        if (positionTarget == null)
+            return rotationTarget;
+        if (rotationTarget == null)
+            return positionTarget;
+        if (samePlacementTarget(positionTarget, rotationTarget))
+            return rotationTarget;
+
+        int distanceGap = rotationTarget.searchDistance() - positionTarget.searchDistance();
+        if (distanceGap <= 0)
+            return rotationTarget;
+
+        if (!isStablePlacementHit(rotationTarget.hitPos(), rotationTarget.neighbour(), rotationTarget.side()))
+            return positionTarget;
+
+        double positionRotationTicks = placementRotationTicks(positionTarget);
+        double rotationTargetTicks = placementRotationTicks(rotationTarget);
+        double preRotationTicks = availablePreRotationTicks(searchOrigin, positionTarget);
+        double rotationTimeSaving = Math.max(0.0D, positionRotationTicks - preRotationTicks)
+                - rotationTargetTicks;
+
+        double requiredRotationSavingTicks = MATH_SEARCH_BASE_ROTATION_SAVING_TICKS
+                + distanceGap * MATH_SEARCH_DISTANCE_SAVING_TICKS
+                + distanceGap * distanceGap * MATH_SEARCH_DISTANCE_SQUARED_SAVING_TICKS;
+
+        if (positionTarget.searchDistance() == 0)
+            requiredRotationSavingTicks += MATH_SEARCH_ORIGIN_PRIORITY_TICKS;
+
+        requiredRotationSavingTicks += mathSearchPathPenaltyTicks(searchOrigin, rotationTarget.pos(), distanceGap);
+
+        double playerDistanceLoss = horizontalDistanceToBlock(rotationTarget.pos())
+                - horizontalDistanceToBlock(positionTarget.pos());
+        if (playerDistanceLoss > 0.0D)
+            requiredRotationSavingTicks += playerDistanceLoss * MATH_SEARCH_PLAYER_DISTANCE_WEIGHT_TICKS;
+
+        var player = mc.player;
+        if (player != null && !player.onGround() && player.getDeltaMovement().y < 0.0D)
+            requiredRotationSavingTicks += distanceGap * MATH_SEARCH_PATH_WEIGHT_TICKS;
+
+        return rotationTimeSaving >= requiredRotationSavingTicks ? rotationTarget : positionTarget;
+    }
+
+    private double mathSearchPathPenaltyTicks(BlockPos origin, BlockPos candidate, int distanceGap) {
+        if (origin == null || candidate == null || distanceGap <= 0)
+            return 0.0D;
+
+        Vec3 direction = getPreRotationDirection();
+        double directionLength = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
+        if (directionLength <= 1.0E-6D)
+            return distanceGap * MATH_SEARCH_PATH_WEIGHT_TICKS;
+
+        double offsetX = candidate.getX() - origin.getX();
+        double offsetZ = candidate.getZ() - origin.getZ();
+        double offsetLength = Math.sqrt(offsetX * offsetX + offsetZ * offsetZ);
+        if (offsetLength <= 1.0E-6D)
+            return 0.0D;
+
+        double alignment = (offsetX * direction.x + offsetZ * direction.z) / (offsetLength * directionLength);
+        return (1.0D - Mth.clamp(alignment, -1.0D, 1.0D))
+                * distanceGap
+                * MATH_SEARCH_PATH_WEIGHT_TICKS;
+    }
+
+    private double placementRotationTicks(PlacementTarget target) {
+        float[] rotations = rotationsToHitPos(target.hitPos());
+        float yawDiff = Math.abs(Mth.wrapDegrees(rotations[0] - Client.rotationManager.getRotationYaw()));
+        float pitchDiff = Math.abs(rotations[1] - Client.rotationManager.getRotationPitch());
+        double yawTicks = rotationTicks(yawDiff, expectedMathYawSpeed());
+        double pitchTicks = rotationTicks(pitchDiff, expectedMathPitchSpeed());
+        double movementAlignmentTicks = mathMovementAlignmentScore(rotations[0])
+                / Math.max(1.0D, expectedMathYawSpeed());
+        return Math.max(yawTicks, pitchTicks) + movementAlignmentTicks;
+    }
+
+    private double availablePreRotationTicks(BlockPos searchOrigin, PlacementTarget target) {
+        if (!usesMathPreRotation() || searchOrigin == null || target == null || target.pos().equals(searchOrigin))
+            return 0.0D;
+
+        var player = mc.player;
+        if (player == null)
+            return 0.0D;
+
+        double horizontalSpeed = MovementUtil.getSpeed(
+                player.getDeltaMovement().x,
+                player.getDeltaMovement().z
+        );
+        if (horizontalSpeed <= 1.0E-4D)
+            return 0.0D;
+
+        Vec3 direction = getPreRotationDirection();
+        double directionLength = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
+        double offsetX = target.pos().getX() - searchOrigin.getX();
+        double offsetZ = target.pos().getZ() - searchOrigin.getZ();
+        double offsetLength = Math.sqrt(offsetX * offsetX + offsetZ * offsetZ);
+        if (directionLength <= 1.0E-6D || offsetLength <= 1.0E-6D)
+            return 0.0D;
+
+        double alignment = (offsetX * direction.x + offsetZ * direction.z) / (offsetLength * directionLength);
+        if (alignment <= 0.0D)
+            return 0.0D;
+
+        double leadDistance = mathPreRotationLeadDistance(horizontalSpeed);
+        return Mth.clamp(leadDistance / horizontalSpeed, 0.0D, 8.0D)
+                * Mth.clamp(alignment, 0.0D, 1.0D);
+    }
+
+    private static double rotationTicks(float angleDifference, double degreesPerTick) {
+        if (angleDifference <= 1.0E-3F)
+            return 0.0D;
+        if (degreesPerTick <= 1.0E-3D)
+            return Double.POSITIVE_INFINITY;
+        return angleDifference / degreesPerTick;
+    }
+
+    private static double expectedMathYawSpeed() {
+        double min = Math.min(minRotationSpeed.get(), maxRotationSpeed.get());
+        double max = Math.max(minRotationSpeed.get(), maxRotationSpeed.get());
+        return (min + max) * 0.5D;
+    }
+
+    private static double expectedMathPitchSpeed() {
+        double min = Math.min(minRotationSpeed.get(), maxRotationSpeed.get());
+        double max = Math.max(minRotationSpeed.get(), maxRotationSpeed.get());
+        double safeMax = Math.min(max, 18.0D);
+        if (safeMax <= 0.0D)
+            return 0.0D;
+
+        double safeMin = min > 18.0D
+                ? Math.min(12.0D, safeMax)
+                : Math.min(min, safeMax);
+        safeMin = Math.max(Math.min(1.0D, safeMax), safeMin);
+        return (safeMin + safeMax) * 0.5D;
+    }
+
+    private static double horizontalDistanceToBlock(BlockPos pos) {
+        var player = mc.player;
+        if (player == null || pos == null)
+            return 0.0D;
+
+        double xDistance = Math.max(Math.max(pos.getX() - player.getX(), player.getX() - (pos.getX() + 1.0D)), 0.0D);
+        double zDistance = Math.max(Math.max(pos.getZ() - player.getZ(), player.getZ() - (pos.getZ() + 1.0D)), 0.0D);
+        return Math.sqrt(xDistance * xDistance + zDistance * zDistance);
     }
 
     private boolean isIdealPlacementHitReachable(PlacementTarget target) {
