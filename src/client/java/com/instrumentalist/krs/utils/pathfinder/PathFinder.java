@@ -32,7 +32,9 @@ import net.minecraft.world.level.block.WebBlock;
 import net.minecraft.world.level.block.piston.MovingPistonBlock;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.piston.PistonHeadBlock;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -51,12 +53,45 @@ public class PathFinder implements IMinecraft {
     private long nextSequence;
 
     public PathFinder(final Vec3 startVec3Path, final Vec3 endVec3Path) {
-        this.startVec3Path = floorVec3d(startVec3Path);
-        this.endVec3Path = floorVec3d(endVec3Path);
+        this.startVec3Path = normalizePathPosition(startVec3Path);
+        this.endVec3Path = normalizePathPosition(endVec3Path);
     }
 
-    private Vec3 floorVec3d(Vec3 vec) {
+    private static Vec3 floorVec3d(Vec3 vec) {
         return new Vec3(Math.floor(vec.x), Math.floor(vec.y), Math.floor(vec.z));
+    }
+
+    static Vec3 normalizePathPosition(Vec3 vec) {
+        if (vec == null)
+            return new Vec3(Double.NaN, Double.NaN, Double.NaN);
+        if (!Double.isFinite(vec.x) || !Double.isFinite(vec.y) || !Double.isFinite(vec.z))
+            return vec;
+
+        Vec3 floored = floorVec3d(vec);
+        if (mc.level == null)
+            return floored;
+
+        BlockPos feetBlock = BlockPos.containing(vec);
+        var feetState = mc.level.getBlockState(feetBlock);
+        if (feetState.getBlock() instanceof CarpetBlock)
+            return floored;
+
+        VoxelShape collisionShape = feetState.getCollisionShape(mc.level, feetBlock);
+        if (collisionShape.isEmpty())
+            return floored;
+
+        double localY = vec.y - feetBlock.getY();
+        double collisionTop = collisionTopAt(
+                collisionShape,
+                vec.x - feetBlock.getX(),
+                vec.z - feetBlock.getZ()
+        );
+        if (Double.isFinite(collisionTop)
+                && collisionTop < 1.0D
+                && localY + 1.0E-4D >= collisionTop)
+            return new Vec3(floored.x, floored.y + 1.0D, floored.z);
+
+        return floored;
     }
 
     public static boolean isValid(final Vec3 loc, final boolean checkGround) {
@@ -76,9 +111,20 @@ public class PathFinder implements IMinecraft {
 
     private static boolean isNotPassable(final BlockPos block) {
         if (mc.level == null) return true;
-        final Block b = mc.level.getBlockState(block).getBlock();
+        var state = mc.level.getBlockState(block);
+        final Block b = state.getBlock();
 
-        return b.defaultBlockState().isRedstoneConductor(mc.level, block)
+        // These occupy the player's feet block without acting as a full cube.
+        // Carpet supplies a thin floor and ladders remain traversable/climbable.
+        if (b instanceof CarpetBlock || b instanceof LadderBlock)
+            return false;
+        if (b instanceof FenceGateBlock)
+            return !state.getValue(FenceGateBlock.OPEN);
+        if (b instanceof FenceBlock)
+            return true;
+
+        return !state.getCollisionShape(mc.level, block).isEmpty()
+                || state.isRedstoneConductor(mc.level, block)
                 || b == Blocks.GLASS
                 || Blocks.STAINED_GLASS.asList().contains(b)
                 || b == Blocks.GLASS_PANE
@@ -109,15 +155,29 @@ public class PathFinder implements IMinecraft {
                 || b instanceof EndPortalBlock
                 || b instanceof BedBlock
                 || b instanceof WebBlock
-                || b instanceof BarrierBlock
-                || b instanceof LadderBlock
-                || b instanceof CarpetBlock;
+                || b instanceof BarrierBlock;
     }
 
     private static boolean canWalkOn(final BlockPos block) {
         if (mc.level == null) return false;
         final Block b = mc.level.getBlockState(block).getBlock();
         return !(b instanceof FenceBlock) && !(b instanceof FenceGateBlock) && !(b instanceof WallBlock) && b != Blocks.BARRIER;
+    }
+
+    static double collisionTopAt(VoxelShape shape, double localX, double localZ) {
+        if (shape == null || shape.isEmpty())
+            return Double.NEGATIVE_INFINITY;
+
+        double top = Double.NEGATIVE_INFINITY;
+        double sampleX = Math.clamp(localX, 0.0D, 1.0D);
+        double sampleZ = Math.clamp(localZ, 0.0D, 1.0D);
+        for (AABB box : shape.toAabbs()) {
+            if (sampleX + 1.0E-6D < box.minX || sampleX - 1.0E-6D > box.maxX
+                    || sampleZ + 1.0E-6D < box.minZ || sampleZ - 1.0E-6D > box.maxZ)
+                continue;
+            top = Math.max(top, box.maxY);
+        }
+        return top;
     }
 
     public ArrayList<Vec3> getPath() {
