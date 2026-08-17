@@ -70,7 +70,7 @@ public class AutoBypass extends Module {
         switch (mode.get().toLowerCase(Locale.ROOT)) {
             case "hypixel":
                 if (packet instanceof ClientboundSystemChatPacket chatPacket && !chatPacket.overlay()) {
-                    if (chatPacket.content().getString().contains("You were spawned in Limbo.")) {
+                    if (chatPacket.content().getString().contains("You were spawned in Limbo.") || chatPacket.content().getString().contains("You are AFK. Move around to return from AFK.")) {
                         neededCommand = "lobby";
                         Client.notificationManager.addNotification("Auto Chat", "Trying to bypass limbo...");
                     } else if (chatPacket.content().getString().contains("You won! Want to play again?") || chatPacket.content().getString().contains("You died! Want to play again?")) {
