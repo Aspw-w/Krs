@@ -4,9 +4,12 @@ import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.ClientCape;
+import com.instrumentalist.krs.hacks.features.render.OldHitting;
 import com.instrumentalist.krs.hacks.features.render.Rotations;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
+import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.entity.ClientAvatarState;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -14,6 +17,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemStack;
@@ -39,7 +43,7 @@ public abstract class PlayerEntityRendererMixin implements IMinecraft {
             double d2 = avatarState.getInterpolatedCloakZ(tickDelta)
                     - Mth.lerp((double)tickDelta, player.zo, player.getZ());
 
-            float angle = Mth.rotLerp(tickDelta, player.yBodyRotO, player.yBodyRot);
+            float angle = krs$getCapeBodyYaw(player, tickDelta, Mth.rotLerp(tickDelta, player.yBodyRotO, player.yBodyRot));
             double sin = Mth.sin(angle * ((float)Math.PI / 180F));
             double cos = -Mth.cos(angle * ((float)Math.PI / 180F));
 
@@ -60,6 +64,29 @@ public abstract class PlayerEntityRendererMixin implements IMinecraft {
         }
     }
 
+    @ModifyExpressionValue(
+            method = "extractCapeState",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/util/Mth;rotLerp(FFF)F")
+    )
+    private float krs$rotationCapeYaw(float original, Avatar avatar, AvatarRenderState state, float tickDelta) {
+        return krs$getCapeBodyYaw(avatar, tickDelta, original);
+    }
+
+    @Unique
+    private static float krs$getCapeBodyYaw(Avatar avatar, float tickDelta, float fallback) {
+        if (GuiEntityRenderGuard.isActive()
+                || avatar != mc.player
+                || Client.rotationManager == null
+                || !Client.rotationManager.isRotating()
+                || !ModuleManager.getModuleState(Rotations.class))
+            return fallback;
+
+        if (Rotations.vanilla.get())
+            return Client.rotationManager.getInterpolatedBodyYaw(tickDelta);
+
+        return Client.rotationManager.getInterpolatedYaw(tickDelta);
+    }
+
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V", at = @At("RETURN"))
     private void clientSideRotations(Avatar avatar, AvatarRenderState state, float f, CallbackInfo info) {
         ((IEntityRenderState) state).client$setEntity(avatar);
@@ -68,12 +95,30 @@ public abstract class PlayerEntityRendererMixin implements IMinecraft {
         if (player != mc.player) return;
 
         applyEmptyHandSpoofArmPose(state);
+        applyOldHittingUseState(state);
 
         if (Client.rotationManager.isRotating() && ModuleManager.getModuleState(Rotations.class) && !Rotations.vanilla.get()) {
             state.yRot = 0f;
             state.bodyRot = Client.rotationManager.getInterpolatedYaw(f);
             state.xRot = Client.rotationManager.getInterpolatedPitch(f);
         }
+    }
+
+    @Unique
+    private void applyOldHittingUseState(AvatarRenderState state) {
+        if (mc.options.getCameraType().isFirstPerson()
+                || GuiEntityRenderGuard.isActive()
+                || !OldHitting.shouldBlock())
+            return;
+
+        state.isUsingItem = true;
+        state.useItemHand = InteractionHand.MAIN_HAND;
+        state.ticksUsingItem = Math.max(state.ticksUsingItem, 1.0F);
+
+        if (state.mainArm == HumanoidArm.RIGHT)
+            state.rightArmPose = HumanoidModel.ArmPose.BLOCK;
+        else
+            state.leftArmPose = HumanoidModel.ArmPose.BLOCK;
     }
 
     @Unique

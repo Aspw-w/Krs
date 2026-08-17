@@ -38,6 +38,7 @@
     "InGameOverlayRendererMixin",
     "IndigoXrayBlockRendererMixin",
     "InputConstantsMixin",
+    "IsUsingItemMixin",
     "ItemInHandLayerMixin",
     "KeyboardInputMixin",
     "KeyboardMixin",

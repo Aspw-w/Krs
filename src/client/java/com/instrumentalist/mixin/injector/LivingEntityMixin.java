@@ -12,6 +12,7 @@ import com.instrumentalist.krs.hacks.features.movement.Step;
 import com.instrumentalist.krs.hacks.features.render.ViewModel;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.utils.move.MovementUtil;
+import com.instrumentalist.krs.utils.render.OldHittingRenderGuard;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
@@ -19,6 +20,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -94,6 +96,32 @@ public abstract class LivingEntityMixin extends EntityMixin {
     @ModifyReturnValue(method = "isAutoSpinAttack", at = @At("RETURN"))
     private boolean riptideSpinAttackHook(boolean original) {
         return original || AlwaysRiptide.shouldForceSpinAttack((LivingEntity) (Object) this);
+    }
+
+    @ModifyReturnValue(method = "isUsingItem", at = @At("RETURN"))
+    private boolean krs$oldHittingRenderUseState(boolean original) {
+        return original || OldHittingRenderGuard.shouldSpoofUseState((LivingEntity) (Object) this);
+    }
+
+    @ModifyReturnValue(method = "isBlocking", at = @At("RETURN"))
+    private boolean krs$oldHittingRenderBlockState(boolean original) {
+        return original || OldHittingRenderGuard.shouldSpoofUseState((LivingEntity) (Object) this);
+    }
+
+    @ModifyReturnValue(method = "getUsedItemHand", at = @At("RETURN"))
+    private InteractionHand krs$oldHittingRenderUseHand(InteractionHand original) {
+        if (OldHittingRenderGuard.shouldSpoofUseState((LivingEntity) (Object) this))
+            return InteractionHand.MAIN_HAND;
+
+        return original;
+    }
+
+    @ModifyReturnValue(method = "getUseItem", at = @At("RETURN"))
+    private ItemStack krs$oldHittingRenderUseItem(ItemStack original) {
+        if (OldHittingRenderGuard.shouldSpoofUseState((LivingEntity) (Object) this))
+            return ((LivingEntity) (Object) this).getMainHandItem();
+
+        return original;
     }
 
     @WrapWithCondition(method = "drop(Lnet/minecraft/world/item/ItemStack;ZZ)Lnet/minecraft/world/entity/item/ItemEntity;", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;swing(Lnet/minecraft/world/InteractionHand;)V"))

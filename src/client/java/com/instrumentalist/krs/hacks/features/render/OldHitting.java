@@ -23,7 +23,7 @@ public class OldHitting extends Module {
     public static final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "Push", "Dash", "Swang", "Swonk"}, "Vanilla");
 
     @Setting
-    private static final ListValue thirdPersonMode = new ListValue("Third Person Mode", new String[]{"Vanilla", "Legacy Vanilla", "Overstate"}, "Legacy Vanilla");
+    private static final ListValue thirdPersonMode = new ListValue("Third Person Mode", new String[]{"Vanilla", "Legacy Vanilla"}, "Legacy Vanilla");
 
     private static boolean canBlock = false;
 
@@ -101,12 +101,6 @@ public class OldHitting extends Module {
                 arm.xRot = arm.xRot * 0.5f - 0.9424779f;
                 arm.yRot = 0.0f;
                 arm.zRot = 0.0f;
-            }
-
-            case "overstate" -> {
-                arm.xRot = arm.xRot * 0.5f - 1.45f;
-                arm.yRot = -0.95f * direction;
-                arm.zRot = 0.5f * direction;
             }
         }
     }
