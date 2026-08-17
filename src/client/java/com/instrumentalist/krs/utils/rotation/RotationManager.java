@@ -18,7 +18,6 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.Optional;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class RotationManager {
     private final Minecraft mc = Minecraft.getInstance();
@@ -38,6 +37,7 @@ public class RotationManager {
     private long lastRotationUpdate = 0L;
     private boolean isRotating = false;
     private boolean isReturning = false;
+    private boolean returnFramePrepared = false;
     private boolean initialized = false;
     private boolean serverRotationInitialized = false;
 
@@ -64,37 +64,20 @@ public class RotationManager {
             }
 
             if (elapsedSinceRotation > 1000L) {
-                isRotating = false;
-                isReturning = true;
+                beginReturnToPlayerRotation();
             } else {
                 return;
             }
         }
 
         if (isReturning && mc.player != null) {
-            float targetYaw = mc.player.getYRot();
-            float targetPitch = mc.player.getXRot();
-
-            float yawDiff = Mth.wrapDegrees(targetYaw - clientYaw);
-            float pitchDiff = Mth.wrapDegrees(targetPitch - clientPitch);
-
-            float returnSpeed = 40.0f;
-            yawDiff = Mth.clamp(yawDiff, -returnSpeed, returnSpeed);
-            pitchDiff = Mth.clamp(pitchDiff, -returnSpeed, returnSpeed);
-
-            yawDiff += getRandomOffset() * 0.3f;
-            pitchDiff += getRandomOffset() * 0.3f;
-
             updateRotations();
+            clientYaw += Mth.wrapDegrees(mc.player.getYRot() - clientYaw);
+            clientPitch = mc.player.getXRot();
 
-            if (Math.abs(yawDiff) < 1.0f && Math.abs(pitchDiff) < 1.0f) {
-                clientYaw = targetYaw;
-                clientPitch = targetPitch;
+            if (returnFramePrepared) {
                 isReturning = false;
-            } else {
-                float[] fixedRotation = normalizeRotation(clientYaw + yawDiff, clientPitch + pitchDiff, clientYaw, clientPitch);
-                clientYaw = fixedRotation[0];
-                clientPitch = fixedRotation[1];
+                returnFramePrepared = false;
             }
         } else if (mc.player != null) {
             updateRotations();
@@ -124,10 +107,23 @@ public class RotationManager {
         }
 
         prevRenderHeadPitch = renderHeadPitch;
-        renderHeadPitch = getClientPitch();
         prevRenderYaw = renderYaw;
-        renderYaw = getClientYaw();
-        updateVanillaRenderBodyYaw(renderYaw);
+
+        if (isReturning()) {
+            renderHeadPitch = mc.player != null ? mc.player.getXRot() : getClientPitch();
+            if (mc.player != null) {
+                renderYaw += Mth.wrapDegrees(mc.player.getYRot() - renderYaw);
+                prevRenderBodyYaw = renderBodyYaw;
+                renderBodyYaw += Mth.wrapDegrees(mc.player.yBodyRot - renderBodyYaw);
+            } else {
+                renderYaw = getClientYaw();
+            }
+            returnFramePrepared = true;
+        } else {
+            renderHeadPitch = getClientPitch();
+            renderYaw = getClientYaw();
+            updateVanillaRenderBodyYaw(renderYaw);
+        }
     }
 
     public void resetRotationsInstantly() {
@@ -138,11 +134,22 @@ public class RotationManager {
             updateRotations();
             clientYaw = mc.player.getYRot();
             clientPitch = mc.player.getXRot();
+            prevClientYaw = clientYaw;
+            prevClientPitch = clientPitch;
+            prevRenderYaw = renderYaw = clientYaw;
+            prevRenderHeadPitch = renderHeadPitch = clientPitch;
+            prevRenderBodyYaw = renderBodyYaw = mc.player.yBodyRot;
         }
+
+        returnFramePrepared = false;
     }
 
     public void stopRotation() {
-        resetRotationsInstantly();
+        if (!ensureInitializedFromPlayer() || (!isRotating && !isReturning)) {
+            return;
+        }
+
+        beginReturnToPlayerRotation();
     }
 
     public void setRotationsInstantly(float yaw, float pitch) {
@@ -524,15 +531,23 @@ public class RotationManager {
     }
 
     public float getInterpolatedYaw(float partialTicks) {
-        return prevRenderYaw + (renderYaw - prevRenderYaw) * partialTicks;
+        return Mth.rotLerp(partialTicks, prevRenderYaw, renderYaw);
     }
 
     public float getInterpolatedBodyYaw(float partialTicks) {
-        return prevRenderBodyYaw + (renderBodyYaw - prevRenderBodyYaw) * partialTicks;
+        return Mth.rotLerp(partialTicks, prevRenderBodyYaw, renderBodyYaw);
     }
 
     public float getInterpolatedPitch(float partialTicks) {
-        return prevRenderHeadPitch + (renderHeadPitch - prevRenderHeadPitch) * partialTicks;
+        return Mth.lerp(partialTicks, prevRenderHeadPitch, renderHeadPitch);
+    }
+
+    public float getInterpolatedReturningBodyYaw(float partialTicks) {
+        if (!isReturning() || !returnFramePrepared) {
+            return getInterpolatedYaw(partialTicks);
+        }
+
+        return Mth.rotLerp(partialTicks, prevRenderYaw, renderBodyYaw);
     }
 
     public boolean isRotating() {
@@ -684,7 +699,18 @@ public class RotationManager {
         prevRenderBodyYaw = renderBodyYaw;
         renderHeadPitch = clientPitch;
         prevRenderHeadPitch = clientPitch;
+        returnFramePrepared = false;
         initialized = true;
+    }
+
+    private void beginReturnToPlayerRotation() {
+        isRotating = false;
+        if (isReturning) {
+            return;
+        }
+
+        isReturning = true;
+        returnFramePrepared = false;
     }
 
     private void updateVanillaRenderBodyYaw(float headYaw) {
@@ -746,10 +772,6 @@ public class RotationManager {
         serverYaw = yaw;
         serverPitch = Mth.clamp(pitch, -90.0f, 90.0f);
         serverRotationInitialized = true;
-    }
-
-    private float getRandomOffset() {
-        return ThreadLocalRandom.current().nextFloat() - 0.5f;
     }
 
     private long elapsedRotationMillis() {

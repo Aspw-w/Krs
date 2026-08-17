@@ -84,6 +84,9 @@ public abstract class PlayerEntityRendererMixin implements IMinecraft {
         if (Rotations.vanilla.get())
             return Client.rotationManager.getInterpolatedBodyYaw(tickDelta);
 
+        if (Client.rotationManager.isReturning())
+            return Client.rotationManager.getInterpolatedReturningBodyYaw(tickDelta);
+
         return Client.rotationManager.getInterpolatedYaw(tickDelta);
     }
 
@@ -98,8 +101,15 @@ public abstract class PlayerEntityRendererMixin implements IMinecraft {
         applyOldHittingUseState(state);
 
         if (Client.rotationManager.isRotating() && ModuleManager.getModuleState(Rotations.class) && !Rotations.vanilla.get()) {
-            state.yRot = 0f;
-            state.bodyRot = Client.rotationManager.getInterpolatedYaw(f);
+            float headYaw = Client.rotationManager.getInterpolatedYaw(f);
+            if (Client.rotationManager.isReturning()) {
+                float bodyYaw = Client.rotationManager.getInterpolatedReturningBodyYaw(f);
+                state.yRot = Mth.wrapDegrees(headYaw - bodyYaw);
+                state.bodyRot = bodyYaw;
+            } else {
+                state.yRot = 0.0F;
+                state.bodyRot = headYaw;
+            }
             state.xRot = Client.rotationManager.getInterpolatedPitch(f);
         }
     }
