@@ -52,6 +52,12 @@ import java.util.Locale;
 
 public class Scaffold extends Module {
 
+    private static final double MATH_MOVEMENT_ALIGNMENT_WEIGHT = 1.35D;
+    private static final double MATH_FACE_CENTER_WEIGHT = 0.12D;
+    private static final double MATH_EDGE_HIT_PENALTY = 4.0D;
+    private static final double MATH_SAFE_HIT_INSET = 0.0625D;
+    private static final int MATH_FACE_SAMPLE_DIVISIONS = 16;
+
     @Setting
     private static final ListValue mode = new ListValue("Mode", new String[]{"Normal", "Telly"}, "Normal");
 
@@ -1321,8 +1327,12 @@ public class Scaffold extends Module {
         return orderedPlaceDirections;
     }
 
-    private static float scaffoldSearchYaw() {
-        return normalizeYaw(MovementUtil.getMotionDirection() + 180.0F);
+    private float scaffoldSearchYaw() {
+        Float inputYaw = rotationMode.get().equalsIgnoreCase("math") && !isTellyMode()
+                ? scaffoldInputDirection()
+                : null;
+        float movementYaw = inputYaw != null ? inputYaw : MovementUtil.getMotionDirection();
+        return normalizeYaw(movementYaw + 180.0F);
     }
 
     private static float normalizeYaw(float yaw) {
@@ -1557,26 +1567,38 @@ public class Scaffold extends Module {
         float[] centerRotations = rotationsToHitPos(faceCenter);
         BlockHitResult currentHit = Client.rotationManager.rayTraceBlocks(currentYaw, currentPitch, reach);
         PlacementHit currentPlacementHit = null;
+        Vec3 bestHitPos = null;
+        double bestDistanceSqr = 0.0D;
+        double bestScore = Double.MAX_VALUE;
         if (isMatchingPlacementHit(currentHit, neighbour, sideToClick)) {
             Vec3 hitPos = currentHit.getLocation();
             currentPlacementHit = new PlacementHit(hitPos, 0.0D, eyesPos.distanceToSqr(hitPos));
-            if (placementRotationScore(centerRotations, currentYaw, currentPitch) <= 6.0D)
-                return currentPlacementHit;
+            if (isStablePlacementHit(hitPos, neighbour, sideToClick)) {
+                bestHitPos = hitPos;
+                bestDistanceSqr = currentPlacementHit.distanceSqr();
+                bestScore = smartPlacementHitScore(
+                        hitPos,
+                        new float[]{currentYaw, currentPitch},
+                        currentYaw,
+                        currentPitch,
+                        eyesPos,
+                        faceCenter,
+                        sideToClick,
+                        true
+                );
+            }
         }
 
         BlockHitResult centerHit = Client.rotationManager.rayTraceBlocks(centerRotations[0], centerRotations[1], reach);
         if (isMatchingPlacementHit(centerHit, neighbour, sideToClick)) {
             Vec3 hitPos = centerHit.getLocation();
-            return new PlacementHit(
-                    hitPos,
-                    smartPlacementHitScore(hitPos, centerRotations, currentYaw, currentPitch, eyesPos, faceCenter, sideToClick, currentPlacementHit != null),
-                    eyesPos.distanceToSqr(hitPos)
-            );
+            double score = smartPlacementHitScore(hitPos, centerRotations, currentYaw, currentPitch, eyesPos, faceCenter, sideToClick, currentPlacementHit != null);
+            if (score < bestScore) {
+                bestHitPos = hitPos;
+                bestDistanceSqr = eyesPos.distanceToSqr(hitPos);
+                bestScore = score;
+            }
         }
-
-        Vec3 bestHitPos = null;
-        double bestDistanceSqr = 0.0D;
-        double bestScore = Double.MAX_VALUE;
 
         int xCount = fixedOffsetCount(sideToClick, Direction.EAST, Direction.WEST);
         int yCount = fixedOffsetCount(sideToClick, Direction.UP, Direction.DOWN);
@@ -1615,7 +1637,7 @@ public class Scaffold extends Module {
     }
 
     private static int fixedOffsetCount(Direction sideToClick, Direction positive, Direction negative) {
-        return sideToClick == positive || sideToClick == negative ? 1 : 16;
+        return sideToClick == positive || sideToClick == negative ? 1 : MATH_FACE_SAMPLE_DIVISIONS;
     }
 
     private static double placementOffset(Direction sideToClick, Direction positive, Direction negative, int index) {
@@ -1623,7 +1645,7 @@ public class Scaffold extends Module {
             return 1.0D;
         if (sideToClick == negative)
             return 0.0D;
-        return ((index << 1) + 1) * 0.03125D;
+        return (index + 0.5D) / MATH_FACE_SAMPLE_DIVISIONS;
     }
 
     private boolean usesRayTracePlacementSearch() {
@@ -1639,22 +1661,57 @@ public class Scaffold extends Module {
         return reach * reach;
     }
 
-    private static double placementRotationScore(float[] rotations, float currentYaw, float currentPitch) {
+    private double placementRotationScore(float[] rotations, float currentYaw, float currentPitch) {
         float yawDiff = Math.abs(Mth.wrapDegrees(rotations[0] - currentYaw));
         float pitchDiff = Math.abs(rotations[1] - currentPitch);
-        return Math.max(yawDiff, pitchDiff) + (yawDiff + pitchDiff) * 0.01D;
+        return yawDiff + pitchDiff + mathMovementAlignmentScore(rotations[0]);
     }
 
-    private static double smartPlacementHitScore(Vec3 hitPos, float[] rotations, float currentYaw, float currentPitch, Vec3 eyesPos, Vec3 faceCenter, Direction side, boolean currentCanHit) {
+    private double smartPlacementHitScore(Vec3 hitPos, float[] rotations, float currentYaw, float currentPitch, Vec3 eyesPos, Vec3 faceCenter, Direction side, boolean currentCanHit) {
         double centerScore = normalizedFaceCenterDistanceSqr(hitPos, faceCenter, side);
         double score = placementRotationScore(rotations, currentYaw, currentPitch)
                 + eyesPos.distanceToSqr(hitPos) * 0.001D
-                + centerScore * 0.02D;
+                + centerScore * MATH_FACE_CENTER_WEIGHT;
+
+        if (!isStablePlacementHit(hitPos, faceCenter, side))
+            score += MATH_EDGE_HIT_PENALTY;
 
         if (currentCanHit)
             score += centerScore * 1.5D;
 
         return score;
+    }
+
+    private double mathMovementAlignmentScore(float targetYaw) {
+        if (isTellyMode() || !ModuleManager.getModuleState(MovementFix.class))
+            return 0.0D;
+
+        Float movementYaw = scaffoldInputDirection();
+        if (movementYaw == null)
+            return 0.0D;
+
+        float relativeYaw = Math.abs(Mth.wrapDegrees(movementYaw - targetYaw));
+        float sectorOffset = relativeYaw % 45.0F;
+        float alignmentError = Math.min(sectorOffset, 45.0F - sectorOffset);
+        // MovementFix can reproduce the intended direction exactly at the center of each 45-degree input sector.
+        return alignmentError * MATH_MOVEMENT_ALIGNMENT_WEIGHT;
+    }
+
+    private static boolean isStablePlacementHit(Vec3 hitPos, BlockPos neighbour, Direction side) {
+        return isStablePlacementHit(hitPos, placementFaceCenter(neighbour, side), side);
+    }
+
+    private static boolean isStablePlacementHit(Vec3 hitPos, Vec3 faceCenter, Direction side) {
+        double xOffset = Math.abs(hitPos.x - faceCenter.x);
+        double yOffset = Math.abs(hitPos.y - faceCenter.y);
+        double zOffset = Math.abs(hitPos.z - faceCenter.z);
+        double safeRadius = 0.5D - MATH_SAFE_HIT_INSET;
+
+        return switch (side.getAxis()) {
+            case X -> yOffset <= safeRadius && zOffset <= safeRadius;
+            case Y -> xOffset <= safeRadius && zOffset <= safeRadius;
+            case Z -> xOffset <= safeRadius && yOffset <= safeRadius;
+        };
     }
 
     private static double normalizedFaceCenterDistanceSqr(Vec3 hitPos, Vec3 faceCenter, Direction side) {
@@ -2020,17 +2077,17 @@ public class Scaffold extends Module {
         if (player == null)
             return Vec3.ZERO;
 
+        Float inputYaw = !isTellyMode() ? scaffoldInputDirection() : null;
+        if (inputYaw != null)
+            return MovementUtil.getHorizontalDirectionVector(inputYaw);
+
         Vec3 motion = player.getDeltaMovement();
         Vec3 horizontalMotion = new Vec3(motion.x, 0.0D, motion.z);
         if (horizontalMotion.lengthSqr() > 1.0E-4)
             return horizontalMotion;
 
-        Input input = MovementFix.shouldFixMovement() ? MovementFix.getRawInput() : player.input != null ? player.input.keyPresses : Input.EMPTY;
-        if (!isMovingInput(input))
-            return Vec3.ZERO;
-
-        float movementYaw = MovementFix.shouldFixMovement() ? MovementFix.getMovementYaw() : player.getYRot();
-        return MovementUtil.getHorizontalDirectionVector(getMovementDirection(movementYaw, input));
+        inputYaw = scaffoldInputDirection();
+        return inputYaw != null ? MovementUtil.getHorizontalDirectionVector(inputYaw) : Vec3.ZERO;
     }
 
     private void faceSimpleRotation() {
@@ -2150,6 +2207,23 @@ public class Scaffold extends Module {
             return getMovementDirection(player.getYRot(), MovementFix.getRawInput());
 
         return MovementUtil.getPlayerDirection();
+    }
+
+    private Float scaffoldInputDirection() {
+        var player = mc.player;
+        if (player == null)
+            return null;
+
+        Input input;
+        if (ModuleManager.getModuleState(MovementFix.class)) {
+            input = MovementFix.getRawInput();
+            if (!isMovingInput(input) && !MovementFix.shouldFixMovement())
+                input = player.input != null ? player.input.keyPresses : Input.EMPTY;
+        } else {
+            input = player.input != null ? player.input.keyPresses : Input.EMPTY;
+        }
+
+        return isMovingInput(input) ? getMovementDirection(player.getYRot(), input) : null;
     }
 
     private static float getMovementDirection(float facingYaw, Input input) {
