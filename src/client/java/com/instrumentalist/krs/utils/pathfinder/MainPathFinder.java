@@ -65,18 +65,9 @@ public class MainPathFinder implements IMinecraft {
     private static boolean isNotPassable(final BlockPos block) {
         ClientLevel level = mc.level;
         if (level == null) return true;
-        var state = level.getBlockState(block);
-        Block b = state.getBlock();
+        Block b = level.getBlockState(block).getBlock();
 
-        if (b instanceof CarpetBlock || b instanceof LadderBlock)
-            return false;
-        if (b instanceof FenceGateBlock)
-            return !state.getValue(FenceGateBlock.OPEN);
-        if (b instanceof FenceBlock)
-            return true;
-
-        return !state.getCollisionShape(level, block).isEmpty()
-                || state.isRedstoneConductor(level, block)
+        return b.defaultBlockState().isRedstoneConductor(level, block)
                 || b == Blocks.GLASS
                 || Blocks.STAINED_GLASS.asList().contains(b)
                 || b == Blocks.GLASS_PANE
@@ -106,7 +97,9 @@ public class MainPathFinder implements IMinecraft {
                 || b instanceof EndPortalFrameBlock
                 || b instanceof BedBlock
                 || b instanceof WebBlock
-                || b instanceof BarrierBlock;
+                || b instanceof BarrierBlock
+                || b instanceof LadderBlock
+                || b instanceof CarpetBlock;
     }
 
     private static boolean canWalkOn(final BlockPos block) {
@@ -114,27 +107,21 @@ public class MainPathFinder implements IMinecraft {
         if (level == null) return false;
         Block b = level.getBlockState(block).getBlock();
 
-        return !(b instanceof FenceBlock)
-                && !(b instanceof FenceGateBlock)
-                && !(b instanceof WallBlock)
-                && b != Blocks.BARRIER;
+        return !(b instanceof FenceBlock) && !(b instanceof WallBlock);
     }
 
     public static boolean canPassThrough(final BlockPos pos) {
         ClientLevel level = mc.level;
         if (level == null) return false;
-        var state = level.getBlockState(pos);
-        Block block = state.getBlock();
+        Block block = level.getBlockState(pos).getBlock();
         Block down = level.getBlockState(pos.below()).getBlock();
 
-        return state.isAir()
+        return block.defaultBlockState().isAir()
                 || down instanceof AbstractSkullBlock
                 || block instanceof BushBlock
                 || block instanceof StandingSignBlock
                 || block instanceof CeilingHangingSignBlock
                 || block instanceof WallHangingSignBlock
-                || block instanceof CarpetBlock
-                || (block instanceof FenceGateBlock && state.getValue(FenceGateBlock.OPEN))
                 || block == Blocks.LADDER
                 || block == Blocks.VINE
                 || block == Blocks.SCAFFOLDING
@@ -167,17 +154,14 @@ public class MainPathFinder implements IMinecraft {
         if (!isFinite(topFrom) || !isFinite(to) || mc.level == null)
             return new ArrayList<>();
 
-        topFrom = PathFinder.normalizePathPosition(topFrom);
-        Vec3 normalizedTo = PathFinder.normalizePathPosition(to);
-
         switch (com.instrumentalist.krs.hacks.features.exploit.PathFinder.mode.get().toLowerCase(Locale.ROOT)) {
             case "reconstruct":
                 if (com.instrumentalist.krs.hacks.features.exploit.PathFinder.verticalPassThrough.get()) {
-                    final ArrayList<Vec3> verticalPath = getVerticalPassThroughPath(topFrom, normalizedTo);
+                    final ArrayList<Vec3> verticalPath = getVerticalPassThroughPath(topFrom, to);
                     if (verticalPath != null) return verticalPath;
                 }
 
-                final PathFinder pathfinder = new PathFinder(topFrom, normalizedTo);
+                final PathFinder pathfinder = new PathFinder(topFrom, to);
                 pathfinder.compute();
 
                 int i = 0;
@@ -189,9 +173,9 @@ public class MainPathFinder implements IMinecraft {
                 for (final Vec3 pathElm : pathFinderPath) {
                     if (i == 0 || i == pathFinderPath.size() - 1) {
                         if (lastLoc != null) {
-                            path.add(toWorldPathPosition(lastLoc));
+                            path.add(lastLoc.add(0.6, 0.0, 0.6));
                         }
-                        path.add(toWorldPathPosition(pathElm));
+                        path.add(pathElm.add(0.6, 0.0, 0.6));
                         lastDashLoc = pathElm;
                     } else {
                         boolean canContinue = true;
@@ -215,7 +199,7 @@ public class MainPathFinder implements IMinecraft {
                         }
 
                         if (!canContinue) {
-                            path.add(toWorldPathPosition(lastLoc));
+                            path.add(lastLoc.add(0.6, 0.0, 0.6));
                             lastDashLoc = lastLoc;
                         }
                     }
@@ -226,59 +210,10 @@ public class MainPathFinder implements IMinecraft {
                 return path;
 
             case "linear":
-                return LinearPathFinder.INSTANCE.getPaths(
-                        BlockPos.containing(topFrom),
-                        BlockPos.containing(normalizedTo),
-                        com.instrumentalist.krs.hacks.features.exploit.PathFinder.linearSteps.get(),
-                        4
-                );
+                return LinearPathFinder.INSTANCE.getPaths(new BlockPos((int) Math.floor(topFrom.x), (int) Math.floor(topFrom.y), (int) Math.floor(topFrom.z)), new BlockPos((int) Math.floor(to.x), (int) Math.floor(to.y), (int) Math.floor(to.z)), com.instrumentalist.krs.hacks.features.exploit.PathFinder.linearSteps.get(), 4);
         }
 
         return new ArrayList<>();
-    }
-
-    private static Vec3 toWorldPathPosition(Vec3 pathNode) {
-        ClientLevel level = mc.level;
-        if (level == null || pathNode == null)
-            return pathNode;
-
-        double worldY = pathNode.y;
-        boolean usesFeetBlockSurface = false;
-        BlockPos feetPos = BlockPos.containing(pathNode.x, pathNode.y, pathNode.z);
-        var feetState = level.getBlockState(feetPos);
-        if (feetState.getBlock() instanceof CarpetBlock) {
-            var carpetShape = feetState.getCollisionShape(level, feetPos);
-            if (!carpetShape.isEmpty()) {
-                double carpetTop = PathFinder.collisionTopAt(
-                        carpetShape,
-                        pathNode.x - feetPos.getX() + 0.6D,
-                        pathNode.z - feetPos.getZ() + 0.6D
-                );
-                if (Double.isFinite(carpetTop)) {
-                    worldY = Math.max(worldY, feetPos.getY() + carpetTop);
-                    usesFeetBlockSurface = true;
-                }
-            }
-        }
-
-        if (!usesFeetBlockSurface) {
-            BlockPos supportPos = BlockPos.containing(pathNode.x, pathNode.y - 1.0E-4D, pathNode.z);
-            var supportShape = level.getBlockState(supportPos).getCollisionShape(level, supportPos);
-            if (!supportShape.isEmpty()) {
-                double localTop = PathFinder.collisionTopAt(
-                        supportShape,
-                        pathNode.x - supportPos.getX() + 0.6D,
-                        pathNode.z - supportPos.getZ() + 0.6D
-                );
-                if (Double.isFinite(localTop)) {
-                    double supportTop = supportPos.getY() + localTop;
-                    if (supportTop <= pathNode.y + 1.0E-4D && pathNode.y - supportTop < 1.0D)
-                        worldY = supportTop;
-                }
-            }
-        }
-
-        return new Vec3(pathNode.x + 0.6D, worldY, pathNode.z + 0.6D);
     }
 
     private static boolean isFinite(Vec3 vec) {
