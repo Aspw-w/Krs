@@ -40,6 +40,10 @@ public class NetUtil {
     }
 
     public static String parseJsonValue(String json, String key) {
+        if (json == null || key == null) {
+            return null;
+        }
+
         String searchKey = "\"" + key + "\":\"";
         int startIndex = json.indexOf(searchKey);
         if (startIndex == -1) {
