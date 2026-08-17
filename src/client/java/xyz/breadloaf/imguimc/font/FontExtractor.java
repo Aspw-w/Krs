@@ -36,8 +36,9 @@ public class FontExtractor {
             throw new IOException("Could not find font resource: assets/krs/arial.ttf");
         }
 
-        Files.createDirectories(fontDir.toPath());
-        Files.copy(in, fontFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-        in.close();
+        try (in) {
+            Files.createDirectories(fontDir.toPath());
+            Files.copy(in, fontFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 }
