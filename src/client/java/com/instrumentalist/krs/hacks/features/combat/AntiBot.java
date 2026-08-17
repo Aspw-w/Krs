@@ -211,15 +211,12 @@ public class AntiBot extends Module {
     }
 
     private boolean isDuplicated(GameProfile originalProfile) {
-        int matches = 0;
         for (var entry : mc.getConnection().getListedOnlinePlayers()) {
             if (entry.getProfile().name().equals(originalProfile.name()) && !entry.getProfile().id().equals(originalProfile.id())) {
-                matches++;
-                if (matches > 1)
-                    return false;
+                return true;
             }
         }
-        return matches == 1;
+        return false;
     }
 
     private boolean isFullyArmored(Player entity) {
