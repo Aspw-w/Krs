@@ -81,7 +81,7 @@ public class NoFall extends Module {
     @Override
     public void onTick(TickEvent event) {
         var player = mc.player;
-        if (player == null || player.isSpectator() || player.isFallFlying()) {
+        if (player == null || player.isSpectator() || player.isFallFlying() || player.isSwimming()) {
             if (timerStage != 0) {
                 TimerUtil.reset();
                 timerStage = 0;
@@ -147,7 +147,7 @@ public class NoFall extends Module {
     @Override
     public void onMotion(MotionEvent event) {
         var player = mc.player;
-        if (player == null || player.isSpectator() || player.isFallFlying()) {
+        if (player == null || player.isSpectator() || player.isFallFlying() || player.isSwimming()) {
             if (timerStage != 0) {
                 TimerUtil.reset();
                 timerStage = 0;
