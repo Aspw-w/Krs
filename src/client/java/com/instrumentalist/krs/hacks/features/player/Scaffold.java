@@ -1070,8 +1070,17 @@ public class Scaffold extends Module {
         boolean targetBlockReplaceable = isScaffoldReplaceable(targetBlock);
         PlacementTarget placementTarget = targetBlockReplaceable ? findPlacementTarget(targetBlock) : null;
         PlacementTarget preRotationTarget = !skipScaffoldActionThisTick && !isSnapRotationActive() && placementTarget == null ? findPreRotationTarget(targetBlock) : null;
-        if (!skipScaffoldActionThisTick)
+        if (!skipScaffoldActionThisTick) {
             faceScaffoldRotation(targetBlock, placementTarget, preRotationTarget, targetBlockReplaceable);
+
+            if (targetBlockReplaceable && rotationMode.get().equalsIgnoreCase("math")) {
+                PlacementTarget rotationTarget = findRotationPriorityPlacementTarget(targetBlock);
+                if (rotationTarget != null) {
+                    placementTarget = rotationTarget;
+                    lockedMathPlacementTarget = rotationTarget;
+                }
+            }
+        }
 
         PlayerUtil.INSTANCE.doSpoof(lastSlot);
 
@@ -1116,6 +1125,12 @@ public class Scaffold extends Module {
     }
 
     private PlacementTarget findRayTracePlacementTarget(BlockPos pos) {
+        PlacementTarget rotationTarget = findRotationPriorityPlacementTarget(pos);
+        if (rotationTarget != null) {
+            lockedMathPlacementTarget = rotationTarget;
+            return rotationTarget;
+        }
+
         PlacementTarget lockedTarget = reusableMathPlacementTarget(pos);
         PlacementTarget bestTarget = null;
         double bestScore = Double.MAX_VALUE;
@@ -1139,6 +1154,40 @@ public class Scaffold extends Module {
         PlacementTarget selectedTarget = selectMathPlacementTarget(pos, lockedTarget, bestTarget);
         lockedMathPlacementTarget = selectedTarget;
         return selectedTarget;
+    }
+
+    private PlacementTarget findRotationPriorityPlacementTarget(BlockPos searchOrigin) {
+        var level = mc.level;
+        var player = mc.player;
+        if (searchOrigin == null || level == null || player == null || !rotationMode.get().equalsIgnoreCase("math"))
+            return null;
+
+        BlockHitResult hit = Client.rotationManager.rayTraceBlocks(
+                Client.rotationManager.getRotationYaw(),
+                Client.rotationManager.getRotationPitch(),
+                placementReach()
+        );
+        if (hit.getType() != HitResult.Type.BLOCK)
+            return null;
+
+        BlockPos neighbour = hit.getBlockPos();
+        Direction sideToClick = hit.getDirection();
+        BlockPos placementPos = neighbour.relative(sideToClick);
+        if (placementPos.getY() != searchOrigin.getY())
+            return null;
+
+        int searchDistance = scaffoldSearchDistance(searchOrigin, placementPos);
+        if (searchDistance > currentSearchRange()
+                || !isScaffoldReplaceable(placementPos)
+                || !isPlacementPositionClearForPlayer(placementPos)
+                || !isScaffoldSupport(level.getBlockState(neighbour)))
+            return null;
+
+        Vec3 hitPos = hit.getLocation();
+        if (player.getEyePosition().distanceToSqr(hitPos) > placementReachSqr() + 1.0E-4D)
+            return null;
+
+        return new PlacementTarget(placementPos, neighbour, hitPos, sideToClick, searchDistance);
     }
 
     private PlacementTarget reusableMathPlacementTarget(BlockPos currentTargetBlock) {
@@ -1177,8 +1226,6 @@ public class Scaffold extends Module {
             return lockedTarget;
         if (samePlacementTarget(lockedTarget, bestTarget))
             return lockedTarget;
-        if (lockedTarget.searchDistance() != bestTarget.searchDistance())
-            return bestTarget.searchDistance() < lockedTarget.searchDistance() ? bestTarget : lockedTarget;
 
         boolean lockedReady = currentPlacementHit(lockedTarget) != null;
         boolean bestReady = currentPlacementHit(bestTarget) != null;
@@ -1186,6 +1233,8 @@ public class Scaffold extends Module {
             return lockedTarget;
         if (!lockedReady && bestReady)
             return bestTarget;
+        if (lockedTarget.searchDistance() != bestTarget.searchDistance())
+            return bestTarget.searchDistance() < lockedTarget.searchDistance() ? bestTarget : lockedTarget;
 
         double lockedScore = placementTargetScore(currentTargetBlock, lockedTarget);
         double bestScore = placementTargetScore(currentTargetBlock, bestTarget);
