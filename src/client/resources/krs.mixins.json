@@ -33,6 +33,7 @@
     "GlCommandEncoderMixin",
     "GuiEntityRendererMixin",
     "HeldItemRendererMixin",
+    "HudMixin",
     "IMinecraftClient",
     "InGameHudMixin",
     "InGameOverlayRendererMixin",
