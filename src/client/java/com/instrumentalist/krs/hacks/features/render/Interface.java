@@ -56,6 +56,7 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.nanovg.NanoVG;
 import org.nvgu.NVGU;
 import org.nvgu.util.Alignment;
 import org.nvgu.util.Border;
@@ -73,6 +74,9 @@ public class Interface extends Module {
     private static final int MINIMAP_TEXTURE_MARGIN_BLOCKS = 10;
     private static final int MINIMAP_REBUILD_DRIFT_BLOCKS = 8;
     private static final int MINIMAP_TERRAIN_SAMPLES_PER_FRAME = 192;
+    private static final int MINIMAP_TERRAIN_TEXTURE_SCALE = 4;
+    private static final int MINIMAP_TERRAIN_BLEND_COLOR_DISTANCE = 52;
+    private static final int MINIMAP_TERRAIN_BLEND_ALPHA_DISTANCE = 48;
     private static final long MINIMAP_TERRAIN_REFRESH_NANOS = 5_000_000_000L;
     private static final long PLAYER_LIST_REFRESH_NANOS = 250_000_000L;
     private static final ThreadLocal<DecimalFormat> ONE_DECIMAL_FORMAT = ThreadLocal.withInitial(() -> new DecimalFormat("0.0"));
@@ -99,8 +103,12 @@ public class Interface extends Module {
     }
 
     private static int minimapTerrainTextureBytes() {
-        int resolution = minimapTerrainResolution();
+        int resolution = minimapTerrainTextureResolution();
         return resolution * resolution * 4;
+    }
+
+    private static int minimapTerrainTextureResolution() {
+        return minimapTerrainResolution() * MINIMAP_TERRAIN_TEXTURE_SCALE;
     }
 
     @Setting
@@ -1878,16 +1886,113 @@ public class Interface extends Module {
 
     private void uploadMinimapTerrainTexture(NVGU vg, int[] colors) {
         minimapTerrainBuffer.clear();
-        for (int color : colors)
-            putRgba(minimapTerrainBuffer, color);
+        int sourceResolution = minimapTerrainResolution();
+        int textureResolution = minimapTerrainTextureResolution();
+        for (int textureZ = 0; textureZ < textureResolution; textureZ++) {
+            for (int textureX = 0; textureX < textureResolution; textureX++) {
+                putRgba(
+                        minimapTerrainBuffer,
+                        getMinimapTerrainInterpolatedColor(colors, sourceResolution, textureX, textureZ)
+                );
+            }
+        }
         minimapTerrainBuffer.flip();
         vg.createOrUpdateTextureRGBA(
                 "krs_minimap_terrain",
-                minimapTerrainResolution(),
-                minimapTerrainResolution(),
-                minimapTerrainBuffer
+                textureResolution,
+                textureResolution,
+                minimapTerrainBuffer,
+                NanoVG.NVG_IMAGE_NEAREST
         );
         minimapTerrainTextureReady = vg.hasTexture("krs_minimap_terrain");
+    }
+
+    private static int getMinimapTerrainInterpolatedColor(int[] colors, int resolution, int textureX, int textureZ) {
+        float sourceX = (textureX + 0.5f) / MINIMAP_TERRAIN_TEXTURE_SCALE - 0.5f;
+        float sourceZ = (textureZ + 0.5f) / MINIMAP_TERRAIN_TEXTURE_SCALE - 0.5f;
+        int left = (int) Math.floor(sourceX);
+        int top = (int) Math.floor(sourceZ);
+        float horizontalProgress = sourceX - left;
+        float verticalProgress = sourceZ - top;
+
+        int leftIndex = Math.clamp(left, 0, resolution - 1);
+        int rightIndex = Math.clamp(left + 1, 0, resolution - 1);
+        int topIndex = Math.clamp(top, 0, resolution - 1);
+        int bottomIndex = Math.clamp(top + 1, 0, resolution - 1);
+        int nearestX = Math.clamp(Math.round(sourceX), 0, resolution - 1);
+        int nearestZ = Math.clamp(Math.round(sourceZ), 0, resolution - 1);
+        int anchor = colors[nearestZ * resolution + nearestX];
+
+        float topLeftWeight = (1f - horizontalProgress) * (1f - verticalProgress);
+        float topRightWeight = horizontalProgress * (1f - verticalProgress);
+        float bottomLeftWeight = (1f - horizontalProgress) * verticalProgress;
+        float bottomRightWeight = horizontalProgress * verticalProgress;
+
+        int topLeft = colors[topIndex * resolution + leftIndex];
+        int topRight = colors[topIndex * resolution + rightIndex];
+        int bottomLeft = colors[bottomIndex * resolution + leftIndex];
+        int bottomRight = colors[bottomIndex * resolution + rightIndex];
+
+        float totalWeight = 0f;
+        float red = 0f;
+        float green = 0f;
+        float blue = 0f;
+        float alpha = 0f;
+
+        if (shouldBlendMinimapTerrainColors(anchor, topLeft)) {
+            totalWeight += topLeftWeight;
+            red += ((topLeft >> 24) & 0xFF) * topLeftWeight;
+            green += ((topLeft >> 16) & 0xFF) * topLeftWeight;
+            blue += ((topLeft >> 8) & 0xFF) * topLeftWeight;
+            alpha += (topLeft & 0xFF) * topLeftWeight;
+        }
+        if (shouldBlendMinimapTerrainColors(anchor, topRight)) {
+            totalWeight += topRightWeight;
+            red += ((topRight >> 24) & 0xFF) * topRightWeight;
+            green += ((topRight >> 16) & 0xFF) * topRightWeight;
+            blue += ((topRight >> 8) & 0xFF) * topRightWeight;
+            alpha += (topRight & 0xFF) * topRightWeight;
+        }
+        if (shouldBlendMinimapTerrainColors(anchor, bottomLeft)) {
+            totalWeight += bottomLeftWeight;
+            red += ((bottomLeft >> 24) & 0xFF) * bottomLeftWeight;
+            green += ((bottomLeft >> 16) & 0xFF) * bottomLeftWeight;
+            blue += ((bottomLeft >> 8) & 0xFF) * bottomLeftWeight;
+            alpha += (bottomLeft & 0xFF) * bottomLeftWeight;
+        }
+        if (shouldBlendMinimapTerrainColors(anchor, bottomRight)) {
+            totalWeight += bottomRightWeight;
+            red += ((bottomRight >> 24) & 0xFF) * bottomRightWeight;
+            green += ((bottomRight >> 16) & 0xFF) * bottomRightWeight;
+            blue += ((bottomRight >> 8) & 0xFF) * bottomRightWeight;
+            alpha += (bottomRight & 0xFF) * bottomRightWeight;
+        }
+
+        if (totalWeight <= 0f)
+            return anchor;
+
+        int blendedRed = Math.clamp(Math.round(red / totalWeight), 0, 255);
+        int blendedGreen = Math.clamp(Math.round(green / totalWeight), 0, 255);
+        int blendedBlue = Math.clamp(Math.round(blue / totalWeight), 0, 255);
+        int blendedAlpha = Math.clamp(Math.round(alpha / totalWeight), 0, 255);
+        return blendedRed << 24 | blendedGreen << 16 | blendedBlue << 8 | blendedAlpha;
+    }
+
+    private static boolean shouldBlendMinimapTerrainColors(int first, int second) {
+        int firstAlpha = first & 0xFF;
+        int secondAlpha = second & 0xFF;
+        if (firstAlpha == 0 || secondAlpha == 0)
+            return firstAlpha == secondAlpha;
+        if (Math.abs(firstAlpha - secondAlpha) > MINIMAP_TERRAIN_BLEND_ALPHA_DISTANCE)
+            return false;
+
+        int redDifference = ((first >> 24) & 0xFF) - ((second >> 24) & 0xFF);
+        int greenDifference = ((first >> 16) & 0xFF) - ((second >> 16) & 0xFF);
+        int blueDifference = ((first >> 8) & 0xFF) - ((second >> 8) & 0xFF);
+        int colorDistanceSquared = redDifference * redDifference
+                + greenDifference * greenDifference
+                + blueDifference * blueDifference;
+        return colorDistanceSquared <= MINIMAP_TERRAIN_BLEND_COLOR_DISTANCE * MINIMAP_TERRAIN_BLEND_COLOR_DISTANCE;
     }
 
     private static int getMinimapTerrainColor(ClientLevel level, BlockPos.MutableBlockPos pos, int surfaceY, int playerBlockY) {
