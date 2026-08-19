@@ -95,7 +95,7 @@ public class Scaffold extends Module {
     private static final FloatValue minRotationSpeed = new FloatValue("Min Rotation Speed", 40f, 0f, 180f, Scaffold::usesRotationSpeed);
 
     @Setting
-    private static final FloatValue preRotationLead = new FloatValue("Pre Rotation Lead", 1.0f, 0.0f, 2.0f, Scaffold::usesMathPreRotation);
+    private static final FloatValue preRotationLead = new FloatValue("Pre Rotation Lead", 1.0f, 0.0f, 5.0f, Scaffold::usesMathPreRotation);
 
     @Setting
     private static final BooleanValue snapRotation = new BooleanValue("Snap Rotation", false, () -> rotationMode.get().equalsIgnoreCase("math") || rotationMode.get().equalsIgnoreCase("simple"));
