@@ -41,4 +41,8 @@ public interface IMinecraftClient {
 
     @Accessor("rightClickDelay")
     int krs$getRightClickDelay();
+
+    @Mutable
+    @Accessor("rightClickDelay")
+    void krs$setRightClickDelay(int rightClickDelay);
 }
