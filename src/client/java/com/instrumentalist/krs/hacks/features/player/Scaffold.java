@@ -53,9 +53,12 @@ import java.util.Locale;
 public class Scaffold extends Module {
 
     private static final double MATH_MOVEMENT_ALIGNMENT_WEIGHT = 1.35D;
+    private static final float MATH_MOVEMENT_SECTOR_DEGREES = 45.0F;
+    private static final float MATH_MOVEMENT_ALIGNMENT_EPSILON = 0.01F;
     private static final double MATH_FACE_CENTER_WEIGHT = 0.12D;
     private static final double MATH_EDGE_HIT_PENALTY = 4.0D;
     private static final double MATH_SAFE_HIT_INSET = 0.0625D;
+    private static final double MATH_ALIGNED_RAY_EPSILON = 1.0E-5D;
     private static final double MATH_SEARCH_BASE_ROTATION_SAVING_TICKS = 0.30D;
     private static final double MATH_SEARCH_DISTANCE_SAVING_TICKS = 0.42D;
     private static final double MATH_SEARCH_DISTANCE_SQUARED_SAVING_TICKS = 0.12D;
@@ -1225,7 +1228,7 @@ public class Scaffold extends Module {
         if (bestTarget == null)
             return lockedTarget;
         if (samePlacementTarget(lockedTarget, bestTarget))
-            return lockedTarget;
+            return preferMovementAlignedTarget(lockedTarget, bestTarget);
 
         if (lockedTarget.searchDistance() != bestTarget.searchDistance())
             return bestTarget.searchDistance() < lockedTarget.searchDistance() ? bestTarget : lockedTarget;
@@ -1248,7 +1251,7 @@ public class Scaffold extends Module {
         if (rotationTarget == null)
             return positionTarget;
         if (samePlacementTarget(positionTarget, rotationTarget))
-            return rotationTarget;
+            return preferMovementAlignedTarget(rotationTarget, positionTarget);
 
         int distanceGap = rotationTarget.searchDistance() - positionTarget.searchDistance();
         if (distanceGap <= 0)
@@ -1282,6 +1285,16 @@ public class Scaffold extends Module {
             requiredRotationSavingTicks += distanceGap * MATH_SEARCH_PATH_WEIGHT_TICKS;
 
         return rotationTimeSaving >= requiredRotationSavingTicks ? rotationTarget : positionTarget;
+    }
+
+    private PlacementTarget preferMovementAlignedTarget(PlacementTarget currentTarget, PlacementTarget candidateTarget) {
+        Float movementYaw = movementFixMathInputYaw();
+        if (movementYaw == null)
+            return currentTarget;
+
+        float currentError = mathMovementAlignmentError(rotationsToHitPos(currentTarget.hitPos())[0], movementYaw);
+        float candidateError = mathMovementAlignmentError(rotationsToHitPos(candidateTarget.hitPos())[0], movementYaw);
+        return candidateError + MATH_MOVEMENT_ALIGNMENT_EPSILON < currentError ? candidateTarget : currentTarget;
     }
 
     private double mathSearchPathPenaltyTicks(BlockPos origin, BlockPos candidate, int distanceGap) {
@@ -1783,6 +1796,22 @@ public class Scaffold extends Module {
             }
         }
 
+        PlacementHit movementAlignedHit = findMovementAlignedPlacementHit(
+                neighbour,
+                sideToClick,
+                eyesPos,
+                faceCenter,
+                reach,
+                currentYaw,
+                currentPitch,
+                currentPlacementHit != null
+        );
+        if (movementAlignedHit != null && movementAlignedHit.rotationScore() < bestScore) {
+            bestHitPos = movementAlignedHit.hitPos();
+            bestDistanceSqr = movementAlignedHit.distanceSqr();
+            bestScore = movementAlignedHit.rotationScore();
+        }
+
         BlockHitResult centerHit = Client.rotationManager.rayTraceBlocks(centerRotations[0], centerRotations[1], reach);
         if (isMatchingPlacementHit(centerHit, neighbour, sideToClick)) {
             Vec3 hitPos = centerHit.getLocation();
@@ -1828,6 +1857,135 @@ public class Scaffold extends Module {
             return new PlacementHit(bestHitPos, bestScore, bestDistanceSqr);
 
         return currentPlacementHit;
+    }
+
+    private PlacementHit findMovementAlignedPlacementHit(BlockPos neighbour, Direction sideToClick, Vec3 eyesPos, Vec3 faceCenter,
+                                                          double reach, float currentYaw, float currentPitch, boolean currentCanHit) {
+        Float movementYaw = movementFixMathInputYaw();
+        if (movementYaw == null)
+            return null;
+
+        PlacementHit bestHit = null;
+        double bestScore = Double.MAX_VALUE;
+        double reachSqr = reach * reach;
+        for (int sector = 0; sector < 8; sector++) {
+            float alignedYaw = Mth.wrapDegrees(movementYaw + sector * MATH_MOVEMENT_SECTOR_DEGREES);
+            Vec3 targetHitPos = movementAlignedHitPos(neighbour, sideToClick, eyesPos, faceCenter, alignedYaw, currentPitch);
+            if (targetHitPos == null || eyesPos.distanceToSqr(targetHitPos) > reachSqr)
+                continue;
+
+            float alignedPitch = rotationsToHitPos(targetHitPos)[1];
+            BlockHitResult hit = Client.rotationManager.rayTraceBlocks(alignedYaw, alignedPitch, reach);
+            if (!isMatchingPlacementHit(hit, neighbour, sideToClick))
+                continue;
+
+            Vec3 actualHitPos = hit.getLocation();
+            if (!isStablePlacementHit(actualHitPos, faceCenter, sideToClick))
+                continue;
+
+            double distanceSqr = eyesPos.distanceToSqr(actualHitPos);
+            double score = smartPlacementHitScore(
+                    actualHitPos,
+                    new float[]{alignedYaw, alignedPitch},
+                    currentYaw,
+                    currentPitch,
+                    eyesPos,
+                    faceCenter,
+                    sideToClick,
+                    currentCanHit
+            );
+            if (score < bestScore) {
+                bestHit = new PlacementHit(actualHitPos, score, distanceSqr);
+                bestScore = score;
+            }
+        }
+
+        return bestHit;
+    }
+
+    private static Vec3 movementAlignedHitPos(BlockPos neighbour, Direction sideToClick, Vec3 eyesPos, Vec3 faceCenter,
+                                              float yaw, float currentPitch) {
+        double yawRadians = Math.toRadians(yaw);
+        double directionX = -Math.sin(yawRadians);
+        double directionZ = Math.cos(yawRadians);
+        double safeInset = MATH_SAFE_HIT_INSET + MATH_ALIGNED_RAY_EPSILON;
+        double minX = neighbour.getX() + safeInset;
+        double maxX = neighbour.getX() + 1.0D - safeInset;
+        double minY = neighbour.getY() + safeInset;
+        double maxY = neighbour.getY() + 1.0D - safeInset;
+        double minZ = neighbour.getZ() + safeInset;
+        double maxZ = neighbour.getZ() + 1.0D - safeInset;
+        double pitchTangent = Math.tan(Math.toRadians(currentPitch));
+
+        if (sideToClick.getAxis() == Direction.Axis.X) {
+            if (Math.abs(directionX) <= MATH_ALIGNED_RAY_EPSILON)
+                return null;
+
+            double planeX = sideToClick == Direction.EAST ? neighbour.getX() + 1.0D : neighbour.getX();
+            double distance = (planeX - eyesPos.x) / directionX;
+            if (distance <= MATH_ALIGNED_RAY_EPSILON)
+                return null;
+
+            double hitZ = eyesPos.z + directionZ * distance;
+            if (hitZ < minZ || hitZ > maxZ)
+                return null;
+
+            double hitY = Mth.clamp(eyesPos.y - pitchTangent * distance, minY, maxY);
+            return new Vec3(planeX, hitY, hitZ);
+        }
+
+        if (sideToClick.getAxis() == Direction.Axis.Z) {
+            if (Math.abs(directionZ) <= MATH_ALIGNED_RAY_EPSILON)
+                return null;
+
+            double planeZ = sideToClick == Direction.SOUTH ? neighbour.getZ() + 1.0D : neighbour.getZ();
+            double distance = (planeZ - eyesPos.z) / directionZ;
+            if (distance <= MATH_ALIGNED_RAY_EPSILON)
+                return null;
+
+            double hitX = eyesPos.x + directionX * distance;
+            if (hitX < minX || hitX > maxX)
+                return null;
+
+            double hitY = Mth.clamp(eyesPos.y - pitchTangent * distance, minY, maxY);
+            return new Vec3(hitX, hitY, planeZ);
+        }
+
+        double[] xInterval = horizontalRayAxisInterval(eyesPos.x, directionX, minX, maxX);
+        double[] zInterval = horizontalRayAxisInterval(eyesPos.z, directionZ, minZ, maxZ);
+        if (xInterval == null || zInterval == null)
+            return null;
+
+        double minDistance = Math.max(MATH_ALIGNED_RAY_EPSILON, Math.max(xInterval[0], zInterval[0]));
+        double maxDistance = Math.min(xInterval[1], zInterval[1]);
+        if (minDistance > maxDistance)
+            return null;
+
+        double planeY = sideToClick == Direction.UP ? neighbour.getY() + 1.0D : neighbour.getY();
+        double preferredDistance = (faceCenter.x - eyesPos.x) * directionX + (faceCenter.z - eyesPos.z) * directionZ;
+        if (Math.abs(pitchTangent) > MATH_ALIGNED_RAY_EPSILON) {
+            double currentPitchDistance = (eyesPos.y - planeY) / pitchTangent;
+            if (Double.isFinite(currentPitchDistance) && currentPitchDistance > 0.0D)
+                preferredDistance = currentPitchDistance;
+        }
+
+        double distance = Mth.clamp(preferredDistance, minDistance, maxDistance);
+        return new Vec3(
+                eyesPos.x + directionX * distance,
+                planeY,
+                eyesPos.z + directionZ * distance
+        );
+    }
+
+    private static double[] horizontalRayAxisInterval(double origin, double direction, double min, double max) {
+        if (Math.abs(direction) <= MATH_ALIGNED_RAY_EPSILON)
+            return origin >= min && origin <= max
+                    ? new double[]{Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY}
+                    : null;
+
+        double first = (min - origin) / direction;
+        double second = (max - origin) / direction;
+        return new double[]{Math.min(first, second), Math.max(first, second)};
     }
 
     private static int fixedOffsetCount(Direction sideToClick, Direction positive, Direction negative) {
@@ -1877,18 +2035,25 @@ public class Scaffold extends Module {
     }
 
     private double mathMovementAlignmentScore(float targetYaw) {
-        if (isTellyMode() || !ModuleManager.getModuleState(MovementFix.class))
-            return 0.0D;
-
-        Float movementYaw = scaffoldInputDirection();
+        Float movementYaw = movementFixMathInputYaw();
         if (movementYaw == null)
             return 0.0D;
 
+        return mathMovementAlignmentError(targetYaw, movementYaw) * MATH_MOVEMENT_ALIGNMENT_WEIGHT;
+    }
+
+    private Float movementFixMathInputYaw() {
+        if (!ModuleManager.getModuleState(MovementFix.class))
+            return null;
+
+        return scaffoldInputDirection();
+    }
+
+    private static float mathMovementAlignmentError(float targetYaw, float movementYaw) {
         float relativeYaw = Math.abs(Mth.wrapDegrees(movementYaw - targetYaw));
-        float sectorOffset = relativeYaw % 45.0F;
-        float alignmentError = Math.min(sectorOffset, 45.0F - sectorOffset);
-        // MovementFix can reproduce the intended direction exactly at the center of each 45-degree input sector.
-        return alignmentError * MATH_MOVEMENT_ALIGNMENT_WEIGHT;
+        float sectorOffset = relativeYaw % MATH_MOVEMENT_SECTOR_DEGREES;
+        // MovementFix reproduces the intended direction without switching corrected inputs at 45-degree sector centers.
+        return Math.min(sectorOffset, MATH_MOVEMENT_SECTOR_DEGREES - sectorOffset);
     }
 
     private static boolean isStablePlacementHit(Vec3 hitPos, BlockPos neighbour, Direction side) {
