@@ -211,7 +211,7 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
     private void hideHand(CameraRenderState cameraRenderState, float tickDelta, Matrix4fc matrix4f, CallbackInfo ci) {
         cancelNextBobView = false;
 
-        if (Zoom.shouldZoom())
+        if (Zoom.shouldZoom() || ModuleManager.getModuleState(Freelook.class) && Freelook.isActive())
             ci.cancel();
     }
 
