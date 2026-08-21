@@ -79,7 +79,7 @@ public class ModuleManager implements EventListener {
                 new PortalScreen(), new FullBright(), new TargetStrafe(), new DisablerModule(),
                 new OldHitting(), new Freecam(), new ClientCape(), new EntityYawFix(), new MurdererDetector(),
                 new NoHurtCam(), new FastBow(), new FastEat(), new Zoom(), new PathFinder(),
-                new FastBreak(), new ViewModel(), new EntityDesync(), new Step(), new AntiVoid(),
+                new FastBreak(), new FastPlace(), new ViewModel(), new EntityDesync(), new Step(), new AntiVoid(),
                 new AutoFish(), new NoJumpCooldown(), new AlwaysRiptide(),
                 new WorldTime(), new ChatCommands(), new Rotations(),
                 new PluginsDetector(), new NameTags(), new ESP(), new PlayerIndicator(), new MovementFix(), new LongThrow(),
@@ -94,7 +94,8 @@ public class ModuleManager implements EventListener {
                 new NoWeb(), new AntiLevitation(), new WaterSpeed(), new FastFall(),
                 new Spider(), new AutoRocket(), new AutoTotem(), new ItemDropChanger(),
                 new XCarry(), new PortalGodMode(), new Stasis(), new TPStealer(), new TPSurround(),
-                new NoBreakReset(), new TrueSight(), new AutoTool(), new DurabilityAlert()
+                new BedESP(), new NoBreakReset(), new TrueSight(), new AutoTool(), new DurabilityAlert(),
+                new Freelook()
         ));
 
         devModules.addAll(List.of(

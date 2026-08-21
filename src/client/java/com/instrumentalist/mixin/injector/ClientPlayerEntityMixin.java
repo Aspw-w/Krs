@@ -8,6 +8,7 @@ import com.instrumentalist.krs.hacks.features.movement.*;
 import com.instrumentalist.krs.hacks.features.player.Phase;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.hacks.features.render.EntityYawFix;
+import com.instrumentalist.krs.hacks.features.render.Freelook;
 import com.instrumentalist.krs.utils.move.InputUtil;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
@@ -101,6 +102,11 @@ public abstract class ClientPlayerEntityMixin extends Player {
     public void turn(double deltaYaw, double deltaPitch) {
         if (ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly()) {
             Freecam.turn(deltaYaw, deltaPitch);
+            return;
+        }
+
+        if (ModuleManager.getModuleState(Freelook.class) && Freelook.isActive()) {
+            Freelook.turn(deltaYaw, deltaPitch);
             return;
         }
 

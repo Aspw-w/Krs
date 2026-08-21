@@ -6,6 +6,7 @@ import com.instrumentalist.krs.hacks.features.render.AntiBlind;
 import com.instrumentalist.krs.hacks.features.render.CameraNoClip;
 import com.instrumentalist.krs.hacks.features.movement.LongJump;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
+import com.instrumentalist.krs.hacks.features.render.Freelook;
 import com.instrumentalist.krs.hacks.features.render.WidelyPutin;
 import com.instrumentalist.krs.hacks.features.render.Zoom;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
@@ -74,6 +75,26 @@ public abstract class CameraMixin implements IMinecraft {
         setPosition(Freecam.getCamPos(partialTicks));
         setRotation(Freecam.getCamYaw(), Freecam.getCamPitch());
         applyFreecamThirdPersonPull();
+    }
+
+    @Inject(method = "update(Lnet/minecraft/client/DeltaTracker;)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/client/Camera;alignWithEntity(F)V",
+                    shift = At.Shift.AFTER))
+    private void freelookCameraHook(DeltaTracker deltaTracker, CallbackInfo ci) {
+        if (!ModuleManager.getModuleState(Freelook.class) || !Freelook.isActive())
+            return;
+
+        if (entity == null)
+            return;
+
+        detached = true;
+
+        float partialTicks = deltaTracker.getGameTimeDeltaPartialTick(true);
+        Vec3 eyePosition = entity.getEyePosition(partialTicks);
+        Vec3 direction = Freelook.getCamDirection();
+        setPosition(eyePosition.subtract(direction.scale(Freelook.distance.get())));
+        setRotation(Freelook.getCamYaw(), Freelook.getCamPitch());
     }
 
     @Inject(method = "update(Lnet/minecraft/client/DeltaTracker;)V",
