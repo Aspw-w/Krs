@@ -63,6 +63,8 @@ public class Scaffold extends Module {
     private static final float MATH_HUMAN_AIM_ERROR_TOLERANCE = 1.25F;
     private static final float MATH_HUMAN_SPEED_BIAS = 0.08F;
     private static final int MATH_HUMAN_AIM_ATTEMPTS = 6;
+    private static final int ROTATION_SPEED_JITTER_MIN_TICKS = 3;
+    private static final int ROTATION_SPEED_JITTER_MAX_TICKS = 7;
     private static final double MATH_FACE_CENTER_WEIGHT = 0.12D;
     private static final double MATH_EDGE_HIT_PENALTY = 4.0D;
     private static final double MATH_SAFE_HIT_INSET = 0.0625D;
@@ -104,6 +106,9 @@ public class Scaffold extends Module {
 
     @Setting
     private static final FloatValue minRotationSpeed = new FloatValue("Min Rotation Speed", 40f, 0f, 180f, Scaffold::usesRotationSpeed);
+
+    @Setting
+    private static final BooleanValue jitter = new BooleanValue("Jitter", true, Scaffold::usesRotationSpeed);
 
     @Setting
     private static final FloatValue preRotationLead = new FloatValue("Pre Rotation Lead", 1.0f, 0.0f, 5.0f, Scaffold::usesMathPreRotation);
@@ -181,6 +186,8 @@ public class Scaffold extends Module {
     private float humanizedMathYawSpeed = Float.NaN;
     private float humanizedMathPitchSpeed = Float.NaN;
     private float humanizedMathSpeedBias = 0.0F;
+    private final RotationSpeedJitterState rotationSpeedJitter = new RotationSpeedJitterState();
+    private final RotationSpeedJitterState mathPitchSpeedJitter = new RotationSpeedJitterState();
 
     private final Direction[] orderedHorizontalDirections = new Direction[4];
     private final Direction[] orderedPlaceDirections = new Direction[6];
@@ -192,6 +199,20 @@ public class Scaffold extends Module {
     }
 
     private record PlacementHit(Vec3 hitPos, double rotationScore, double distanceSqr) {
+    }
+
+    private static final class RotationSpeedJitterState {
+        private int updateTick = Integer.MIN_VALUE;
+        private int refreshTick = Integer.MIN_VALUE;
+        private float speed = Float.NaN;
+        private float targetSpeed = Float.NaN;
+
+        private void reset() {
+            updateTick = Integer.MIN_VALUE;
+            refreshTick = Integer.MIN_VALUE;
+            speed = Float.NaN;
+            targetSpeed = Float.NaN;
+        }
     }
 
     public Scaffold() {
@@ -246,7 +267,7 @@ public class Scaffold extends Module {
         wasTellyKeepYOnGround = false;
         tellyJumpDownOnLastGround = false;
         tellyClutchMode = false;
-        resetHumanizedMathRotation();
+        resetRotationHumanization();
         updateAutoSneak(false);
         PlayerUtil.INSTANCE.stopSpoof();
     }
@@ -271,7 +292,7 @@ public class Scaffold extends Module {
         wasTellyKeepYOnGround = player.onGround();
         tellyJumpDownOnLastGround = isTellyMode() && player.onGround() && isPhysicalJumpDown();
         tellyClutchMode = false;
-        resetHumanizedMathRotation();
+        resetRotationHumanization();
         countBlockItems(player.getInventory());
     }
 
@@ -957,7 +978,7 @@ public class Scaffold extends Module {
             wasTellyKeepYOnGround = false;
             tellyJumpDownOnLastGround = false;
             tellyClutchMode = false;
-            resetHumanizedMathRotation();
+            resetRotationHumanization();
             return;
         }
 
@@ -2125,6 +2146,11 @@ public class Scaffold extends Module {
     }
 
     private double humanizedMathMovementTransitionScore(float currentYaw, float yawDifference, float movementYaw) {
+        if (!jitter.get())
+            return mathMovementTransitionScoreAtHumanizedSpeed(
+                    currentYaw, yawDifference, movementYaw, 0.0F
+            );
+
         float biasSpread = MATH_HUMAN_SPEED_BIAS * 0.5F;
         double lowScore = mathMovementTransitionScoreAtHumanizedSpeed(
                 currentYaw, yawDifference, movementYaw,
@@ -2494,15 +2520,51 @@ public class Scaffold extends Module {
         return (rotationMode.get().equalsIgnoreCase("math") || rotationMode.get().equalsIgnoreCase("simple")) && snapRotation.get();
     }
 
-    private static float getRotationSpeed() {
-        float min = minRotationSpeed.get();
-        float max = maxRotationSpeed.get();
-        return RandomUtil.nextFloat(Math.min(min, max), Math.max(min, max));
+    private float getRotationSpeed() {
+        return getJitteredRotationSpeed(
+                Math.min(minRotationSpeed.get(), maxRotationSpeed.get()),
+                Math.max(minRotationSpeed.get(), maxRotationSpeed.get()),
+                rotationSpeedJitter
+        );
     }
 
-    private static float getMathPitchRotationSpeed() {
+    private float getMathPitchRotationSpeed() {
         float[] bounds = mathPitchSpeedBounds();
-        return RandomUtil.nextFloat(bounds[0], bounds[1]);
+        return getJitteredRotationSpeed(bounds[0], bounds[1], mathPitchSpeedJitter);
+    }
+
+    private float getJitteredRotationSpeed(float min, float max, RotationSpeedJitterState state) {
+        float lowerBound = Mth.clamp(Math.min(min, max), 0.0F, 180.0F);
+        float upperBound = Mth.clamp(Math.max(min, max), lowerBound, 180.0F);
+        float midpoint = (lowerBound + upperBound) * 0.5F;
+        if (!jitter.get() || upperBound - lowerBound <= MATH_MOVEMENT_ALIGNMENT_EPSILON) {
+            state.reset();
+            return midpoint;
+        }
+
+        var player = mc.player;
+        int currentTick = player != null ? player.tickCount : 0;
+        if (state.updateTick == currentTick && Float.isFinite(state.speed))
+            return state.speed;
+
+        state.speed = Float.isFinite(state.speed)
+                ? Mth.clamp(state.speed, lowerBound, upperBound)
+                : midpoint;
+        if (!Float.isFinite(state.targetSpeed) || currentTick >= state.refreshTick) {
+            state.targetSpeed = (RandomUtil.nextFloat(lowerBound, upperBound)
+                    + RandomUtil.nextFloat(lowerBound, upperBound)) * 0.5F;
+            state.refreshTick = currentTick + RandomUtil.nextInt(
+                    ROTATION_SPEED_JITTER_MIN_TICKS,
+                    ROTATION_SPEED_JITTER_MAX_TICKS
+            );
+        } else {
+            state.targetSpeed = Mth.clamp(state.targetSpeed, lowerBound, upperBound);
+        }
+
+        float maxChange = Math.max(0.75F, (upperBound - lowerBound) * 0.12F);
+        state.speed += Mth.clamp(state.targetSpeed - state.speed, -maxChange, maxChange);
+        state.updateTick = currentTick;
+        return state.speed;
     }
 
     private static boolean isTellyMode() {
@@ -2843,7 +2905,10 @@ public class Scaffold extends Module {
                 && Float.isFinite(humanizedMathPitchSpeed))
             return new float[]{humanizedMathYawSpeed, humanizedMathPitchSpeed};
 
-        if (currentTick >= humanizedMathSpeedBiasRefreshTick) {
+        if (!jitter.get()) {
+            humanizedMathSpeedBias = 0.0F;
+            humanizedMathSpeedBiasRefreshTick = Integer.MIN_VALUE;
+        } else if (currentTick >= humanizedMathSpeedBiasRefreshTick) {
             humanizedMathSpeedBias = (RandomUtil.nextFloat(0.0F, 1.0F)
                     + RandomUtil.nextFloat(0.0F, 1.0F) - 1.0F) * MATH_HUMAN_SPEED_BIAS;
             humanizedMathSpeedBiasRefreshTick = currentTick + RandomUtil.nextInt(5, 11);
@@ -2914,7 +2979,7 @@ public class Scaffold extends Module {
         return new float[]{safeMin, safeMax};
     }
 
-    private void resetHumanizedMathRotation() {
+    private void resetRotationHumanization() {
         humanizedMathAimTarget = null;
         humanizedMathAimPos = null;
         humanizedMathAimRefreshTick = Integer.MIN_VALUE;
@@ -2923,6 +2988,8 @@ public class Scaffold extends Module {
         humanizedMathYawSpeed = Float.NaN;
         humanizedMathPitchSpeed = Float.NaN;
         humanizedMathSpeedBias = 0.0F;
+        rotationSpeedJitter.reset();
+        mathPitchSpeedJitter.reset();
     }
 
     private float getScaffoldMovementDirection() {
