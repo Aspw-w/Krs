@@ -13,11 +13,16 @@ public final class RotationScraper {
     }
 
     public Tuple<Float, Float> getRotationsEntity(LivingEntity entity) {
+        if (mc.player == null || entity == null)
+            return Tuple.of(0.0f, 0.0f);
         return getRotations(entity.getX(), entity.getY() + entity.getEyeHeight() - 0.4, entity.getZ());
     }
 
     private Tuple<Float, Float> getRotations(double posX, double posY, double posZ) {
         var player = mc.player;
+        if (player == null)
+            return Tuple.of(0.0f, 0.0f);
+
         double x = posX - player.getX();
         double y = posY - (player.getY() + player.getEyeHeight());
         double z = posZ - player.getZ();

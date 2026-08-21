@@ -63,39 +63,37 @@ public class HatenaPiano extends Module {
         super("Hatena Piano", ModuleCategory.Dev, GLFW.GLFW_KEY_UNKNOWN, false, true);
     }
 
-    private static PianoKey[] whiteKeys() {
-        return new PianoKey[]{
-                new PianoKey(29.1f, 20.1f),
-                new PianoKey(31.1f, 21.2f),
-                new PianoKey(32.3f, 22.2f),
-                new PianoKey(35.0f, 23.4f),
-                new PianoKey(37.2f, 24.7f),
-                new PianoKey(40.3f, 26.4f),
-                new PianoKey(43.7f, 28.0f),
-                new PianoKey(47.2f, 29.2f),
-                new PianoKey(50.8f, 31.2f),
-                new PianoKey(55.6f, 32.8f),
-                new PianoKey(61.1f, 34.4f),
-                new PianoKey(68.1f, 35.1f),
-                new PianoKey(74.4f, 37.2f),
-                new PianoKey(80.9f, 37.6f),
-                new PianoKey(89.1f, 37.8f),
-                new PianoKey(96.5f, 38.1f),
-                new PianoKey(104.6f, 37.9f),
-                new PianoKey(110.7f, 36.8f),
-                new PianoKey(117.3f, 35.1f),
-                new PianoKey(123.1f, 33.8f),
-                new PianoKey(126.3f, 31.2f),
-                new PianoKey(130.9f, 29.8f),
-                new PianoKey(134.4f, 27.8f),
-                new PianoKey(138.1f, 26.2f),
-                new PianoKey(141.2f, 25.0f),
-                new PianoKey(143.8f, 23.5f),
-                new PianoKey(145.6f, 22.2f),
-                new PianoKey(147.3f, 21.1f),
-                new PianoKey(148.5f, 20.3f)
-        };
-    }
+    private static final PianoKey[] WHITE_KEYS = new PianoKey[]{
+            new PianoKey(29.1f, 20.1f),
+            new PianoKey(31.1f, 21.2f),
+            new PianoKey(32.3f, 22.2f),
+            new PianoKey(35.0f, 23.4f),
+            new PianoKey(37.2f, 24.7f),
+            new PianoKey(40.3f, 26.4f),
+            new PianoKey(43.7f, 28.0f),
+            new PianoKey(47.2f, 29.2f),
+            new PianoKey(50.8f, 31.2f),
+            new PianoKey(55.6f, 32.8f),
+            new PianoKey(61.1f, 34.4f),
+            new PianoKey(68.1f, 35.1f),
+            new PianoKey(74.4f, 37.2f),
+            new PianoKey(80.9f, 37.6f),
+            new PianoKey(89.1f, 37.8f),
+            new PianoKey(96.5f, 38.1f),
+            new PianoKey(104.6f, 37.9f),
+            new PianoKey(110.7f, 36.8f),
+            new PianoKey(117.3f, 35.1f),
+            new PianoKey(123.1f, 33.8f),
+            new PianoKey(126.3f, 31.2f),
+            new PianoKey(130.9f, 29.8f),
+            new PianoKey(134.4f, 27.8f),
+            new PianoKey(138.1f, 26.2f),
+            new PianoKey(141.2f, 25.0f),
+            new PianoKey(143.8f, 23.5f),
+            new PianoKey(145.6f, 22.2f),
+            new PianoKey(147.3f, 21.1f),
+            new PianoKey(148.5f, 20.3f)
+    };
 
     @Override
     public String description() {
@@ -185,7 +183,7 @@ public class HatenaPiano extends Module {
         }
 
         activeStep = step;
-        activeKey = whiteKeys()[step.keyIndex()];
+        activeKey = WHITE_KEYS[step.keyIndex()];
         rotationStartedTick = mc.player.tickCount;
         waitingForClick = true;
         Client.rotationManager.startRotationUnclampedPitch(activeKey.yaw(), activeKey.pitch(), getRotationSpeed());
