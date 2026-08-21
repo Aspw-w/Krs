@@ -334,6 +334,8 @@ public class ESP extends Module {
         Entity entity = ((IEntityRenderState) entityRenderState).client$getEntity();
         if (!(entity instanceof Player))
             return false;
+        if (entity.isCurrentlyGlowing())
+            return false;
 
         if (mc.player == null || mc.level == null)
             return false;
