@@ -97,7 +97,7 @@ public class HatenaPiano extends Module {
 
     @Override
     public String description() {
-        return "White-key player. Use C D E F G A B, C2, K1..K29, R, and :ticks.";
+        return "White-key player. Use C D E F G A B, C2, K1..K29, R, and :ticks";
     }
 
     @Override

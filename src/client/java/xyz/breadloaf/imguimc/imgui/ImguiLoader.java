@@ -68,6 +68,8 @@ public class ImguiLoader {
         } catch (IOException exception) {
             customFontAvailable = false;
             LOGGER.warn("Could not extract the custom ImGui font; using the default font", exception);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         windowHandle = handle;
         try {

@@ -69,7 +69,7 @@ public class MovementUtilTest extends Module {
 
     @Override
     public String description() {
-        return "Manual tester for MovementUtil helpers.";
+        return "Manual tester for MovementUtil helpers";
     }
 
     @Override

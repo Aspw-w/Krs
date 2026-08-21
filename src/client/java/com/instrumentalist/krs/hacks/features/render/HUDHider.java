@@ -13,7 +13,7 @@ public class HUDHider extends Module {
 
     @Override
     public String description() {
-        return "Hides hud elements.";
+        return "Hides hud elements";
     }
 
     @Setting

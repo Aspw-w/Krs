@@ -16,7 +16,8 @@ public class FontExtractor {
         }
         return new File(fontDir, fontNameTtf).getAbsolutePath();
     }
-    public static void extractFont() throws IOException {
+
+    public static void extractFont() throws Exception {
         if (fontDir == null) {
             fontDir = new File(System.getProperty("java.io.tmpdir"), "krs_imguimc_fonts");
         }
@@ -36,9 +37,8 @@ public class FontExtractor {
             throw new IOException("Could not find font resource: assets/krs/arial.ttf");
         }
 
-        try (in) {
-            Files.createDirectories(fontDir.toPath());
-            Files.copy(in, fontFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-        }
+        Files.createDirectories(fontDir.toPath());
+        Files.copy(in, fontFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        in.close();
     }
 }
