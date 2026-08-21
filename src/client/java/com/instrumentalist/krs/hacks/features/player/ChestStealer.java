@@ -3,11 +3,13 @@ package com.instrumentalist.krs.hacks.features.player;
 import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
+import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.utils.math.RandomUtil;
 import com.instrumentalist.krs.utils.math.ToolUtil;
 import com.instrumentalist.krs.utils.packet.BlinkUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.IntValue;
+import net.minecraft.client.gui.screens.inventory.ContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ContainerInput;
@@ -31,6 +33,9 @@ public class ChestStealer extends Module {
     @Setting
     public static final BooleanValue blink = new BooleanValue("Blink", false);
 
+    @Setting
+    private static final BooleanValue cameraMove = new BooleanValue("Camera Move", false);
+
     private int tickCounter = 0;
     private int startCounter = 0;
     private int closeCounter = 0;
@@ -40,6 +45,14 @@ public class ChestStealer extends Module {
 
     public ChestStealer() {
         super("Chest Stealer", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+    }
+
+    public static boolean shouldMoveCamera() {
+        return ModuleManager.getModuleState(ChestStealer.class)
+                && cameraMove.get()
+                && mc.player != null
+                && mc.player.containerMenu instanceof ChestMenu
+                && mc.gui.screen() instanceof ContainerScreen;
     }
 
     @Override
