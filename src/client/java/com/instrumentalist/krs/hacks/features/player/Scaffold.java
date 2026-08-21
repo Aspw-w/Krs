@@ -53,8 +53,16 @@ import java.util.Locale;
 public class Scaffold extends Module {
 
     private static final double MATH_MOVEMENT_ALIGNMENT_WEIGHT = 1.35D;
+    private static final double MATH_MOVEMENT_PATH_ALIGNMENT_WEIGHT = 0.24D;
+    private static final double MATH_MOVEMENT_SWAY_WEIGHT = 0.32D;
     private static final float MATH_MOVEMENT_SECTOR_DEGREES = 45.0F;
     private static final float MATH_MOVEMENT_ALIGNMENT_EPSILON = 0.01F;
+    private static final int MATH_MOVEMENT_PREDICTION_TICKS = 8;
+    private static final double MATH_HUMAN_AIM_GROUND_RADIUS = 0.055D;
+    private static final double MATH_HUMAN_AIM_AIR_RADIUS = 0.03D;
+    private static final float MATH_HUMAN_AIM_ERROR_TOLERANCE = 1.25F;
+    private static final float MATH_HUMAN_SPEED_BIAS = 0.08F;
+    private static final int MATH_HUMAN_AIM_ATTEMPTS = 6;
     private static final double MATH_FACE_CENTER_WEIGHT = 0.12D;
     private static final double MATH_EDGE_HIT_PENALTY = 4.0D;
     private static final double MATH_SAFE_HIT_INSET = 0.0625D;
@@ -165,6 +173,14 @@ public class Scaffold extends Module {
     private boolean tellyJumpDownOnLastGround = false;
     private boolean tellyClutchMode = false;
     private Integer lastSlot = null;
+    private PlacementTarget humanizedMathAimTarget = null;
+    private Vec3 humanizedMathAimPos = null;
+    private int humanizedMathAimRefreshTick = Integer.MIN_VALUE;
+    private int humanizedMathSpeedTick = Integer.MIN_VALUE;
+    private int humanizedMathSpeedBiasRefreshTick = Integer.MIN_VALUE;
+    private float humanizedMathYawSpeed = Float.NaN;
+    private float humanizedMathPitchSpeed = Float.NaN;
+    private float humanizedMathSpeedBias = 0.0F;
 
     private final Direction[] orderedHorizontalDirections = new Direction[4];
     private final Direction[] orderedPlaceDirections = new Direction[6];
@@ -230,6 +246,7 @@ public class Scaffold extends Module {
         wasTellyKeepYOnGround = false;
         tellyJumpDownOnLastGround = false;
         tellyClutchMode = false;
+        resetHumanizedMathRotation();
         updateAutoSneak(false);
         PlayerUtil.INSTANCE.stopSpoof();
     }
@@ -254,6 +271,7 @@ public class Scaffold extends Module {
         wasTellyKeepYOnGround = player.onGround();
         tellyJumpDownOnLastGround = isTellyMode() && player.onGround() && isPhysicalJumpDown();
         tellyClutchMode = false;
+        resetHumanizedMathRotation();
         countBlockItems(player.getInventory());
     }
 
@@ -939,6 +957,7 @@ public class Scaffold extends Module {
             wasTellyKeepYOnGround = false;
             tellyJumpDownOnLastGround = false;
             tellyClutchMode = false;
+            resetHumanizedMathRotation();
             return;
         }
 
@@ -1292,9 +1311,13 @@ public class Scaffold extends Module {
         if (movementYaw == null)
             return currentTarget;
 
-        float currentError = mathMovementAlignmentError(rotationsToHitPos(currentTarget.hitPos())[0], movementYaw);
-        float candidateError = mathMovementAlignmentError(rotationsToHitPos(candidateTarget.hitPos())[0], movementYaw);
-        return candidateError + MATH_MOVEMENT_ALIGNMENT_EPSILON < currentError ? candidateTarget : currentTarget;
+        float currentYaw = rotationsToHitPos(currentTarget.hitPos())[0];
+        float candidateYaw = rotationsToHitPos(candidateTarget.hitPos())[0];
+        double currentScore = mathMovementAlignmentError(currentYaw, movementYaw) * MATH_MOVEMENT_ALIGNMENT_WEIGHT
+                + mathMovementTransitionScore(Client.rotationManager.getRotationYaw(), currentYaw, movementYaw);
+        double candidateScore = mathMovementAlignmentError(candidateYaw, movementYaw) * MATH_MOVEMENT_ALIGNMENT_WEIGHT
+                + mathMovementTransitionScore(Client.rotationManager.getRotationYaw(), candidateYaw, movementYaw);
+        return candidateScore + MATH_MOVEMENT_ALIGNMENT_EPSILON < currentScore ? candidateTarget : currentTarget;
     }
 
     private double mathSearchPathPenaltyTicks(BlockPos origin, BlockPos candidate, int distanceGap) {
@@ -1446,6 +1469,9 @@ public class Scaffold extends Module {
 
     private void clearMathPlacementTarget() {
         lockedMathPlacementTarget = null;
+        humanizedMathAimTarget = null;
+        humanizedMathAimPos = null;
+        humanizedMathAimRefreshTick = Integer.MIN_VALUE;
     }
 
     private List<BlockPos> buildScaffoldCandidates(BlockPos pos) {
@@ -2039,7 +2065,13 @@ public class Scaffold extends Module {
         if (movementYaw == null)
             return 0.0D;
 
-        return mathMovementAlignmentError(targetYaw, movementYaw) * MATH_MOVEMENT_ALIGNMENT_WEIGHT;
+        double targetAlignmentScore = mathMovementAlignmentError(targetYaw, movementYaw)
+                * MATH_MOVEMENT_ALIGNMENT_WEIGHT;
+        return targetAlignmentScore + mathMovementTransitionScore(
+                Client.rotationManager.getRotationYaw(),
+                targetYaw,
+                movementYaw
+        );
     }
 
     private Float movementFixMathInputYaw() {
@@ -2050,10 +2082,141 @@ public class Scaffold extends Module {
     }
 
     private static float mathMovementAlignmentError(float targetYaw, float movementYaw) {
-        float relativeYaw = Math.abs(Mth.wrapDegrees(movementYaw - targetYaw));
-        float sectorOffset = relativeYaw % MATH_MOVEMENT_SECTOR_DEGREES;
-        // MovementFix reproduces the intended direction without switching corrected inputs at 45-degree sector centers.
-        return Math.min(sectorOffset, MATH_MOVEMENT_SECTOR_DEGREES - sectorOffset);
+        return Math.abs(mathMovementSignedAlignmentError(targetYaw, movementYaw));
+    }
+
+    private static float mathMovementSignedAlignmentError(float targetYaw, float movementYaw) {
+        // Keep this tied to MovementFix's exact sector boundary behavior, including 22.5-degree ties.
+        return MovementFix.getCorrectionDirectionError(movementYaw, targetYaw);
+    }
+
+    private double mathMovementTransitionScore(float currentYaw, float targetYaw, float movementYaw) {
+        float yawDifference = Mth.wrapDegrees(targetYaw - currentYaw);
+        if (Math.abs(yawDifference) <= MATH_MOVEMENT_ALIGNMENT_EPSILON)
+            return 0.0D;
+        if (usesHumanizedMathRotation())
+            return humanizedMathMovementTransitionScore(currentYaw, yawDifference, movementYaw)
+                    * mathMovementSpeedFactor();
+
+        double minSpeed = Math.min(minRotationSpeed.get(), maxRotationSpeed.get());
+        double maxSpeed = Math.max(minRotationSpeed.get(), maxRotationSpeed.get());
+        double averageSpeed = (minSpeed + maxSpeed) * 0.5D;
+        double score = 0.0D;
+        int samples = 0;
+
+        if (minSpeed > MATH_MOVEMENT_ALIGNMENT_EPSILON) {
+            score += mathMovementTransitionScoreAtSpeed(currentYaw, yawDifference, movementYaw, minSpeed);
+            samples++;
+        }
+        if (averageSpeed > MATH_MOVEMENT_ALIGNMENT_EPSILON
+                && Math.abs(averageSpeed - minSpeed) > MATH_MOVEMENT_ALIGNMENT_EPSILON) {
+            score += mathMovementTransitionScoreAtSpeed(currentYaw, yawDifference, movementYaw, averageSpeed);
+            samples++;
+        }
+        if (maxSpeed > MATH_MOVEMENT_ALIGNMENT_EPSILON
+                && Math.abs(maxSpeed - averageSpeed) > MATH_MOVEMENT_ALIGNMENT_EPSILON) {
+            score += mathMovementTransitionScoreAtSpeed(currentYaw, yawDifference, movementYaw, maxSpeed);
+            samples++;
+        }
+        if (samples == 0)
+            return 0.0D;
+
+        return score / samples * mathMovementSpeedFactor();
+    }
+
+    private double humanizedMathMovementTransitionScore(float currentYaw, float yawDifference, float movementYaw) {
+        float biasSpread = MATH_HUMAN_SPEED_BIAS * 0.5F;
+        double lowScore = mathMovementTransitionScoreAtHumanizedSpeed(
+                currentYaw, yawDifference, movementYaw,
+                Mth.clamp(humanizedMathSpeedBias - biasSpread, -MATH_HUMAN_SPEED_BIAS, MATH_HUMAN_SPEED_BIAS)
+        );
+        double expectedScore = mathMovementTransitionScoreAtHumanizedSpeed(
+                currentYaw, yawDifference, movementYaw, humanizedMathSpeedBias
+        );
+        double highScore = mathMovementTransitionScoreAtHumanizedSpeed(
+                currentYaw, yawDifference, movementYaw,
+                Mth.clamp(humanizedMathSpeedBias + biasSpread, -MATH_HUMAN_SPEED_BIAS, MATH_HUMAN_SPEED_BIAS)
+        );
+        return (lowScore + expectedScore * 2.0D + highScore) * 0.25D;
+    }
+
+    private double mathMovementTransitionScoreAtHumanizedSpeed(float currentYaw, float yawDifference, float movementYaw,
+                                                               float speedBias) {
+        float minSpeed = Math.min(minRotationSpeed.get(), maxRotationSpeed.get());
+        float maxSpeed = Math.max(minRotationSpeed.get(), maxRotationSpeed.get());
+        float acceleration = Math.max(1.5F, (maxSpeed - minSpeed) * 0.18F);
+        float deceleration = Math.max(2.0F, (maxSpeed - minSpeed) * 0.26F);
+        float speed = Float.isFinite(humanizedMathYawSpeed) ? humanizedMathYawSpeed : minSpeed;
+        double yawDistance = Math.abs(yawDifference);
+        double yawDirection = Math.signum(yawDifference);
+        double travelledYaw = 0.0D;
+        float previousError = mathMovementSignedAlignmentError(currentYaw, movementYaw);
+        double alignmentError = 0.0D;
+        double directionSway = 0.0D;
+        int predictedTicks = 0;
+
+        while (predictedTicks < MATH_MOVEMENT_PREDICTION_TICKS && travelledYaw < yawDistance) {
+            float remainingYaw = (float) (yawDistance - travelledYaw);
+            float desiredSpeed = humanizedDesiredRotationSpeed(
+                    minSpeed, maxSpeed, remainingYaw, 90.0F, 0.18F, speedBias
+            );
+            speed = approachHumanizedSpeed(speed, desiredSpeed, minSpeed, acceleration, deceleration);
+            if (speed <= MATH_MOVEMENT_ALIGNMENT_EPSILON)
+                break;
+
+            travelledYaw += Math.min(remainingYaw, speed);
+            float predictedYaw = Mth.wrapDegrees((float) (currentYaw + yawDirection * travelledYaw));
+            float predictedError = mathMovementSignedAlignmentError(predictedYaw, movementYaw);
+            alignmentError += Math.abs(predictedError);
+            directionSway += Math.abs(Mth.wrapDegrees(predictedError - previousError));
+            previousError = predictedError;
+            predictedTicks++;
+        }
+
+        if (predictedTicks == 0)
+            return 0.0D;
+        return alignmentError / predictedTicks * MATH_MOVEMENT_PATH_ALIGNMENT_WEIGHT
+                + directionSway * MATH_MOVEMENT_SWAY_WEIGHT;
+    }
+
+    private static double mathMovementTransitionScoreAtSpeed(float currentYaw, float yawDifference, float movementYaw,
+                                                              double degreesPerTick) {
+        double yawDistance = Math.abs(yawDifference);
+        double yawDirection = Math.signum(yawDifference);
+        int predictedTicks = Math.min(
+                MATH_MOVEMENT_PREDICTION_TICKS,
+                Math.max(1, (int) Math.ceil(yawDistance / degreesPerTick))
+        );
+        float previousError = mathMovementSignedAlignmentError(currentYaw, movementYaw);
+        double alignmentError = 0.0D;
+        double directionSway = 0.0D;
+
+        for (int tick = 1; tick <= predictedTicks; tick++) {
+            double travelledYaw = Math.min(yawDistance, degreesPerTick * tick);
+            float predictedYaw = Mth.wrapDegrees((float) (currentYaw + yawDirection * travelledYaw));
+            float predictedError = mathMovementSignedAlignmentError(predictedYaw, movementYaw);
+            alignmentError += Math.abs(predictedError);
+            directionSway += Math.abs(Mth.wrapDegrees(predictedError - previousError));
+            previousError = predictedError;
+        }
+
+        return alignmentError / predictedTicks * MATH_MOVEMENT_PATH_ALIGNMENT_WEIGHT
+                + directionSway * MATH_MOVEMENT_SWAY_WEIGHT;
+    }
+
+    private static double mathMovementSpeedFactor() {
+        var player = mc.player;
+        if (player == null)
+            return 1.0D;
+
+        double horizontalSpeed = MovementUtil.getSpeed(
+                player.getDeltaMovement().x,
+                player.getDeltaMovement().z
+        );
+        double speedFactor = Mth.clamp(horizontalSpeed / 0.28D, 0.35D, 1.5D);
+        if (!player.onGround())
+            speedFactor *= 1.15D;
+        return speedFactor;
     }
 
     private static boolean isStablePlacementHit(Vec3 hitPos, BlockPos neighbour, Direction side) {
@@ -2338,17 +2501,8 @@ public class Scaffold extends Module {
     }
 
     private static float getMathPitchRotationSpeed() {
-        float min = Math.min(minRotationSpeed.get(), maxRotationSpeed.get());
-        float max = Math.max(minRotationSpeed.get(), maxRotationSpeed.get());
-        float safeMax = Math.min(max, 18.0F);
-        if (safeMax <= 0.0F)
-            return 0.0F;
-
-        float safeMin = min > 18.0F
-                ? Math.min(12.0F, safeMax)
-                : Math.min(min, safeMax);
-        safeMin = Math.max(Math.min(1.0F, safeMax), safeMin);
-        return RandomUtil.nextFloat(safeMin, safeMax);
+        float[] bounds = mathPitchSpeedBounds();
+        return RandomUtil.nextFloat(bounds[0], bounds[1]);
     }
 
     private static boolean isTellyMode() {
@@ -2555,7 +2709,220 @@ public class Scaffold extends Module {
     }
 
     private void facePlacementTarget(PlacementTarget target) {
-        faceHitPos(target.hitPos(), getRotationSpeed());
+        if (!usesHumanizedMathRotation()) {
+            faceHitPos(target.hitPos(), getRotationSpeed());
+            return;
+        }
+
+        Vec3 aimPos = getHumanizedMathAimPos(target);
+        float[] rotations = rotationsToHitPos(aimPos);
+        float[] speeds = humanizedMathRotationSpeeds(rotations[0], rotations[1]);
+        Client.rotationManager.startRotation(rotations[0], rotations[1], speeds[0], speeds[1]);
+    }
+
+    private static boolean usesHumanizedMathRotation() {
+        return rotationMode.get().equalsIgnoreCase("math")
+                && !isSnapRotationActive()
+                && !isDownScaffoldActive();
+    }
+
+    private Vec3 getHumanizedMathAimPos(PlacementTarget target) {
+        var player = mc.player;
+        if (player == null || target == null)
+            return target != null ? target.hitPos() : Vec3.ZERO;
+
+        int currentTick = player.tickCount;
+        if (samePlacementTarget(humanizedMathAimTarget, target)
+                && humanizedMathAimPos != null
+                && currentTick < humanizedMathAimRefreshTick
+                && isValidHumanizedMathAim(target, humanizedMathAimPos))
+            return humanizedMathAimPos;
+
+        double radius = humanizedMathAimRadius(player);
+        for (int attempt = 0; attempt < MATH_HUMAN_AIM_ATTEMPTS; attempt++) {
+            double offsetA = triangularRandomOffset(radius);
+            double offsetB = triangularRandomOffset(radius);
+            Vec3 candidate = clampedPlacementFaceHit(
+                    offsetPlacementFaceHit(target.hitPos(), target.side(), offsetA, offsetB),
+                    target.neighbour(),
+                    target.side()
+            );
+            if (!isValidHumanizedMathAim(target, candidate))
+                continue;
+
+            humanizedMathAimTarget = target;
+            humanizedMathAimPos = candidate;
+            humanizedMathAimRefreshTick = currentTick + RandomUtil.nextInt(8, 17);
+            return candidate;
+        }
+
+        humanizedMathAimTarget = target;
+        humanizedMathAimPos = target.hitPos();
+        humanizedMathAimRefreshTick = currentTick + RandomUtil.nextInt(6, 11);
+        return target.hitPos();
+    }
+
+    private boolean isValidHumanizedMathAim(PlacementTarget target, Vec3 candidate) {
+        var player = mc.player;
+        if (player == null || target == null || candidate == null)
+            return false;
+        if (player.getEyePosition().distanceToSqr(candidate) > placementReachSqr() + 1.0E-4D)
+            return false;
+        if (!isStablePlacementHit(candidate, target.neighbour(), target.side()))
+            return false;
+
+        float[] baseRotations = rotationsToHitPos(target.hitPos());
+        float[] candidateRotations = rotationsToHitPos(candidate);
+        Float movementYaw = movementFixMathInputYaw();
+        if (movementYaw != null) {
+            float baseError = mathMovementSignedAlignmentError(baseRotations[0], movementYaw);
+            float candidateError = mathMovementSignedAlignmentError(candidateRotations[0], movementYaw);
+            if (Math.abs(Mth.wrapDegrees(candidateError - baseError)) > MATH_HUMAN_AIM_ERROR_TOLERANCE)
+                return false;
+        }
+
+        BlockHitResult hit = Client.rotationManager.rayTraceBlocks(
+                candidateRotations[0],
+                candidateRotations[1],
+                placementReach()
+        );
+        return isMatchingPlacementHit(hit, target);
+    }
+
+    private static Vec3 offsetPlacementFaceHit(Vec3 hitPos, Direction side, double offsetA, double offsetB) {
+        return switch (side.getAxis()) {
+            case X -> hitPos.add(0.0D, offsetA, offsetB);
+            case Y -> hitPos.add(offsetA, 0.0D, offsetB);
+            case Z -> hitPos.add(offsetA, offsetB, 0.0D);
+        };
+    }
+
+    private static Vec3 clampedPlacementFaceHit(Vec3 hitPos, BlockPos neighbour, Direction side) {
+        double inset = MATH_SAFE_HIT_INSET + MATH_ALIGNED_RAY_EPSILON * 2.0D;
+        double x = Mth.clamp(hitPos.x, neighbour.getX() + inset, neighbour.getX() + 1.0D - inset);
+        double y = Mth.clamp(hitPos.y, neighbour.getY() + inset, neighbour.getY() + 1.0D - inset);
+        double z = Mth.clamp(hitPos.z, neighbour.getZ() + inset, neighbour.getZ() + 1.0D - inset);
+
+        if (side == Direction.EAST)
+            x = neighbour.getX() + 1.0D;
+        else if (side == Direction.WEST)
+            x = neighbour.getX();
+        else if (side == Direction.UP)
+            y = neighbour.getY() + 1.0D;
+        else if (side == Direction.DOWN)
+            y = neighbour.getY();
+        else if (side == Direction.SOUTH)
+            z = neighbour.getZ() + 1.0D;
+        else if (side == Direction.NORTH)
+            z = neighbour.getZ();
+
+        return new Vec3(x, y, z);
+    }
+
+    private static double humanizedMathAimRadius(net.minecraft.client.player.LocalPlayer player) {
+        double radius = player.onGround() ? MATH_HUMAN_AIM_GROUND_RADIUS : MATH_HUMAN_AIM_AIR_RADIUS;
+        double horizontalSpeed = MovementUtil.getSpeed(
+                player.getDeltaMovement().x,
+                player.getDeltaMovement().z
+        );
+        double movementScale = 1.0D - Mth.clamp(horizontalSpeed / 0.28D, 0.0D, 1.0D) * 0.45D;
+        if (isTellyMode())
+            movementScale *= 0.75D;
+        return radius * movementScale;
+    }
+
+    private static double triangularRandomOffset(double radius) {
+        return (RandomUtil.nextDouble(-radius, radius) + RandomUtil.nextDouble(-radius, radius)) * 0.5D;
+    }
+
+    private float[] humanizedMathRotationSpeeds(float targetYaw, float targetPitch) {
+        var player = mc.player;
+        int currentTick = player != null ? player.tickCount : 0;
+        if (humanizedMathSpeedTick == currentTick
+                && Float.isFinite(humanizedMathYawSpeed)
+                && Float.isFinite(humanizedMathPitchSpeed))
+            return new float[]{humanizedMathYawSpeed, humanizedMathPitchSpeed};
+
+        if (currentTick >= humanizedMathSpeedBiasRefreshTick) {
+            humanizedMathSpeedBias = (RandomUtil.nextFloat(0.0F, 1.0F)
+                    + RandomUtil.nextFloat(0.0F, 1.0F) - 1.0F) * MATH_HUMAN_SPEED_BIAS;
+            humanizedMathSpeedBiasRefreshTick = currentTick + RandomUtil.nextInt(5, 11);
+        }
+
+        float yawMin = Math.min(minRotationSpeed.get(), maxRotationSpeed.get());
+        float yawMax = Math.max(minRotationSpeed.get(), maxRotationSpeed.get());
+        float yawDifference = Math.abs(Mth.wrapDegrees(targetYaw - Client.rotationManager.getRotationYaw()));
+        float desiredYawSpeed = humanizedDesiredRotationSpeed(
+                yawMin, yawMax, yawDifference, 90.0F, 0.18F, humanizedMathSpeedBias
+        );
+        humanizedMathYawSpeed = approachHumanizedSpeed(
+                humanizedMathYawSpeed,
+                desiredYawSpeed,
+                yawMin,
+                Math.max(1.5F, (yawMax - yawMin) * 0.18F),
+                Math.max(2.0F, (yawMax - yawMin) * 0.26F)
+        );
+
+        float[] pitchBounds = mathPitchSpeedBounds();
+        float pitchDifference = Math.abs(targetPitch - Client.rotationManager.getRotationPitch());
+        float desiredPitchSpeed = humanizedDesiredRotationSpeed(
+                pitchBounds[0], pitchBounds[1], pitchDifference, 35.0F, 0.25F, humanizedMathSpeedBias
+        );
+        humanizedMathPitchSpeed = approachHumanizedSpeed(
+                humanizedMathPitchSpeed,
+                desiredPitchSpeed,
+                pitchBounds[0],
+                Math.max(0.75F, (pitchBounds[1] - pitchBounds[0]) * 0.22F),
+                Math.max(1.0F, (pitchBounds[1] - pitchBounds[0]) * 0.32F)
+        );
+        humanizedMathSpeedTick = currentTick;
+        return new float[]{humanizedMathYawSpeed, humanizedMathPitchSpeed};
+    }
+
+    private static float humanizedDesiredRotationSpeed(float min, float max, float difference,
+                                                       float fullSpeedDifference, float minimumFraction,
+                                                       float speedBias) {
+        if (max <= 0.0F)
+            return 0.0F;
+
+        float progress = Mth.clamp(difference / fullSpeedDifference, 0.0F, 1.0F);
+        float easedProgress = progress * progress * (3.0F - 2.0F * progress);
+        float fraction = minimumFraction + (1.0F - minimumFraction) * easedProgress
+                + speedBias;
+        return Mth.clamp(min + (max - min) * fraction, min, max);
+    }
+
+    private static float approachHumanizedSpeed(float current, float target, float initial,
+                                                float acceleration, float deceleration) {
+        if (!Float.isFinite(current))
+            current = initial;
+        float difference = target - current;
+        return current + Mth.clamp(difference, -deceleration, acceleration);
+    }
+
+    private static float[] mathPitchSpeedBounds() {
+        float min = Math.min(minRotationSpeed.get(), maxRotationSpeed.get());
+        float max = Math.max(minRotationSpeed.get(), maxRotationSpeed.get());
+        float safeMax = Math.min(max, 18.0F);
+        if (safeMax <= 0.0F)
+            return new float[]{0.0F, 0.0F};
+
+        float safeMin = min > 18.0F
+                ? Math.min(12.0F, safeMax)
+                : Math.min(min, safeMax);
+        safeMin = Math.max(Math.min(1.0F, safeMax), safeMin);
+        return new float[]{safeMin, safeMax};
+    }
+
+    private void resetHumanizedMathRotation() {
+        humanizedMathAimTarget = null;
+        humanizedMathAimPos = null;
+        humanizedMathAimRefreshTick = Integer.MIN_VALUE;
+        humanizedMathSpeedTick = Integer.MIN_VALUE;
+        humanizedMathSpeedBiasRefreshTick = Integer.MIN_VALUE;
+        humanizedMathYawSpeed = Float.NaN;
+        humanizedMathPitchSpeed = Float.NaN;
+        humanizedMathSpeedBias = 0.0F;
     }
 
     private float getScaffoldMovementDirection() {

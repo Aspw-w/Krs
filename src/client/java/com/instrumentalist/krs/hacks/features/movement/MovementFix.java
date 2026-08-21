@@ -86,6 +86,12 @@ public class MovementFix extends Module {
         return rawInput;
     }
 
+    public static float getCorrectionDirectionError(float movementYaw, float targetYaw) {
+        int sector = correctionSector(movementYaw, targetYaw);
+        float correctedMovementYaw = targetYaw + (sector - 4) * 45.0F;
+        return Mth.wrapDegrees(correctedMovementYaw - movementYaw);
+    }
+
     public static boolean hasForwardImpulseForSprint(ClientInput input) {
         Input keyPresses = input != null ? input.keyPresses : correctedInput;
         if (Sprint.shouldSprintOmnidirectional())
@@ -113,8 +119,13 @@ public class MovementFix extends Module {
         if (player == null)
             return input;
 
-        float angle = Mth.wrapDegrees(adjustYaw(player.getYRot(), forwardValue(input), leftValue(input)) - targetYaw + 22.5F);
-        return sectorInput(input, (int) (angle + 180.0F) / 45 % 8);
+        float movementYaw = adjustYaw(player.getYRot(), forwardValue(input), leftValue(input));
+        return sectorInput(input, correctionSector(movementYaw, targetYaw));
+    }
+
+    private static int correctionSector(float movementYaw, float targetYaw) {
+        float angle = Mth.wrapDegrees(movementYaw - targetYaw + 22.5F);
+        return (int) (angle + 180.0F) / 45 % 8;
     }
 
     private static boolean isMoving(Input input) {
