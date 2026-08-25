@@ -137,8 +137,12 @@ public class MovementUtil implements IMinecraft {
 
         float yaw = player.getYRot();
 
-        if (TargetStrafe.targetStrafeHook())
-            yaw = RotationScraper.INSTANCE.getRotationsEntity((LivingEntity) KillAura.closestEntity).getFirst();
+        if (TargetStrafe.targetStrafeHook()) {
+            float targetYaw = RotationScraper.INSTANCE.getRotationsEntity((LivingEntity) KillAura.closestEntity).getFirst();
+            double targetDistance = EntityExtension.distanceToWithoutY(player, KillAura.closestEntity);
+            float desiredYaw = TargetStrafe.getDesiredMovementYaw(targetYaw, targetDistance);
+            yaw = TargetStrafe.getCurrentMovementYaw(desiredYaw);
+        }
 
         ClientInput input = player.input;
         float forward = 1F;
@@ -466,49 +470,14 @@ public class MovementUtil implements IMinecraft {
 
         if (isMoving()) {
             if (TargetStrafe.targetStrafeHook()) {
-                float yaw = RotationScraper.INSTANCE.getRotationsEntity((LivingEntity) KillAura.closestEntity).getFirst();
+                float targetYaw = RotationScraper.INSTANCE.getRotationsEntity((LivingEntity) KillAura.closestEntity).getFirst();
                 double targetDistance = EntityExtension.distanceToWithoutY(player, KillAura.closestEntity);
-                double forward = targetDistance >= TargetStrafe.distance.get() + 2f ? 2.0 : targetDistance <= TargetStrafe.distance.get() ? 0.0 : 1.0;
-                double direction = TargetStrafe.direction;
+                float desiredYaw = TargetStrafe.getDesiredMovementYaw(targetYaw, targetDistance);
+                TargetStrafe.SteeringResult steering = TargetStrafe.steer(desiredYaw, speed);
 
-                if (forward == 2.0) {
-                    double deltaX = KillAura.closestEntity.getX() - player.getX();
-                    double deltaZ = KillAura.closestEntity.getZ() - player.getZ();
-                    double distance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
-
-                    if (distance > 0.0) {
-                        deltaX /= distance;
-                        deltaZ /= distance;
-                    }
-
-                    player.setDeltaMovement(deltaX * speed, player.getDeltaMovement().y, deltaZ * speed);
-                } else {
-                    if (forward != 0.0) {
-                        if (direction > 0.0) yaw -= 45;
-                        else if (direction < 0.0) yaw += 45;
-                        direction = 0.0;
-                    }
-
-                    if (direction > 0.0)
-                        direction = 1.0;
-                    else if (direction < 0.0)
-                        direction = -1.0;
-
-                    double mx = Math.cos(Math.toRadians((yaw + 90f)));
-                    double mz = Math.sin(Math.toRadians((yaw + 90f)));
-
-                    double combinedX = forward * speed * mx + direction * speed * mz;
-                    double combinedZ = forward * speed * mz - direction * speed * mx;
-
-                    double magnitude = Math.sqrt(combinedX * combinedX + combinedZ * combinedZ);
-
-                    if (magnitude > 0) {
-                        combinedX /= magnitude;
-                        combinedZ /= magnitude;
-                    }
-
-                    player.setDeltaMovement(combinedX * speed, player.getDeltaMovement().y, combinedZ * speed);
-                }
+                if (steering.safe())
+                    setSpeed(speed, steering.yaw());
+                else stopMoving();
             } else {
                 Vec3 movement = getMovementVector(speed);
                 setVelocityXZ(movement.x, movement.z);

@@ -22,6 +22,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArgs;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.invoke.arg.Args;
 
@@ -90,6 +91,14 @@ public abstract class EntityMixin implements IMinecraft {
 
         Vec3 vec3d = getInputVector(movementInput, speed, strafe);
         this.setDeltaMovement(this.getDeltaMovement().add(vec3d));
+    }
+
+    @ModifyVariable(method = "move", at = @At("HEAD"), argsOnly = true)
+    private Vec3 targetStrafeCollisionGuard(Vec3 movement) {
+        if ((Object) this instanceof LocalPlayer && TargetStrafe.targetStrafeHook())
+            return TargetStrafe.preventHorizontalCollision(movement);
+
+        return movement;
     }
 
     @ModifyReturnValue(method = "collide", at = @At("RETURN"))
