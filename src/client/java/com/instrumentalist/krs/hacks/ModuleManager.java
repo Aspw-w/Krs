@@ -291,7 +291,7 @@ public class ModuleManager implements EventListener {
     public void onReceivedPacket(ReceivedPacketEvent event) {
         if (mc.player == null || mc.level == null) return;
 
-        if (BlinkUtil.INSTANCE.getBlinking() && Blink.shouldBlinkIncoming() && !getModuleState(Freecam.class)) {
+        if (BlinkUtil.INSTANCE.getBlinking() && Blink.shouldQueueIncoming(event.packet) && !getModuleState(Freecam.class)) {
             event.cancel();
             BlinkUtil.INSTANCE.addIncomingPacket(event.packet);
         }
