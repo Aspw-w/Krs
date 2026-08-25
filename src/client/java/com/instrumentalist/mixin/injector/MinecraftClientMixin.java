@@ -1,6 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.features.level.ItemDropChanger;
+import com.instrumentalist.krs.hacks.features.player.AirPlace;
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.HandleInputEvent;
@@ -58,6 +59,9 @@ public abstract class MinecraftClientMixin implements IMinecraft {
     @Unique
     private Boolean krs$lastAllowCursorChanges;
 
+    @Unique
+    private HitResult krs$airPlaceOriginalHitResult;
+
     @Inject(method = "<init>", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/RenderSystem;initRenderer(Lcom/mojang/blaze3d/systems/GpuDevice;)V", shift = At.Shift.AFTER))
     private void initNanoVG(CallbackInfo ci) {
         GraphicsApiCompatibility.initialize();
@@ -110,6 +114,23 @@ public abstract class MinecraftClientMixin implements IMinecraft {
                     }
                 }
             }
+        }
+    }
+
+    @Inject(method = "startUseItem", at = @At("HEAD"))
+    private void airPlaceBeforeItemUse(CallbackInfo ci) {
+        HitResult placementHit = AirPlace.createPlacementHit(this.hitResult, this.player);
+        if (placementHit != this.hitResult) {
+            this.krs$airPlaceOriginalHitResult = this.hitResult;
+            this.hitResult = placementHit;
+        }
+    }
+
+    @Inject(method = "startUseItem", at = @At("RETURN"))
+    private void airPlaceAfterItemUse(CallbackInfo ci) {
+        if (this.krs$airPlaceOriginalHitResult != null) {
+            this.hitResult = this.krs$airPlaceOriginalHitResult;
+            this.krs$airPlaceOriginalHitResult = null;
         }
     }
 

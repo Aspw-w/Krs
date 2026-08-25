@@ -72,7 +72,7 @@ public class ModuleManager implements EventListener {
                 new SpinBot(), new BrandSpoofer(), new AntiBot(), new AutoPot(), new Criticals(),
                 new Teams(), new Velocity(), new Phase(), new ServerCrasher(), new Spammer(),
                 new PerfectHorseJump(), new InventoryMove(), new Jesus(), new NoSlow(), new LongJump(),
-                new ChestStealer(), new FastLadder(), new InvManager(), new NoFall(),
+                new ChestStealer(), new FastLadder(), new InvManager(), new NoFall(), new AirPlace(),
                 new Sprint(), new ThunderDetector(), new KillEffect(), new CameraNoClip(),
                 new AntiBlind(), new Breaker(), new CivBreak(), new Timer(), new Nuker(),
                 new Xray(), new CaveFinder(), new Scaffold(), new Blink(), new TransactionConfirmBlinker(), new ExploitPatcher(),
