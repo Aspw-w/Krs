@@ -61,10 +61,6 @@ public class FastBow extends Module {
                 Direction.DOWN
         ));
 
-        // The old implementation only stopped use on the server. The client
-        // consequently stayed in its using state and never sent the next use
-        // packet while the key was held. Keep both sides in sync, then begin
-        // the next draw immediately instead of waiting for the vanilla delay.
         player.releaseUsingItem();
         if (mc.options.keyUse.isDown()
                 && player.getItemInHand(hand).getUseAnimation() == ItemUseAnimation.BOW)

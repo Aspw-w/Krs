@@ -48,9 +48,6 @@ public class FastEat extends Module {
             PacketUtil.sendPacket(new ServerboundMovePlayerPacket.StatusOnly(onGround, horizontalCollision));
         }
 
-        // The packet burst completes the current use on compatible servers.
-        // End the matching client-side use state and immediately begin the
-        // next item while the use key remains held.
         player.stopUsingItem();
         if (mc.options.keyUse.isDown() && isFoodOrDrink(player.getMainHandItem()))
             gameMode.useItem(player, net.minecraft.world.InteractionHand.MAIN_HAND);
