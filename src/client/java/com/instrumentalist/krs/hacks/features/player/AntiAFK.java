@@ -133,19 +133,28 @@ public class AntiAFK extends Module {
     }
 
     private void rotate() {
-        if (mc.player == null)
+        var player = mc.player;
+        if (player == null)
             return;
 
         float offset = rotateRight ? 3.0f : -3.0f;
         rotateRight = !rotateRight;
-        mc.player.setYRot(Mth.wrapDegrees(mc.player.getYRot() + offset));
+        float currentYaw = player.getYRot();
+        float targetYaw = currentYaw + offset;
+        if (Client.rotationManager != null)
+            targetYaw = Client.rotationManager.normalizeRotation(
+                    targetYaw,
+                    player.getXRot(),
+                    currentYaw,
+                    player.getXRot()
+            )[0];
+
+        player.turn(Mth.wrapDegrees(targetYaw - currentYaw) / 0.15D, 0.0D);
     }
 
     private void jump() {
-        if (mc.player != null && mc.player.onGround() && mc.player.getVehicle() == null)
-            mc.player.jumpFromGround();
-        else
-            swing();
+        if (mc.player != null)
+            mc.player.input.makeJump();
     }
 
     private void reset() {
