@@ -9,6 +9,7 @@ import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.hacks.features.player.MurdererDetector;
+import com.instrumentalist.krs.utils.entity.StreamConverter;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.nanovg.NanoVGTextFormatter;
@@ -16,6 +17,7 @@ import com.instrumentalist.krs.utils.render.NanoVGTheme;
 import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Player;
@@ -348,7 +350,7 @@ public class NameTags extends Module {
             }
 
             renderData.update(
-                    NanoVGTextFormatter.formatColors(entity.getDisplayName()),
+                    getEntityName(entity),
                     murderer ? "Murderer" : null,
                     projectedPosition[0] * framebufferToScaledX,
                     projectedPosition[1] * framebufferToScaledY,
@@ -360,6 +362,13 @@ public class NameTags extends Module {
         data.addAll(nearestData);
         nearestData.clear();
         data.sort(DEPTH_ORDER);
+    }
+
+    private static String getEntityName(Entity entity) {
+        if (entity instanceof Player || entity.hasCustomName())
+            return NanoVGTextFormatter.formatColors(entity.getDisplayName());
+
+        return StreamConverter.formatNameByPath(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).getPath());
     }
 
     public static boolean shouldRender(Entity entity) {
