@@ -4,7 +4,6 @@ package com.instrumentalist.krs.hacks.features.movement.fly.features;
 import com.instrumentalist.krs.events.features.*;
 import com.instrumentalist.krs.hacks.features.movement.InventoryMove;
 import com.instrumentalist.krs.hacks.features.movement.fly.FlyEvent;
-import com.instrumentalist.krs.hacks.features.movement.fly.FlyModule;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.mojang.blaze3d.platform.InputConstants;
 

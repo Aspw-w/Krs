@@ -229,12 +229,6 @@ public class HatenaPiano extends Module {
         setState(false);
     }
 
-    private boolean isAimedAt(PianoKey key) {
-        float yawDiff = Math.abs(Mth.wrapDegrees(Client.rotationManager.getRotationYaw() - key.yaw()));
-        float pitchDiff = Math.abs(Client.rotationManager.getRotationPitch() - key.pitch());
-        return yawDiff <= 0.75f && pitchDiff <= 0.75f;
-    }
-
     private boolean rightClick(Step step) {
         Entity target = findTarget(step.keyIndex());
         if (target == null) {

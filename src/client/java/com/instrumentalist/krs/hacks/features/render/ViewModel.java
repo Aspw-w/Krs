@@ -4,18 +4,13 @@ import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.IntValue;
-import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.protocol.game.ServerboundSwingPacket;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import org.lwjgl.glfw.GLFW;
 
-import java.util.Locale;
 
 public class ViewModel extends Module {
 

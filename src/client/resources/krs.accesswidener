@@ -7,7 +7,6 @@ mutable	field	net/minecraft/client/Minecraft	user	Lnet/minecraft/client/User;
 accessible	field	net/minecraft/client/Minecraft	profileKeyPairManager	Lnet/minecraft/client/multiplayer/ProfileKeyPairManager;
 mutable	field	net/minecraft/client/Minecraft	profileKeyPairManager	Lnet/minecraft/client/multiplayer/ProfileKeyPairManager;
 
-accessible	method	net/minecraft/world/entity/LivingEntity	updatingUsingItem	()V
 
 mutable	field	net/minecraft/world/phys/Vec3	x	D
 mutable	field	net/minecraft/world/phys/Vec3	y	D
@@ -23,13 +22,7 @@ accessible	field	net/minecraft/client/player/LocalPlayer	zLast	D
 accessible	field	net/minecraft/client/player/LocalPlayer	yRotLast	F
 accessible	field	net/minecraft/client/player/LocalPlayer	xRotLast	F
 accessible	field	net/minecraft/client/player/LocalPlayer	lastOnGround	Z
-accessible	field	net/minecraft/client/player/LocalPlayer	crouching	Z
-accessible	field	net/minecraft/client/player/LocalPlayer	wasSprinting	Z
 accessible	field	net/minecraft/client/player/LocalPlayer	positionReminder	I
-accessible	field	net/minecraft/client/player/LocalPlayer	startedUsingItem	Z
-accessible	field	net/minecraft/client/player/LocalPlayer	handsBusy	Z
-accessible	field	net/minecraft/client/player/LocalPlayer	usingItemHand	Lnet/minecraft/world/InteractionHand;
-accessible	field	net/minecraft/client/player/LocalPlayer	jumpRidingTicks	I
 accessible	method	net/minecraft/client/player/LocalPlayer	sendPosition	()V
 
 accessible	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket	x	D
@@ -38,8 +31,6 @@ accessible	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket
 accessible	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket	yRot	F
 accessible	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket	xRot	F
 accessible	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket	onGround	Z
-accessible	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket	hasPos	Z
-accessible	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket	hasRot	Z
 
 mutable	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket	x	D
 mutable	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket	y	D
@@ -47,10 +38,7 @@ mutable	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket	z	
 mutable	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket	yRot	F
 mutable	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket	xRot	F
 mutable	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket	onGround	Z
-mutable	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket	hasPos	Z
-mutable	field	net/minecraft/network/protocol/game/ServerboundMovePlayerPacket	hasRot	Z
 
-accessible	field	net/minecraft/client/multiplayer/MultiPlayerGameMode	destroyProgress	F
 accessible	field	net/minecraft/client/multiplayer/MultiPlayerGameMode	destroyDelay	I
 
 accessible	field	net/minecraft/network/protocol/common/ServerboundResourcePackPacket	action	Lnet/minecraft/network/protocol/common/ServerboundResourcePackPacket$Action;
@@ -58,7 +46,6 @@ accessible	field	net/minecraft/network/protocol/common/ServerboundResourcePackPa
 accessible	field	net/minecraft/world/item/BucketItem	content	Lnet/minecraft/world/level/material/Fluid;
 
 accessible	field	net/minecraft/client/KeyMapping	key	Lcom/mojang/blaze3d/platform/InputConstants$Key;
-accessible	field	net/minecraft/world/entity/LivingEntity	attackStrengthTicker	I
 accessible	field	net/minecraft/world/entity/LivingEntity	jumping	Z
 accessible	field	net/minecraft/world/entity/LivingEntity	noJumpDelay	I
 accessible	field	net/minecraft/world/entity/LivingEntity	autoSpinAttackDmg	F
@@ -66,14 +53,12 @@ mutable	field	net/minecraft/world/entity/LivingEntity	autoSpinAttackDmg	F
 accessible	field	net/minecraft/world/entity/LivingEntity	autoSpinAttackItemStack	Lnet/minecraft/world/item/ItemStack;
 mutable	field	net/minecraft/world/entity/LivingEntity	autoSpinAttackItemStack	Lnet/minecraft/world/item/ItemStack;
 
-accessible	field	net/minecraft/client/Options	modelParts	Ljava/util/Set;
 
 accessible	method	net/minecraft/world/entity/Entity	getInputVector	(Lnet/minecraft/world/phys/Vec3;FF)Lnet/minecraft/world/phys/Vec3;
 accessible	method	net/minecraft/world/phys/AABB	getDirection	(Lnet/minecraft/world/phys/AABB;Lnet/minecraft/world/phys/Vec3;[DLnet/minecraft/core/Direction;DDD)Lnet/minecraft/core/Direction;
 
 mutable	field	net/minecraft/network/protocol/game/ServerboundChatPacket	message	Ljava/lang/String;
 
-accessible	field	net/minecraft/client/multiplayer/ClientChunkCache	storage	Lnet/minecraft/client/multiplayer/ClientChunkCache$Storage;
 accessible	field	net/minecraft/world/level/chunk/LevelChunk	loaded	Z
 accessible	field	net/minecraft/client/multiplayer/ClientChunkCache$Storage	chunks	Ljava/util/concurrent/atomic/AtomicReferenceArray;
 
@@ -84,9 +69,7 @@ accessible	method	net/minecraft/client/Camera	setPosition	(Lnet/minecraft/world/
 
 accessible	method	net/minecraft/client/multiplayer/MultiPlayerGameMode	startPrediction	(Lnet/minecraft/client/multiplayer/ClientLevel;Lnet/minecraft/client/multiplayer/prediction/PredictiveAction;)V
 
-accessible	field	net/minecraft/client/gui/screens/inventory/CreativeModeInventoryScreen	selectedTab	Lnet/minecraft/world/item/CreativeModeTab;
 
-accessible	field	net/minecraft/client/renderer/PostChain	passes	Ljava/util/List;
 accessible	field	com/mojang/blaze3d/systems/GpuDevice	backend	Lcom/mojang/blaze3d/systems/GpuDeviceBackend;
 accessible	class	com/mojang/blaze3d/opengl/GlDevice
 accessible	class	com/mojang/blaze3d/opengl/DirectStateAccess
@@ -96,20 +79,13 @@ accessible	field	net/minecraft/network/Connection	channel	Lio/netty/channel/Chan
 
 accessible	method	net/minecraft/client/player/KeyboardInput	calculateImpulse	(ZZ)F
 
-accessible	field	net/minecraft/client/KeyMapping	clickCount	I
 
-accessible	field	net/minecraft/client/StringSplitter	widthProvider	Lnet/minecraft/client/StringSplitter$WidthProvider;
-accessible	method	net/minecraft/world/entity/LivingEntity	getDamageAfterArmorAbsorb	(Lnet/minecraft/world/damagesource/DamageSource;F)F
-accessible	method	net/minecraft/world/entity/LivingEntity	getDamageAfterMagicAbsorb	(Lnet/minecraft/world/damagesource/DamageSource;F)F
 
-accessible	method	net/minecraft/world/item/BlockItem	getPlacementState	(Lnet/minecraft/world/item/context/BlockPlaceContext;)Lnet/minecraft/world/level/block/state/BlockState;
 
-accessible	field	net/minecraft/world/entity/Entity	dimensions	Lnet/minecraft/world/entity/EntityDimensions;
 
 accessible	field	net/minecraft/network/protocol/game/VecDeltaCodec	base	Lnet/minecraft/world/phys/Vec3;
 
 accessible	field	net/minecraft/client/gui/components/PlayerTabOverlay	header	Lnet/minecraft/network/chat/Component;
-accessible	field	net/minecraft/client/gui/components/PlayerTabOverlay	footer	Lnet/minecraft/network/chat/Component;
 
 accessible	field	net/minecraft/network/protocol/common/ClientboundPingPacket	id	I
 mutable	field	net/minecraft/network/protocol/common/ClientboundPingPacket	id	I
@@ -124,5 +100,3 @@ accessible	method	net/minecraft/client/gui/screens/ConnectScreen	connect	(Lnet/m
 
 accessible	method	net/minecraft/world/entity/Display	setTransformation	(Lcom/mojang/math/Transformation;)V
 accessible	method	net/minecraft/world/entity/Display$BlockDisplay	setBlockState	(Lnet/minecraft/world/level/block/state/BlockState;)V
-accessible	method	net/minecraft/world/entity/Display	setBrightnessOverride	(Lnet/minecraft/util/Brightness;)V
-accessible	method	net/minecraft/world/entity/Display	setViewRange	(F)V

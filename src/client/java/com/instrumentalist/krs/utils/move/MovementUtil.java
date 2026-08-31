@@ -66,22 +66,6 @@ public class MovementUtil implements IMinecraft {
         return getForwardImpulse() > 0.0f;
     }
 
-    public static boolean isMovingBackward() {
-        return getForwardImpulse() < 0.0f;
-    }
-
-    public static boolean isMovingLeft() {
-        return getLeftImpulse() > 0.0f;
-    }
-
-    public static boolean isMovingRight() {
-        return getLeftImpulse() < 0.0f;
-    }
-
-    public static boolean isMovingOnlyForward() {
-        return isMovingForward() && getLeftImpulse() == 0.0f;
-    }
-
     public static double getBaseMoveSpeed(double customSpeed) {
         double baseSpeed = customSpeed;
 
@@ -119,16 +103,6 @@ public class MovementUtil implements IMinecraft {
 
     public static void stopXZ() {
         setVelocityXZ(0.0, 0.0);
-    }
-
-    public static boolean isDiagonal(float threshold) {
-        float yaw = getPlayerDirection();
-        yaw = Math.abs(((yaw + 360) % 360));
-        boolean isNorth = Math.abs(yaw) < threshold || Math.abs(yaw - 360) < threshold;
-        boolean isSouth = Math.abs(yaw - 180) < threshold;
-        boolean isEast = Math.abs(yaw - 90) < threshold;
-        boolean isWest = Math.abs(yaw - 270) < threshold;
-        return (!isNorth && !isSouth && !isEast && !isWest);
     }
 
     public static float getPlayerDirection() {
@@ -177,23 +151,11 @@ public class MovementUtil implements IMinecraft {
         player.setDeltaMovement(motion.x, y, motion.z);
     }
 
-    public static void setVelocity(double x, double y, double z) {
-        var player = mc.player;
-        if (player == null) return;
-
-        player.setDeltaMovement(x, y, z);
-    }
-
     public static Vec3 getVelocity() {
         var player = mc.player;
         if (player == null) return Vec3.ZERO;
 
         return player.getDeltaMovement();
-    }
-
-    public static Vec3 getVelocityXZ() {
-        var motion = getVelocity();
-        return new Vec3(motion.x, 0.0, motion.z);
     }
 
     public static void setVelocityXZ(double x, double z) {
@@ -328,13 +290,6 @@ public class MovementUtil implements IMinecraft {
 
     public static double getSpeedSquared(double velocityX, double velocityZ) {
         return velocityX * velocityX + velocityZ * velocityZ;
-    }
-
-    public static double getMotionY() {
-        var player = mc.player;
-        if (player == null) return 0.0;
-
-        return player.getDeltaMovement().y;
     }
 
     public static Vec3 getHorizontalDirectionVector(float yaw) {

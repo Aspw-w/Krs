@@ -3,7 +3,6 @@ package com.instrumentalist.krs.hacks.features.movement;
 
 
 import com.instrumentalist.krs.Client;
-import com.instrumentalist.krs.events.features.MotionEvent;
 import com.instrumentalist.krs.events.features.TickEvent;
 import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
@@ -15,7 +14,6 @@ import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import com.mojang.blaze3d.platform.InputConstants;
-import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.entity.vehicle.boat.AbstractBoat;

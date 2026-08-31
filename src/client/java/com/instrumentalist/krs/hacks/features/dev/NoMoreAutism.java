@@ -1,14 +1,9 @@
 package com.instrumentalist.krs.hacks.features.dev;
 
 import com.instrumentalist.krs.Client;
-import com.instrumentalist.krs.events.features.MotionEvent;
 import com.instrumentalist.krs.events.features.ReceivedPacketEvent;
-import com.instrumentalist.krs.events.features.TickEvent;
-import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
-import com.instrumentalist.krs.utils.ChatUtil;
-import com.instrumentalist.krs.utils.value.BooleanValue;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.HashSet;

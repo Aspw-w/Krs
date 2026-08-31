@@ -2,7 +2,6 @@ package com.instrumentalist.krs.hacks.features.movement.speed.features;
 
 import com.instrumentalist.krs.events.features.*;
 import com.instrumentalist.krs.hacks.features.movement.speed.SpeedEvent;
-import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 
 public class FiveBFiveTSpeed implements SpeedEvent {
