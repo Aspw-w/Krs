@@ -7,7 +7,6 @@ import com.instrumentalist.krs.events.features.TickEvent;
 import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
-import com.instrumentalist.krs.utils.value.BooleanValue;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

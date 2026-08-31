@@ -25,10 +25,6 @@ public final class RandomUtil {
                 : startInclusive + (endInclusive - startInclusive) * RANDOM.nextFloat();
     }
 
-    public static String randomNumber(int length) {
-        return random(length, "123456789");
-    }
-
     public static String randomString(int length) {
         return random(length, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
     }

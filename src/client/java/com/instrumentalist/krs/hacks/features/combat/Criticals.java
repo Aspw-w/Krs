@@ -6,7 +6,6 @@ import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.movement.fly.FlyModule;
-import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.ListValue;

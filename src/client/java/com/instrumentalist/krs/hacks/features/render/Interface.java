@@ -59,7 +59,6 @@ import org.lwjgl.glfw.GLFW;
 import org.lwjgl.nanovg.NanoVG;
 import org.nvgu.NVGU;
 import org.nvgu.util.Alignment;
-import org.nvgu.util.Border;
 
 import java.awt.Color;
 import java.io.InputStream;
@@ -796,14 +795,6 @@ public class Interface extends Module {
         layoutConnectedInfoHudChips(connectionEntries, leftX, startY);
 
         return someInformationRenderState;
-    }
-
-    private void renderSomeInformation(NVGU vg) {
-        SomeInformationRenderState state = prepareSomeInformation();
-        vg.beginEffectBatch();
-        renderSomeInformationEffects(vg, state);
-        vg.flushEffectBatch();
-        renderSomeInformationBody(vg, state);
     }
 
     private static void renderSomeInformationEffects(NVGU vg, SomeInformationRenderState state) {

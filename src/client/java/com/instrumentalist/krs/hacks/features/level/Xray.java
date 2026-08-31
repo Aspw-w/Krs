@@ -12,7 +12,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import org.lwjgl.glfw.GLFW;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 public class Xray extends Module {
 

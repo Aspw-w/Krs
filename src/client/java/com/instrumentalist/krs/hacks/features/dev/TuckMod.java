@@ -3,13 +3,8 @@ package com.instrumentalist.krs.hacks.features.dev;
 import com.instrumentalist.krs.events.features.*;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
-import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.math.TimerUtil;
-import com.instrumentalist.krs.utils.packet.PacketUtil;
 import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.common.ClientboundKeepAlivePacket;
-import net.minecraft.network.protocol.common.ServerboundKeepAlivePacket;
-import net.minecraft.network.protocol.common.ServerboundPongPacket;
 import org.lwjgl.glfw.GLFW;
 
 public class TuckMod extends Module {
