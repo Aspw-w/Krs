@@ -23,7 +23,6 @@ import com.instrumentalist.krs.utils.math.BehaviorUtils;
 import com.instrumentalist.krs.utils.nanovg.MaterialIcon;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
-import org.nvgu.util.NVGFont;
 import com.instrumentalist.krs.utils.packet.BlinkUtil;
 import com.instrumentalist.krs.utils.render.NanoVGTheme;
 import com.instrumentalist.krs.utils.render.RenderUtil;
@@ -59,7 +58,6 @@ import org.lwjgl.glfw.GLFW;
 import org.lwjgl.nanovg.NanoVG;
 import org.nvgu.NVGU;
 import org.nvgu.util.Alignment;
-import org.nvgu.util.Border;
 
 import java.awt.Color;
 import java.io.InputStream;
@@ -2226,16 +2224,13 @@ public class Interface extends Module {
         NanoVGTheme.renderPanel(vg, x, y, categoryWidth, categoryHeight, 14f, 1f);
 
         if (!Float.isNaN(tabGuiCategorySelectionY)) {
-            renderTabGuiSelection(vg, x, tabGuiCategorySelectionY, categoryWidth);
+            renderTabGuiSelectionMark(vg, x, tabGuiCategorySelectionY, categoryWidth);
         }
 
         for (int i = 0, n = categories.size(); i < n; i++) {
             ModuleCategory category = categories.get(i);
             float rowY = y + 6f + i * 22f;
-            boolean selected = i == tabGuiCategoryIndex;
-
-            Color textColor = selected ? NanoVGTheme.ACCENT : Color.WHITE;
-            NVGFonts.INTER.drawText(category.name(), x + 12f, rowY + 4f, 14f, textColor, Alignment.LEFT_TOP, true);
+            NVGFonts.INTER.drawText(category.name(), x + 12f, rowY + 4f, 14f, Color.WHITE, Alignment.LEFT_TOP, true);
         }
 
         if (expandProgress > 0.01f && !modules.isEmpty()) {
@@ -2255,18 +2250,23 @@ public class Interface extends Module {
         vg.globalAlpha(expandProgress, () -> {
             NanoVGTheme.renderPanel(vg, x, y, width, height, 14f, 1f);
 
-            if (!Float.isNaN(tabGuiModuleSelectionY)) {
-                renderTabGuiSelection(vg, x, tabGuiModuleSelectionY, width);
-            }
-
             int lastModule = Math.min(modules.size(), firstModule + visibleRows);
             for (int i = firstModule; i < lastModule; i++) {
                 Module module = modules.get(i);
+                if (!module.tempEnabled)
+                    continue;
                 float rowY = y + 6f + (i - firstModule) * 22f;
-                boolean enabled = module.tempEnabled;
-                NVGFont nameFont = enabled ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
-                Color nameColor = enabled ? NanoVGTheme.ACCENT : new Color(255, 255, 255, 205);
-                nameFont.drawText(module.moduleName, x + 11f, rowY + 4f, 14f, nameColor, Alignment.LEFT_TOP, true);
+                renderTabGuiRowWash(vg, x, rowY, width);
+            }
+
+            if (!Float.isNaN(tabGuiModuleSelectionY)) {
+                renderTabGuiSelectionMark(vg, x, tabGuiModuleSelectionY, width);
+            }
+
+            for (int i = firstModule; i < lastModule; i++) {
+                Module module = modules.get(i);
+                float rowY = y + 6f + (i - firstModule) * 22f;
+                NVGFonts.INTER.drawText(module.moduleName, x + 11f, rowY + 4f, 14f, Color.WHITE, Alignment.LEFT_TOP, true);
             }
 
             if (modules.size() > visibleRows) {
@@ -2280,13 +2280,12 @@ public class Interface extends Module {
         vg.popScissor();
     }
 
-    private static void renderTabGuiSelection(NVGU vg, float x, float y, float width) {
-        float sx = x + 5f;
-        float sy = y + 2f;
-        float sw = width - 10f;
-        float sh = 18f;
-        vg.roundedRectangle(sx, sy, sw, sh, 4f, new Color(255, 255, 255, 38));
-        vg.roundedRectangleBorder(sx, sy, sw, sh, 4f, 1f, new Color(255, 255, 255, 64), Border.INSIDE);
+    private static void renderTabGuiRowWash(NVGU vg, float x, float y, float width) {
+        vg.rectangle(x + 6f, y + 1f, width - 12f, 20f, new Color(255, 255, 255, 18));
+    }
+
+    private static void renderTabGuiSelectionMark(NVGU vg, float x, float y, float width) {
+        vg.roundedRectangle(x + 6f, y + 4f, 2f, 14f, 1f, new Color(255, 255, 255, 220));
     }
 
     private float getTabGuiCategoryPanelWidth(List<ModuleCategory> categories) {
@@ -2300,8 +2299,7 @@ public class Interface extends Module {
     private float getTabGuiModulePanelWidth(List<Module> modules) {
         float width = 72f;
         for (Module module : modules) {
-            NVGFont nameFont = module.tempEnabled ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
-            width = Math.max(width, nameFont.getWidth(module.moduleName, 14f) + 24f);
+            width = Math.max(width, NVGFonts.INTER.getWidth(module.moduleName, 14f) + 24f);
         }
         return width;
     }
