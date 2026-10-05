@@ -7,12 +7,14 @@ import java.awt.Color;
 import java.util.List;
 
 public final class NanoVGTheme {
+    public static final Color BASE = new Color(0x16, 0x16, 0x16);
+    public static final Color ACCENT = new Color(0xE1, 0xFF, 0x00);
     private static final Shader2DRenderer.GlassRequest PANEL_GLASS = Shader2DRenderer.GlassRequest.panel();
     private static final Shader2DRenderer.GlassRequest COMPACT_GLASS = Shader2DRenderer.GlassRequest.compact();
-    private static final Color PANEL_TOP = new Color(16, 22, 28, 48);
-    private static final Color PANEL_BOTTOM = new Color(8, 12, 18, 64);
+    private static final Color PANEL_TOP = new Color(0x16, 0x16, 0x16, 64);
+    private static final Color PANEL_BOTTOM = new Color(0x16, 0x16, 0x16, 92);
 
-    public static final Color COMPACT_BACKGROUND = new Color(12, 16, 22, 56);
+    public static final Color COMPACT_BACKGROUND = new Color(0x16, 0x16, 0x16, 78);
     private static final float[] CONNECTED_BOXES = new float[256];
     private static final float[] CONNECTED_RADII = new float[256];
     private static final float[] CORNER_SCRATCH = new float[4];
@@ -226,6 +228,14 @@ public final class NanoVGTheme {
                         LinearGradientDirection.TOP_TO_BOTTOM
                 )
         );
+    }
+
+    public static Color accent(int alpha) {
+        return new Color(ACCENT.getRed(), ACCENT.getGreen(), ACCENT.getBlue(), Math.clamp(alpha, 0, 255));
+    }
+
+    public static Color base(int alpha) {
+        return new Color(BASE.getRed(), BASE.getGreen(), BASE.getBlue(), Math.clamp(alpha, 0, 255));
     }
 
     public static Color scaledAlpha(Color color, float alpha) {

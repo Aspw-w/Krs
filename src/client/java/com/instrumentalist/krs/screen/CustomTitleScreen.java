@@ -2,7 +2,6 @@ package com.instrumentalist.krs.screen;
 
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.Client;
-import com.instrumentalist.krs.hacks.features.render.Interface;
 import com.instrumentalist.krs.utils.GuiInputBlocker;
 import com.instrumentalist.krs.utils.audio.Mp3MusicPlayer;
 import com.instrumentalist.krs.utils.math.Interpolation;
@@ -10,6 +9,7 @@ import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.network.FileUtil;
 import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
+import com.instrumentalist.krs.utils.render.NanoVGTheme;
 import com.mojang.realmsclient.RealmsMainScreen;
 import org.lwjgl.glfw.GLFW;
 import org.nvgu.NVGU;
@@ -38,10 +38,8 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
     private static final Mp3MusicPlayer MAIN_MENU_MUSIC = new Mp3MusicPlayer("assets/krs/musics/mainmenu.mp3");
     private static final float MUSIC_SLIDER_WIDTH = 180f;
     private static final float MUSIC_SLIDER_TRACK_HEIGHT = 6f;
-    private static final Color BUTTON_IDLE = new Color(20, 20, 20, 180);
-    private static final Color BUTTON_HOVERED = new Color(50, 50, 50, 200);
-    private static final Color BUTTON_SHADOW_IDLE = new Color(0, 0, 0, 120);
-    private static final Color BUTTON_SHADOW_HOVERED = new Color(0, 0, 0, 150);
+    private static final Color BUTTON_IDLE = NanoVGTheme.base(168);
+    private static final Color BUTTON_HOVERED = NanoVGTheme.base(210);
     private static final String RELEASES_URL = "https://github.com/Aspw-w/Krs/releases";
 
     private boolean musicVolumeSliderDragging;
@@ -138,15 +136,14 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
 
     private void renderUiButton(NVGU vg, MenuButton state) {
         Color baseColor = state.hovered ? BUTTON_HOVERED : BUTTON_IDLE;
-        vg.roundedRectangle(state.x - 110f, state.y - 34f, 220f, 38f, 12f, baseColor);
+        vg.roundedRectangle(state.x - 110f, state.y - 34f, 220f, 38f, 14f, baseColor);
 
         if (state.animation > 1f) {
-            Color gradientColor = state.hovered ? new Color(255, 215, 0, 220) : Interface.getFadedColor(0, 1);
-            vg.roundedRectangle(state.x - state.animation, state.y - 2.5f, state.animation * 2f, 3f, 2f, gradientColor);
+            vg.roundedRectangle(state.x - state.animation, state.y - 2.5f, state.animation * 2f, 3f, 2f, NanoVGTheme.accent(state.hovered ? 230 : 170));
         }
 
         NVGFont font = state.fontSize > 22f ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
-        font.drawText(state.label, state.x, state.y - 15f - (state.fontSize - 21f), state.fontSize, state.hovered ? Color.YELLOW : Color.WHITE, Alignment.CENTER_MIDDLE, true);
+        font.drawText(state.label, state.x, state.y - 15f - (state.fontSize - 21f), state.fontSize, state.hovered ? NanoVGTheme.ACCENT : Color.WHITE, Alignment.CENTER_MIDDLE, true);
     }
 
     private void renderMusicVolumeSlider(NVGU vg, float centerX, float mouseX, float mouseY) {
@@ -156,12 +153,10 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         boolean hovered = musicVolumeSliderDragging || isMusicSliderHovered(mouseX, mouseY);
         float filledWidth = MUSIC_SLIDER_WIDTH * volume;
         float knobX = sliderX + filledWidth;
-        Color accent = hovered ? new Color(255, 215, 0, 245) : new Color(255, 215, 0, 215);
-
         String sliderText = volume == 0f ? "Music OFF" : "Volume: " + Math.round(volume * 100f) + "%";
-        NVGFonts.INTER.drawText(sliderText, centerX, sliderY - 10f, 12f, hovered ? Color.YELLOW : Color.WHITE, Alignment.CENTER_MIDDLE, true);
-        vg.roundedRectangle(sliderX, sliderY, MUSIC_SLIDER_WIDTH, MUSIC_SLIDER_TRACK_HEIGHT, 3f, new Color(20, 20, 20, 190));
-        vg.roundedRectangle(sliderX, sliderY, filledWidth, MUSIC_SLIDER_TRACK_HEIGHT, 3f, accent);
+        NVGFonts.INTER.drawText(sliderText, centerX, sliderY - 10f, 12f, hovered ? NanoVGTheme.ACCENT : Color.WHITE, Alignment.CENTER_MIDDLE, true);
+        vg.roundedRectangle(sliderX, sliderY, MUSIC_SLIDER_WIDTH, MUSIC_SLIDER_TRACK_HEIGHT, 3f, NanoVGTheme.base(190));
+        vg.roundedRectangle(sliderX, sliderY, filledWidth, MUSIC_SLIDER_TRACK_HEIGHT, 3f, NanoVGTheme.accent(hovered ? 245 : 215));
         vg.roundedRectangle(knobX - 5f, sliderY - 4f, 10f, 14f, 5f, hovered ? Color.WHITE : new Color(235, 235, 235, 245));
     }
 
@@ -287,19 +282,19 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         float trackHeight = 5f;
 
         vg.beginEffectBatch();
-        vg.shadowRoundedRectangle(panelX, panelY, panelWidth, panelHeight, 8f, 18f, 4f, 0f, 5f, new Color(0, 0, 0, 150));
+        NanoVGTheme.renderPanelEffects(vg, panelX, panelY, panelWidth, panelHeight, 14f, 1f);
         vg.flushEffectBatch();
 
-        vg.roundedRectangle(panelX, panelY, panelWidth, panelHeight, 8f, new Color(10, 10, 10, 165));
+        NanoVGTheme.renderPanel(vg, panelX, panelY, panelWidth, panelHeight, 14f, 1f);
         NVGFonts.INTER_MEDIUM.drawText("Loading", panelX + 22f, panelY + 12f, 15f, new Color(255, 255, 255, 230), Alignment.LEFT_TOP, true);
-        vg.roundedRectangle(trackX, trackY, trackWidth, trackHeight, 3f, new Color(255, 255, 255, 45));
+        vg.roundedRectangle(trackX, trackY, trackWidth, trackHeight, 3f, NanoVGTheme.base(90));
 
         float phase = (System.currentTimeMillis() % 1350L) / 1350f;
         float markerWidth = Math.max(54f, trackWidth * 0.28f);
         float markerX = trackX - markerWidth + (trackWidth + markerWidth * 2f) * phase;
 
         vg.scissor(trackX, trackY, trackWidth, trackHeight, () ->
-                vg.roundedRectangle(markerX, trackY, markerWidth, trackHeight, 3f, new Color(255, 215, 0, 235))
+                vg.roundedRectangle(markerX, trackY, markerWidth, trackHeight, 3f, NanoVGTheme.ACCENT)
         );
     }
 
@@ -348,19 +343,14 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
             float iconSize = 80f;
 
             vg.beginEffectBatch();
-            vg.blurRoundedRectangle(menuX, menuY, menuWidth, menuHeight, 10f, 7f, 0.45f);
-            vg.shadowRoundedRectangle(menuX, menuY, menuWidth, menuHeight, 10f, 18f, 4f, 0f, 6f, new Color(0, 0, 0, 135));
+            NanoVGTheme.renderPanelEffects(vg, menuX, menuY, menuWidth, menuHeight, 18f, 1f);
+            NanoVGTheme.renderPanelEffects(vg, iconX, iconY, iconSize, iconSize, 16f, 1f);
             vg.flushEffectBatch();
 
-            if (ensureTexture(vg, "drug", "assets/krs/drug.png"))
-                vg.texturedRoundedRectangle(menuX, menuY, menuWidth, menuHeight, 10f, "drug");
-
-            vg.beginEffectBatch();
-            vg.blurRoundedRectangle(iconX, iconY, iconSize, iconSize, 10f, 7f, 0.35f);
-            vg.shadowRoundedRectangle(iconX, iconY, iconSize, iconSize, 10f, 12f, 2f, 0f, 4f, new Color(0, 0, 0, 120));
-            vg.flushEffectBatch();
+            NanoVGTheme.renderPanel(vg, menuX, menuY, menuWidth, menuHeight, 18f, 1f);
+            NanoVGTheme.renderPanel(vg, iconX, iconY, iconSize, iconSize, 16f, 1f);
             if (ensureTexture(vg, "icon", "assets/krs/icon.png"))
-                vg.texturedRoundedRectangle(iconX, iconY, iconSize, iconSize, 10f, "icon");
+                vg.texturedRoundedRectangle(iconX, iconY, iconSize, iconSize, 16f, "icon");
 
             NVGFonts.INTER_MEDIUM.drawText("Welcome to Krs Client (v" + Client.clientVersion + ")", 8f, screenHeight - 8f, 22f, Color.WHITE, Alignment.LEFT_BOTTOM, true);
             NVGFonts.INTER_MEDIUM.drawText(getCurrentTime(), screenWidth - 10f, 10f, 22f, Color.WHITE, Alignment.RIGHT_TOP, true);
@@ -368,7 +358,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
             renderMusicVolumeSlider(vg, centerX, mouseX, mouseY);
 
             if (GraphicsApiCompatibility.usesCompatibilityRenderer()) {
-                NVGFonts.INTER.drawText("Vulkan support is not yet complete, so performance will be significantly lower than when using OpenGL. Please use OpenGL unless there is a specific reason not to.", centerX, 80f, 21f, Color.CYAN, Alignment.CENTER_TOP, true);
+                NVGFonts.INTER.drawText("Vulkan support is not yet complete, so performance will be significantly lower than when using OpenGL. Please use OpenGL unless there is a specific reason not to.", centerX, 80f, 21f, NanoVGTheme.ACCENT, Alignment.CENTER_TOP, true);
             }
 
             for (int i = 0; i < visibleMenuButtons.size(); i++)
@@ -376,10 +366,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
 
             vg.beginEffectBatch();
             for (MenuButton state : visibleMenuButtons) {
-                float effectAlpha = state.hovered ? 0.55f : 0.38f;
-                Color shadowColor = state.hovered ? BUTTON_SHADOW_HOVERED : BUTTON_SHADOW_IDLE;
-                vg.blurRoundedRectangle(state.x - 110f, state.y - 34f, 220f, 38f, 12f, 7f, effectAlpha);
-                vg.shadowRoundedRectangle(state.x - 110f, state.y - 34f, 220f, 38f, 12f, state.hovered ? 14f : 11f, 2f, 0f, state.hovered ? 5f : 3f, shadowColor);
+                NanoVGTheme.renderPanelEffects(vg, state.x - 110f, state.y - 34f, 220f, 38f, 14f, state.hovered ? 1f : 0.92f);
             }
             vg.flushEffectBatch();
 

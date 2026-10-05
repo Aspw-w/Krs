@@ -466,30 +466,8 @@ public final class Shader2DRenderer {
                 float luminance = dot(color, vec3(0.299, 0.587, 0.114));
                 color = mix(vec3(luminance), color, 1.0 + glass2.y);
                 color = mix(color, color * vec3(0.92, 0.95, 1.05), glass2.z);
-                color *= 1.0 + 0.06 * depth;
 
-                float fresnel = pow(1.0 - abs(normal.z), 4.0) * glass1.z;
-                vec3 viewDir = vec3(0.0, 0.0, 1.0);
-                vec3 light1 = normalize(vec3(0.4, 0.7, 1.0));
-                float spec1 = pow(max(dot(normal, normalize(light1 + viewDir)), 0.0), 90.0);
-                vec3 light2 = normalize(vec3(-0.3, -0.5, 1.0));
-                float spec2 = pow(max(dot(normal, normalize(light2 + viewDir)), 0.0), 50.0) * 0.3;
-                vec3 light3 = normalize(vec3(0.1, 0.3, 1.0));
-                float specBroad = pow(max(dot(normal, light3), 0.0), 6.0) * 0.1;
-                vec3 light4 = normalize(vec3(0.0, 0.9, 0.4));
-                float spec4 = pow(max(dot(normal, normalize(light4 + viewDir)), 0.0), 120.0) * 0.6;
-                float totalSpec = (spec1 + spec2 + specBroad + spec4) * glass1.y;
-
-                float rim = edge * glass1.x * 0.10;
-                float envReflection = (normal.y * 0.5 + 0.5) * fresnel * 0.06;
-
-                vec3 finish = color;
-                finish += vec3(totalSpec);
-                finish += vec3(rim);
-                finish += vec3(envReflection);
-                finish = mix(finish, vec3(1.0), fresnel * 0.08);
-
-                fragColor = vec4(finish, mask * clamp(glass2.x, 0.0, 1.0));
+                fragColor = vec4(color, mask * clamp(glass2.x, 0.0, 1.0));
             }
             """.formatted(EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE);
     }
@@ -652,30 +630,8 @@ public final class Shader2DRenderer {
                 float luminance = dot(color, vec3(0.299, 0.587, 0.114));
                 color = mix(vec3(luminance), color, 1.0 + uGlass2.y);
                 color = mix(color, color * vec3(0.92, 0.95, 1.05), uGlass2.z);
-                color *= 1.0 + 0.06 * depth;
 
-                float fresnel = pow(1.0 - abs(normal.z), 4.0) * uGlass1.z;
-                vec3 viewDir = vec3(0.0, 0.0, 1.0);
-                vec3 light1 = normalize(vec3(0.4, 0.7, 1.0));
-                float spec1 = pow(max(dot(normal, normalize(light1 + viewDir)), 0.0), 90.0);
-                vec3 light2 = normalize(vec3(-0.3, -0.5, 1.0));
-                float spec2 = pow(max(dot(normal, normalize(light2 + viewDir)), 0.0), 50.0) * 0.3;
-                vec3 light3 = normalize(vec3(0.1, 0.3, 1.0));
-                float specBroad = pow(max(dot(normal, light3), 0.0), 6.0) * 0.1;
-                vec3 light4 = normalize(vec3(0.0, 0.9, 0.4));
-                float spec4 = pow(max(dot(normal, normalize(light4 + viewDir)), 0.0), 120.0) * 0.6;
-                float totalSpec = (spec1 + spec2 + specBroad + spec4) * uGlass1.y;
-
-                float rim = edge * uGlass1.x * 0.10;
-                float envReflection = (normal.y * 0.5 + 0.5) * fresnel * 0.06;
-
-                vec3 finish = color;
-                finish += vec3(totalSpec);
-                finish += vec3(rim);
-                finish += vec3(envReflection);
-                finish = mix(finish, vec3(1.0), fresnel * 0.08);
-
-                fragColor = vec4(finish, mask * clamp(uGlass2.x, 0.0, 1.0));
+                fragColor = vec4(color, mask * clamp(uGlass2.x, 0.0, 1.0));
             }
             """.formatted(CONNECTED_BOX_LIMIT, CONNECTED_BOX_LIMIT, CONNECTED_BOX_LIMIT, CONNECTED_BOX_LIMIT);
     }
@@ -2345,13 +2301,13 @@ public final class Shader2DRenderer {
             GlassRequest request = new GlassRequest();
             request.refraction = 0.72f;
             request.chromAberration = 0.02f;
-            request.edgeHighlight = 0.08f;
-            request.specular = 0.48f;
-            request.fresnel = 1f;
+            request.edgeHighlight = 0f;
+            request.specular = 0f;
+            request.fresnel = 0f;
             request.blurAmount = 0.32f;
             request.brightness = -0.22f;
             request.saturation = 0.08f;
-            request.tintStrength = 0.12f;
+            request.tintStrength = 0f;
             request.shadowOpacity = 0.26f;
             request.shadowSpread = 12f;
             request.shadowOffsetY = 2f;
@@ -2362,13 +2318,13 @@ public final class Shader2DRenderer {
             GlassRequest request = new GlassRequest();
             request.refraction = 0.58f;
             request.chromAberration = 0.015f;
-            request.edgeHighlight = 0.07f;
-            request.specular = 0.36f;
-            request.fresnel = 1f;
+            request.edgeHighlight = 0f;
+            request.specular = 0f;
+            request.fresnel = 0f;
             request.blurAmount = 0.26f;
             request.brightness = -0.18f;
             request.saturation = 0.05f;
-            request.tintStrength = 0.08f;
+            request.tintStrength = 0f;
             request.shadowOpacity = 0.2f;
             request.shadowSpread = 8f;
             request.shadowOffsetY = 1f;
