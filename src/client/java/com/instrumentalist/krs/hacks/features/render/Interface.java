@@ -22,7 +22,6 @@ import com.instrumentalist.krs.utils.math.Interpolation;
 import com.instrumentalist.krs.utils.math.BehaviorUtils;
 import com.instrumentalist.krs.utils.nanovg.MaterialIcon;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
-import com.instrumentalist.krs.utils.nanovg.NanoVGTextFormatter;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.packet.BlinkUtil;
 import com.instrumentalist.krs.utils.render.NanoVGTheme;
@@ -562,7 +561,11 @@ public class Interface extends Module {
 
     private static float getTabGuiCategoryPanelHeight() {
         int categoryCount = getTabGuiCategoryCount();
-        return categoryCount <= 0 ? 0f : getTabGuiPanelHeight(categoryCount);
+        return categoryCount <= 0 ? 0f : getTabGuiCategoryListHeight(categoryCount);
+    }
+
+    private static float getTabGuiCategoryListHeight(int rowCount) {
+        return 8f + rowCount * 22f + 6f;
     }
 
     private static float getTabGuiPanelHeight(int rowCount) {
@@ -663,14 +666,12 @@ public class Interface extends Module {
             Color pingColor = getPlayerListPingColor(entry.getLatency());
             float pingWidth = NVGFonts.INTER.getWidth(pingText, 12f);
             List<String> nameLines = List.copyOf(wrapTextToWidth(
-                    getColoredPlayerListName(entry),
-                    240f - pingWidth - 34f,
+                    getPlayerListName(entry),
+                    240f - pingWidth - 20f,
                     13f
             ));
             float rowHeight = Math.max(17f, 3f * 2f + nameLines.size() * 14f);
-            Color nameColor = isSelfPlayerListEntry(entry)
-                    ? NanoVGTheme.ACCENT
-                    : new Color(255, 255, 255, 225);
+            Color nameColor = Color.WHITE;
             playerListRowBuffer.add(new PlayerListRow(
                     pingText,
                     pingColor,
@@ -1422,8 +1423,8 @@ public class Interface extends Module {
         NanoVGTheme.renderPanel(vg, x, y, 240f, height, 14f, 1f);
         vg.rectangle(x + 8f, y + 23f - 2f, 240f - 16f, 1f, new Color(255, 255, 255, 38));
 
-        NVGFonts.ICON.drawText(MaterialIcon.PERSON, x + 8f, y + 3f, 14f, NanoVGTheme.ACCENT, Alignment.LEFT_TOP, true);
-        NVGFonts.INTER.drawText("Players (" + countText + ")", x + 26f, y + 4f, 13f, new Color(255, 255, 255, 225), Alignment.LEFT_TOP, true);
+        NVGFonts.ICON.drawText(MaterialIcon.PERSON, x + 8f, y + 3f, 14f, Color.WHITE, Alignment.LEFT_TOP, true);
+        NVGFonts.INTER.drawText("Players (" + countText + ")", x + 26f, y + 4f, 13f, Color.WHITE, Alignment.LEFT_TOP, true);
 
         float rowY = y + 23f;
         for (int i = 0; i < visiblePlayers; i++) {
@@ -1432,9 +1433,8 @@ public class Interface extends Module {
             if (i % 2 == 0)
                 vg.rectangle(x + 6f, rowY + 1f, 240f - 12f, row.rowHeight - 2f, new Color(255, 255, 255, 18));
 
-            vg.circle(x + 11f, rowY + row.rowHeight / 2f, 2.2f, row.pingColor);
             for (int line = 0; line < row.nameLines.size(); line++) {
-                NVGFonts.INTER.drawText(row.nameLines.get(line), x + 17f, rowY + 3f + line * 14f, 13f, row.nameColor, Alignment.LEFT_TOP, false);
+                NVGFonts.INTER.drawText(row.nameLines.get(line), x + 10f, rowY + 3f + line * 14f, 13f, row.nameColor, Alignment.LEFT_TOP, false);
             }
             NVGFonts.INTER.drawText(row.pingText, x + 240f - 8f, rowY + 3f, 12f, row.pingColor, Alignment.RIGHT_TOP, false);
 
@@ -1461,17 +1461,6 @@ public class Interface extends Module {
         String name = getPlayerListDisplayName(entry).getString();
         name = stripPlayerListRankPrefix(name);
         return name == null || name.isBlank() ? "Unknown" : name;
-    }
-
-    private static String getColoredPlayerListName(PlayerInfo entry) {
-        Component displayName = getPlayerListDisplayName(entry);
-        String plainName = displayName.getString();
-        String strippedName = stripPlayerListRankPrefix(plainName);
-        if (strippedName == null || strippedName.isBlank())
-            return "Unknown";
-
-        int skippedCharacters = plainName.length() - strippedName.length();
-        return NanoVGTextFormatter.formatColors(displayName, skippedCharacters);
     }
 
     private static Component getPlayerListDisplayName(PlayerInfo entry) {
@@ -2174,7 +2163,7 @@ public class Interface extends Module {
         }
 
         float y = getTabGuiBaseY();
-        float targetCategorySelectionY = y + 25f + tabGuiCategoryIndex * 22f;
+        float targetCategorySelectionY = y + 6f + tabGuiCategoryIndex * 22f;
         tabGuiCategorySelectionY = Float.isNaN(tabGuiCategorySelectionY)
                 ? targetCategorySelectionY
                 : animateTabGuiValue(tabGuiCategorySelectionY, targetCategorySelectionY, deltaSpeed);
@@ -2209,7 +2198,7 @@ public class Interface extends Module {
         float x = getLeftHudX();
         float y = getTabGuiBaseY();
         float categoryWidth = getTabGuiCategoryPanelWidth(categories);
-        float categoryHeight = getTabGuiPanelHeight(categories.size());
+        float categoryHeight = getTabGuiCategoryListHeight(categories.size());
         float expandProgress = easeTabGuiProgress(tabGuiExpandProgress);
 
         NanoVGTheme.renderPanelEffects(vg, x, y, categoryWidth, categoryHeight, 14f, 1f);
@@ -2231,14 +2220,10 @@ public class Interface extends Module {
         float x = getLeftHudX();
         float y = getTabGuiBaseY();
         float categoryWidth = getTabGuiCategoryPanelWidth(categories);
-        float categoryHeight = getTabGuiPanelHeight(categories.size());
+        float categoryHeight = getTabGuiCategoryListHeight(categories.size());
         float expandProgress = easeTabGuiProgress(tabGuiExpandProgress);
 
         NanoVGTheme.renderPanel(vg, x, y, categoryWidth, categoryHeight, 14f, 1f);
-        vg.rectangle(x + 8f, y + 24f, categoryWidth - 16f, 1f, new Color(255, 255, 255, 38));
-
-        NVGFonts.ICON.drawText(MaterialIcon.MENU, x + 8f, y + 4f, 14f, NanoVGTheme.ACCENT, Alignment.LEFT_TOP, true);
-        NVGFonts.INTER_MEDIUM.drawText("Modules", x + 26f, y + 5f, 13f, new Color(255, 255, 255, 225), Alignment.LEFT_TOP, true);
 
         if (!Float.isNaN(tabGuiCategorySelectionY)) {
             vg.roundedRectangle(x + 5f, tabGuiCategorySelectionY + 2f, categoryWidth - 10f, 18f, 4f, NanoVGTheme.accent( 32));
@@ -2247,12 +2232,11 @@ public class Interface extends Module {
 
         for (int i = 0, n = categories.size(); i < n; i++) {
             ModuleCategory category = categories.get(i);
-            float rowY = y + 25f + i * 22f;
+            float rowY = y + 6f + i * 22f;
             boolean selected = i == tabGuiCategoryIndex;
 
-            Color textColor = selected ? NanoVGTheme.ACCENT : new Color(255, 255, 255, 215);
-            NVGFonts.ICON.drawText(tabGuiCategoryIcon(category), x + 11f, rowY + 4f, 12f, textColor, Alignment.LEFT_TOP, true);
-            NVGFonts.INTER.drawText(category.name(), x + 28f, rowY + 4f, 14f, textColor, Alignment.LEFT_TOP, true);
+            Color textColor = selected ? NanoVGTheme.ACCENT : Color.WHITE;
+            NVGFonts.INTER.drawText(category.name(), x + 12f, rowY + 4f, 14f, textColor, Alignment.LEFT_TOP, true);
 
             if (selected && expandProgress > 0.01f) {
                 NVGFonts.ICON.drawText(MaterialIcon.RIGHT_ARROW, x + categoryWidth - 8f, rowY + 3f, 14f, NanoVGTheme.accent( (int) (255 * expandProgress)), Alignment.RIGHT_TOP, true);
@@ -2278,8 +2262,7 @@ public class Interface extends Module {
             NanoVGTheme.renderPanel(vg, x, y, width, height, 14f, 1f);
             vg.rectangle(x + 8f, y + 24f, width - 16f, 1f, new Color(255, 255, 255, 38));
 
-            NVGFonts.ICON.drawText(MaterialIcon.TUNE, x + 8f, y + 4f, 14f, NanoVGTheme.ACCENT, Alignment.LEFT_TOP, true);
-            NVGFonts.INTER_MEDIUM.drawText(category != null ? category.name() : "Modules", x + 26f, y + 5f, 13f, new Color(255, 255, 255, 225), Alignment.LEFT_TOP, true);
+            NVGFonts.INTER_MEDIUM.drawText(category != null ? category.name() : "Modules", x + 12f, y + 5f, 13f, Color.WHITE, Alignment.LEFT_TOP, true);
 
             if (!Float.isNaN(tabGuiModuleSelectionY)) {
                 vg.roundedRectangle(x + 5f, tabGuiModuleSelectionY + 2f, width - 10f, 18f, 4f, NanoVGTheme.accent( 32));
@@ -2311,27 +2294,15 @@ public class Interface extends Module {
     }
 
     private float getTabGuiCategoryPanelWidth(List<ModuleCategory> categories) {
-        float width = NVGFonts.INTER_MEDIUM.getWidth("Modules", 13f) + 40f;
+        float width = 72f;
         for (ModuleCategory category : categories) {
-            width = Math.max(width, NVGFonts.INTER.getWidth(category.name(), 14f) + 58f);
+            width = Math.max(width, NVGFonts.INTER.getWidth(category.name(), 14f) + 36f);
         }
-        return Math.max(110f, width);
-    }
-
-    private static String tabGuiCategoryIcon(ModuleCategory category) {
-        return switch (category) {
-            case Combat -> MaterialIcon.BOLT;
-            case Movement -> MaterialIcon.AUTO_RENEW;
-            case Player -> MaterialIcon.PERSON;
-            case Level -> MaterialIcon.PUBLIC;
-            case Exploit -> MaterialIcon.WARNING;
-            case Render -> MaterialIcon.READER;
-            case Dev -> MaterialIcon.DEBUG;
-        };
+        return width;
     }
 
     private float getTabGuiModulePanelWidth(@Nullable ModuleCategory category, List<Module> modules) {
-        float width = NVGFonts.INTER_MEDIUM.getWidth(category != null ? category.name() : "Modules", 13f) + 40f;
+        float width = NVGFonts.INTER_MEDIUM.getWidth(category != null ? category.name() : "Modules", 13f) + 24f;
         for (Module module : modules) {
             width = Math.max(width, NVGFonts.INTER.getWidth(module.moduleName, 14f) + 43f);
         }
