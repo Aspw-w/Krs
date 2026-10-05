@@ -651,11 +651,9 @@ public class NanoVGClickGuiScreen extends Screen {
         boolean staticFallbackBackdrop = !isInGame() && !hasBackgroundScreen();
 
         if (staticFallbackBackdrop)
-            renderBackdrop(vg, screenWidth, screenHeight);
+            renderTitleBackdrop(vg, screenWidth, screenHeight);
 
         vg.globalAlpha(easeOut(openProgress), () -> {
-            if (!staticFallbackBackdrop)
-                renderBackdrop(vg, screenWidth, screenHeight);
             vg.save();
             try {
                 vg.scale(clickGuiScaleOriginX, clickGuiScaleOriginY, clickGuiScale);
@@ -831,18 +829,6 @@ public class NanoVGClickGuiScreen extends Screen {
         }
     }
 
-    private void renderBackdrop(NVGU vg, float width, float height) {
-        if (!isInGame() && !hasBackgroundScreen()) {
-            renderTitleBackdrop(vg, width, height);
-            return;
-        }
-
-        vg.beginEffectBatch();
-        vg.blurRoundedRectangle(0f, 0f, width, height, 0f, 18f, isInGame() ? 0.72f : 0.58f);
-        vg.flushEffectBatch();
-        NanoVGTheme.renderBackdropTint(vg, width, height, 1f);
-    }
-
     private Screen getBackgroundScreen() {
         return returnScreen != null && returnScreen != this ? returnScreen : null;
     }
@@ -870,11 +856,6 @@ public class NanoVGClickGuiScreen extends Screen {
                 vg.restore();
             }
         }
-
-        vg.beginEffectBatch();
-        vg.blurRoundedRectangle(0f, 0f, width, height, 0f, 18f, 0.58f);
-        vg.flushEffectBatch();
-        NanoVGTheme.renderBackdropTint(vg, width, height, 1f);
     }
 
     private boolean isInGame() {

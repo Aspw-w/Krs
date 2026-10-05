@@ -8,7 +8,7 @@ import java.util.List;
 
 public final class NanoVGTheme {
     public static final Color BASE = new Color(0x16, 0x16, 0x16);
-    public static final Color ACCENT = new Color(0xE1, 0xFF, 0x00);
+    public static final Color ACCENT = new Color(0xFF, 0xD0, 0x00);
     private static final Shader2DRenderer.GlassRequest PANEL_GLASS = Shader2DRenderer.GlassRequest.panel();
     private static final Shader2DRenderer.GlassRequest COMPACT_GLASS = Shader2DRenderer.GlassRequest.compact();
     private static final Color PANEL_TOP = new Color(0x16, 0x16, 0x16, 64);
@@ -211,22 +211,6 @@ public final class NanoVGTheme {
                 x, y, width, height,
                 topLeft, topRight, bottomRight, bottomLeft,
                 scaledAlpha(COMPACT_BACKGROUND, opacity, backgroundAlphaOffset)
-        );
-    }
-
-    public static void renderBackdropTint(NVGU vg, float width, float height, float alpha) {
-        float opacity = opacity(alpha);
-        if (!isDrawable(width, height, opacity))
-            return;
-
-        vg.rectangle(
-                0f, 0f, width, height,
-                vg.linearGradient(
-                        0f, 0f, width, height, Math.max(1f, height),
-                        scaledAlpha(new Color(6, 10, 16, 30), opacity),
-                        scaledAlpha(new Color(3, 6, 10, 82), opacity),
-                        LinearGradientDirection.TOP_TO_BOTTOM
-                )
         );
     }
 
