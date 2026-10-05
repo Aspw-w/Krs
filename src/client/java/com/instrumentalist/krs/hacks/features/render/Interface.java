@@ -80,7 +80,7 @@ public class Interface extends Module {
     private static final long PLAYER_LIST_REFRESH_NANOS = 250_000_000L;
     private static final ThreadLocal<DecimalFormat> ONE_DECIMAL_FORMAT = ThreadLocal.withInitial(() -> new DecimalFormat("0.0"));
     private static final Color MODULE_LIST_BACKGROUND_COLOR = NanoVGTheme.offsetAlpha(NanoVGTheme.COMPACT_BACKGROUND, 8);
-    private static final Color MODULE_LIST_TAG_COLOR = new Color(128, 128, 128, 255);
+    private static final Color MODULE_LIST_TAG_COLOR = new Color(160, 160, 160, 255);
     private static long cachedTimeSecond = -1L;
     private static String cachedTimeText = "00:00:00";
 
@@ -2542,7 +2542,7 @@ public class Interface extends Module {
                             entry.textX + entry.entry.textWidth,
                             entry.textY,
                             fontSize,
-                            entry.alpha == 255 ? MODULE_LIST_TAG_COLOR : alphaColor(128, 128, 128, entry.alpha),
+                            entry.alpha == 255 ? MODULE_LIST_TAG_COLOR : alphaColor(160, 160, 160, entry.alpha),
                             Alignment.LEFT_TOP,
                             drawTextShadow
                     );

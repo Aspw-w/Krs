@@ -1092,14 +1092,14 @@ public class NanoVGClickGuiScreen extends Screen {
         boolean hovered = rect.contains(scaledMouseX, scaledMouseY);
         vg.roundedRectangle(rect.x, rect.y, rect.width, rect.height, 5f, alpha(255, 255, 255, focused ? 30 : hovered ? 23 : 16));
         vg.roundedRectangleBorder(rect.x, rect.y, rect.width, rect.height, 5f, 1f, focused ? NanoVGTheme.accent( 96) : alpha(255, 255, 255, 30), Border.INSIDE);
-        NVGFonts.ICON.drawText(MaterialIcon.SEARCH, rect.x + 7f, rect.y + 5f, 12f, focused ? NanoVGTheme.ACCENT : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, false);
+        NVGFonts.ICON.drawText(MaterialIcon.SEARCH, rect.x + 7f, rect.y + 3f, 12f, focused ? NanoVGTheme.ACCENT : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, false);
 
         String text = inputText(searchQuery, focused, "Search");
         Color color = searchQuery.isBlank() && !focused ? alpha(120, 130, 140, 205) : alpha(255, 255, 255, 235);
         float textReserve = searchQuery.isBlank() ? 33f : 51f;
         String visibleText = fitText(text, NVGFonts.INTER, 11f, rect.width - textReserve);
         renderSelectionHighlight(vg, focused, visibleText, NVGFonts.INTER, 11f, rect.x + 24f, rect.y + 5f, rect.width - textReserve);
-        NVGFonts.INTER.drawText(visibleText, rect.x + 24f, rect.y + 5f, 11f, color, Alignment.LEFT_TOP, false);
+        NVGFonts.INTER.drawText(visibleText, rect.x + 24f, rect.y + 4.5f, 11f, color, Alignment.LEFT_TOP, false);
 
         if (searchQuery.isBlank()) {
             searchClearRect = new Rect(0f, 0f, 0f, 0f);
@@ -1117,7 +1117,6 @@ public class NanoVGClickGuiScreen extends Screen {
     private void renderFooter(NVGU vg, float x, float y, float width, int visibleCount) {
         vg.rectangle(x, y - 2f, width, 1f, alpha(255, 255, 255, 28));
 
-        String hint = interactionHint();
         String countLabel;
         if (!searchQuery.isBlank())
             countLabel = visibleCount + (visibleCount == 1 ? " result" : " results");
@@ -1125,40 +1124,9 @@ public class NanoVGClickGuiScreen extends Screen {
             countLabel = visibleCount + (visibleCount == 1 ? " config" : " configs");
         else
             countLabel = visibleCount + (visibleCount == 1 ? " module" : " modules");
-        float countWidth = NVGFonts.INTER.getWidth(countLabel, 10f);
-        NVGFonts.INTER.drawText(
-                fitText(hint, NVGFonts.INTER, 10f, Math.max(40f, width - countWidth - 18f)),
-                x + 2f,
-                y + 5f,
-                10f,
-                alpha(150, 160, 170, 215),
-                Alignment.LEFT_TOP,
-                false
-        );
         NVGFonts.INTER_MEDIUM.drawText(countLabel, x + width - 2f, y + 5f, 10f,
                 searchQuery.isBlank() ? alpha(176, 186, 196, 220) : NanoVGTheme.accent( 225),
                 Alignment.RIGHT_TOP, false);
-    }
-
-    private String interactionHint() {
-        if (bindingModule != null || bindingValue != null)
-            return "Press a key  •  Del to unbind  •  Esc cancel";
-        if (textFocus == TextFocus.CONFIG_NAME)
-            return "Enter to create  •  Ctrl+A select all  •  Ctrl+V paste";
-        if (textFocus == TextFocus.SEARCH)
-            return "Type to filter  •  Ctrl+A select all  •  Ctrl+V paste  •  Esc clear";
-        if (textFocus == TextFocus.NUMBER)
-            return "Type a number  •  Ctrl+A select all  •  Enter confirm  •  Esc cancel";
-        if (textFocus == TextFocus.SETTING)
-            return "Type to edit  •  Ctrl+A select all  •  Ctrl+V paste";
-        if (openedListValue != null)
-            return "Click an option";
-        if (hoveredModule != null) {
-            String note = moduleNote(hoveredModule);
-            if (!note.isEmpty())
-                return note;
-        }
-        return "Left toggle  •  Right settings  •  Ctrl+F search";
     }
 
     private void renderTabs(NVGU vg, float x, float y, float width) {
@@ -1172,8 +1140,7 @@ public class NanoVGClickGuiScreen extends Screen {
             tabBounds.add(new TabBounds(category, null, rect));
 
             boolean selected = !configView && searchQuery.isBlank() && selectedCategory == category;
-            boolean hovered = rect.contains(scaledMouseX, scaledMouseY);
-            if (selected || hovered)
+            if (selected)
                 renderListRowMark(vg, rect);
 
             NVGFonts.INTER.drawText(fitText(category.name(), NVGFonts.INTER, 11f, rect.width - 20f), rect.x + 12f, rect.y + 5f, 11f, Color.WHITE, Alignment.LEFT_TOP, false);
@@ -1190,8 +1157,7 @@ public class NanoVGClickGuiScreen extends Screen {
             tabBounds.add(new TabBounds(null, tab, rect));
 
             boolean selected = configView && searchQuery.isBlank() && selectedConfigTab == tab;
-            boolean hovered = rect.contains(scaledMouseX, scaledMouseY);
-            if (selected || hovered)
+            if (selected)
                 renderListRowMark(vg, rect);
 
             NVGFonts.INTER.drawText(fitText(tab.sidebarLabel, NVGFonts.INTER, 11f, rect.width - 20f), rect.x + 12f, rect.y + 5f, 11f, Color.WHITE, Alignment.LEFT_TOP, false);
@@ -1344,12 +1310,9 @@ public class NanoVGClickGuiScreen extends Screen {
         if (deletable)
             addControl(ControlType.CONFIG_DELETE, delete, config, null, 0);
 
-        boolean hovered = isHovered(row);
         float currentProgress = easeOut(animate("config-current:" + config.type.name() + ":" + config.name, config.current, 0.12f));
         if (currentProgress > 0.01f)
             renderListRowWash(vg, row, currentProgress);
-        if (hovered)
-            renderListRowMark(vg, row);
 
         float nameReserve = showDelete ? 50f : 16f;
         float nameWidth = Math.max(28f, row.width - nameReserve);
@@ -1376,7 +1339,7 @@ public class NanoVGClickGuiScreen extends Screen {
         boolean selected = settingsPanelModule == module;
         if (enabled > 0.01f)
             renderListRowWash(vg, row, enabled);
-        if (hovered || selected)
+        if (selected)
             renderListRowMark(vg, row);
 
         Rect switchRect = new Rect(row.x + row.width - 40f, row.y + 7f, 31f, 15f);
@@ -1488,8 +1451,6 @@ public class NanoVGClickGuiScreen extends Screen {
     private void renderSettingRow(NVGU vg, Rect row, String label, String value, float enabled) {
         if (enabled > 0.01f)
             renderListRowWash(vg, row, enabled);
-        if (isHovered(row))
-            renderListRowMark(vg, row);
         NVGFonts.INTER.drawText(fitText(label, NVGFonts.INTER, 11f, row.width * 0.50f), row.x + 12f, row.y + 7f, 11f, Color.WHITE, Alignment.LEFT_TOP, false);
         if (value != null)
             NVGFonts.INTER.drawText(fitText(value, NVGFonts.INTER, 10f, row.width * 0.36f), row.x + row.width - 25f, row.y + 8f, 10f, alpha(176, 186, 196, 220), Alignment.RIGHT_TOP, false);
@@ -1543,11 +1504,10 @@ public class NanoVGClickGuiScreen extends Screen {
                             addControl(ControlType.LIST_OPTION, optionRect, value, null, i);
 
                         boolean selected = i == value.getCurrentIndex();
-                        boolean hovered = isHovered(optionRect);
                         float textOffset = 3f * (1f - optionProgress);
                         float finalOptionProgress = optionProgress;
                         vg.globalAlpha(finalOptionProgress, () -> {
-                            if (selected || hovered)
+                            if (selected)
                                 renderListRowMark(vg, optionRect);
                             NVGFonts.INTER.drawText(fitText(option, NVGFonts.INTER, 10f, optionRect.width - 18f), optionRect.x + 12f, optionRect.y + 5f + textOffset, 10f, Color.WHITE, Alignment.LEFT_TOP, false);
                         });

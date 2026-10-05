@@ -3,12 +3,15 @@ package com.instrumentalist.krs.utils.render;
 import org.nvgu.NVGU;
 import org.nvgu.util.LinearGradientDirection;
 
+import javax.imageio.ImageIO;
 import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
 import java.util.List;
 
 public final class NanoVGTheme {
     public static final Color BASE = new Color(0x16, 0x16, 0x16);
-    public static final Color ACCENT = new Color(0xFF, 0xD0, 0x00);
+    public static Color ACCENT = new Color(0xFF, 0xD0, 0x00);
     private static final Shader2DRenderer.GlassRequest PANEL_GLASS = Shader2DRenderer.GlassRequest.panel();
     private static final Shader2DRenderer.GlassRequest COMPACT_GLASS = Shader2DRenderer.GlassRequest.compact();
     private static final Color PANEL_TOP = new Color(0x16, 0x16, 0x16, 64);
@@ -18,8 +21,32 @@ public final class NanoVGTheme {
     private static final float[] CONNECTED_BOXES = new float[256];
     private static final float[] CONNECTED_RADII = new float[256];
     private static final float[] CORNER_SCRATCH = new float[4];
+    private static final int TITLE_ACCENT_BINS = 48;
+    private static boolean accentLoaded;
+
+    static {
+        loadAccentFromTitle();
+    }
 
     private NanoVGTheme() {
+    }
+
+    public static void loadAccentFromTitle() {
+        if (accentLoaded)
+            return;
+        accentLoaded = true;
+
+        try (InputStream stream = NanoVGTheme.class.getClassLoader().getResourceAsStream("assets/krs/title.png")) {
+            if (stream == null)
+                return;
+            BufferedImage image = ImageIO.read(stream);
+            if (image == null)
+                return;
+            Color derived = deriveAccent(image);
+            if (derived != null)
+                ACCENT = derived;
+        } catch (Exception ignored) {
+        }
     }
 
     public static void renderPanelEffects(NVGU vg, float x, float y, float width, float height,
@@ -216,6 +243,101 @@ public final class NanoVGTheme {
 
     public static Color accent(int alpha) {
         return new Color(ACCENT.getRed(), ACCENT.getGreen(), ACCENT.getBlue(), Math.clamp(alpha, 0, 255));
+    }
+
+    private static Color deriveAccent(BufferedImage image) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+        if (width <= 0 || height <= 0)
+            return null;
+
+        int stepX = Math.max(1, width / 160);
+        int stepY = Math.max(1, height / 90);
+        float[] weights = new float[TITLE_ACCENT_BINS];
+        float[] saturations = new float[TITLE_ACCENT_BINS];
+        float[] hsb = new float[3];
+
+        for (int y = 0; y < height; y += stepY) {
+            for (int x = 0; x < width; x += stepX) {
+                int pixel = image.getRGB(x, y);
+                if (((pixel >>> 24) & 0xFF) < 16)
+                    continue;
+
+                Color.RGBtoHSB((pixel >> 16) & 0xFF, (pixel >> 8) & 0xFF, pixel & 0xFF, hsb);
+                if (hsb[1] < 0.18f || hsb[2] < 0.16f || hsb[2] > 0.97f)
+                    continue;
+
+                int bin = Math.min(TITLE_ACCENT_BINS - 1, (int) (hsb[0] * TITLE_ACCENT_BINS));
+                float weight = hsb[1] * hsb[1] * hsb[2];
+                weights[bin] += weight;
+                saturations[bin] += hsb[1] * weight;
+            }
+        }
+
+        int bestBin = -1;
+        float bestScore = 0f;
+        for (int i = 0; i < TITLE_ACCENT_BINS; i++) {
+            float weight = smoothedWeight(weights, i);
+            if (weight <= 0.0001f)
+                continue;
+            float averageSaturation = saturations[i] / Math.max(weights[i], 0.0001f);
+            float score = weight * averageSaturation * averageSaturation;
+            if (score > bestScore) {
+                bestScore = score;
+                bestBin = i;
+            }
+        }
+        if (bestBin < 0)
+            return null;
+
+        float red = 0f;
+        float green = 0f;
+        float blue = 0f;
+        float mass = 0f;
+        for (int y = 0; y < height; y += stepY) {
+            for (int x = 0; x < width; x += stepX) {
+                int pixel = image.getRGB(x, y);
+                if (((pixel >>> 24) & 0xFF) < 16)
+                    continue;
+
+                Color.RGBtoHSB((pixel >> 16) & 0xFF, (pixel >> 8) & 0xFF, pixel & 0xFF, hsb);
+                if (hsb[1] < 0.18f || hsb[2] < 0.16f || hsb[2] > 0.97f)
+                    continue;
+
+                int bin = Math.min(TITLE_ACCENT_BINS - 1, (int) (hsb[0] * TITLE_ACCENT_BINS));
+                if (hueDistance(bin, bestBin) > 1)
+                    continue;
+
+                float weight = hsb[1] * hsb[1] * hsb[2];
+                red += ((pixel >> 16) & 0xFF) * weight;
+                green += ((pixel >> 8) & 0xFF) * weight;
+                blue += (pixel & 0xFF) * weight;
+                mass += weight;
+            }
+        }
+        if (mass <= 0.0001f)
+            return null;
+
+        Color.RGBtoHSB(
+                Math.clamp(Math.round(red / mass), 0, 255),
+                Math.clamp(Math.round(green / mass), 0, 255),
+                Math.clamp(Math.round(blue / mass), 0, 255),
+                hsb
+        );
+        hsb[1] = Math.clamp(Math.max(hsb[1] * 1.55f, 0.82f), 0f, 0.94f);
+        hsb[2] = 1f;
+        return new Color(Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]));
+    }
+
+    private static float smoothedWeight(float[] weights, int index) {
+        int previous = (index + TITLE_ACCENT_BINS - 1) % TITLE_ACCENT_BINS;
+        int next = (index + 1) % TITLE_ACCENT_BINS;
+        return weights[index] + 0.45f * weights[previous] + 0.45f * weights[next];
+    }
+
+    private static int hueDistance(int left, int right) {
+        int delta = Math.abs(left - right);
+        return Math.min(delta, TITLE_ACCENT_BINS - delta);
     }
 
     public static Color base(int alpha) {
