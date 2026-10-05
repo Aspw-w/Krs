@@ -21,20 +21,20 @@ public class FontExtractor {
         if (fontDir == null) {
             fontDir = new File(System.getProperty("java.io.tmpdir"), "krs_imguimc_fonts");
         }
-        File fontFile = new File(fontDir, "arial.ttf");
+        File fontFile = new File(fontDir, "Arial.ttf");
         if (fontFile.exists() && fontFile.length() > 0) {
             return;
         }
 
         InputStream in = FontExtractor.class.getClassLoader()
-                .getResourceAsStream("assets/krs/arial.ttf");
+                .getResourceAsStream("assets/krs/fonts/Arial.ttf");
 
         if (in == null) {
-            in = FontExtractor.class.getResourceAsStream("/assets/krs/arial.ttf");
+            in = FontExtractor.class.getResourceAsStream("/assets/krs/fonts/Arial.ttf");
         }
 
         if (in == null) {
-            throw new IOException("Could not find font resource: assets/krs/arial.ttf");
+            throw new IOException("Could not find font resource: assets/krs/fonts/Arial.ttf");
         }
 
         Files.createDirectories(fontDir.toPath());

@@ -89,7 +89,7 @@ public class ImguiLoader {
     private static void rebuildCustomFont(float scale) {
         ImGuiIO io = ImGui.getIO();
         ImFontAtlas fontAtlas = io.getFonts();
-        String fontPath = FontExtractor.getFontPath("arial.ttf");
+        String fontPath = FontExtractor.getFontPath("Arial.ttf");
         float fontSize = Math.max(8.0f, Math.round(17.0f * scale));
 
         fontAtlas.clear();
