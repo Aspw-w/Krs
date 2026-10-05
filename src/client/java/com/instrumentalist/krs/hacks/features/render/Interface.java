@@ -569,7 +569,7 @@ public class Interface extends Module {
     }
 
     private static float getTabGuiPanelHeight(int rowCount) {
-        return 25f + rowCount * 22f + 6f;
+        return getTabGuiCategoryListHeight(rowCount);
     }
 
     private static int getTabGuiCategoryCount() {
@@ -2175,7 +2175,7 @@ public class Interface extends Module {
 
         float moduleHeight = getTabGuiVisiblePanelHeight(modules.size(), y);
         int firstModule = getFirstVisibleTabGuiModuleIndex(modules.size(), moduleHeight);
-        float targetModuleSelectionY = y + 25f + (tabGuiModuleIndex - firstModule) * 22f;
+        float targetModuleSelectionY = y + 6f + (tabGuiModuleIndex - firstModule) * 22f;
         tabGuiModuleSelectionY = Float.isNaN(tabGuiModuleSelectionY)
                 ? targetModuleSelectionY
                 : animateTabGuiValue(tabGuiModuleSelectionY, targetModuleSelectionY, deltaSpeed);
@@ -2204,9 +2204,8 @@ public class Interface extends Module {
         NanoVGTheme.renderPanelEffects(vg, x, y, categoryWidth, categoryHeight, 14f, 1f);
 
         if (expandProgress > 0.01f && !modules.isEmpty()) {
-            ModuleCategory category = selectedTabGuiCategory(categories);
             float moduleX = x + categoryWidth + 6f;
-            float moduleWidth = getTabGuiModulePanelWidth(category, modules) * expandProgress;
+            float moduleWidth = getTabGuiModulePanelWidth(modules) * expandProgress;
             float moduleHeight = getTabGuiVisiblePanelHeight(modules.size(), y);
 
             NanoVGTheme.renderPanelEffects(vg, moduleX, y, moduleWidth, moduleHeight, 14f, expandProgress);
@@ -2226,8 +2225,7 @@ public class Interface extends Module {
         NanoVGTheme.renderPanel(vg, x, y, categoryWidth, categoryHeight, 14f, 1f);
 
         if (!Float.isNaN(tabGuiCategorySelectionY)) {
-            vg.roundedRectangle(x + 5f, tabGuiCategorySelectionY + 2f, categoryWidth - 10f, 18f, 4f, NanoVGTheme.accent( 32));
-            vg.roundedRectangle(x + 5f, tabGuiCategorySelectionY + 4f, 2f, 14f, 1f, NanoVGTheme.accent( 170));
+            renderTabGuiSelection(vg, x, tabGuiCategorySelectionY, categoryWidth);
         }
 
         for (int i = 0, n = categories.size(); i < n; i++) {
@@ -2237,20 +2235,15 @@ public class Interface extends Module {
 
             Color textColor = selected ? NanoVGTheme.ACCENT : Color.WHITE;
             NVGFonts.INTER.drawText(category.name(), x + 12f, rowY + 4f, 14f, textColor, Alignment.LEFT_TOP, true);
-
-            if (selected && expandProgress > 0.01f) {
-                NVGFonts.ICON.drawText(MaterialIcon.RIGHT_ARROW, x + categoryWidth - 8f, rowY + 3f, 14f, NanoVGTheme.accent( (int) (255 * expandProgress)), Alignment.RIGHT_TOP, true);
-            }
         }
 
         if (expandProgress > 0.01f && !modules.isEmpty()) {
-            ModuleCategory category = selectedTabGuiCategory(categories);
-            renderTabGuiModulePanel(vg, category, modules, x + categoryWidth + 6f, y);
+            renderTabGuiModulePanel(vg, modules, x + categoryWidth + 6f, y);
         }
     }
 
-    private void renderTabGuiModulePanel(NVGU vg, @Nullable ModuleCategory category, List<Module> modules, float x, float y) {
-        float width = getTabGuiModulePanelWidth(category, modules);
+    private void renderTabGuiModulePanel(NVGU vg, List<Module> modules, float x, float y) {
+        float width = getTabGuiModulePanelWidth(modules);
         float height = getTabGuiVisiblePanelHeight(modules.size(), y);
         int visibleRows = getTabGuiVisibleRows(modules.size(), height);
         int firstModule = getFirstVisibleTabGuiModuleIndex(modules.size(), height);
@@ -2260,19 +2253,15 @@ public class Interface extends Module {
         vg.pushScissor(x, y, visibleWidth, height);
         vg.globalAlpha(expandProgress, () -> {
             NanoVGTheme.renderPanel(vg, x, y, width, height, 14f, 1f);
-            vg.rectangle(x + 8f, y + 24f, width - 16f, 1f, new Color(255, 255, 255, 38));
-
-            NVGFonts.INTER_MEDIUM.drawText(category != null ? category.name() : "Modules", x + 12f, y + 5f, 13f, Color.WHITE, Alignment.LEFT_TOP, true);
 
             if (!Float.isNaN(tabGuiModuleSelectionY)) {
-                vg.roundedRectangle(x + 5f, tabGuiModuleSelectionY + 2f, width - 10f, 18f, 4f, NanoVGTheme.accent( 32));
-                vg.roundedRectangle(x + 5f, tabGuiModuleSelectionY + 4f, 2f, 14f, 1f, NanoVGTheme.accent( 170));
+                renderTabGuiSelection(vg, x, tabGuiModuleSelectionY, width);
             }
 
             int lastModule = Math.min(modules.size(), firstModule + visibleRows);
             for (int i = firstModule; i < lastModule; i++) {
                 Module module = modules.get(i);
-                float rowY = y + 25f + (i - firstModule) * 22f;
+                float rowY = y + 6f + (i - firstModule) * 22f;
                 boolean selected = i == tabGuiModuleIndex;
                 boolean enabled = module.tempEnabled;
 
@@ -2283,8 +2272,8 @@ public class Interface extends Module {
             }
 
             if (modules.size() > visibleRows) {
-                float trackY = y + 29f;
-                float trackHeight = height - 36f;
+                float trackY = y + 10f;
+                float trackHeight = height - 16f;
                 float thumbHeight = Math.max(12f, trackHeight * visibleRows / modules.size());
                 float thumbY = trackY + (trackHeight - thumbHeight) * firstModule / (modules.size() - visibleRows);
                 vg.roundedRectangle(x + width - 4f, thumbY, 2f, thumbHeight, 1f, NanoVGTheme.accent( 150));
@@ -2293,16 +2282,20 @@ public class Interface extends Module {
         vg.popScissor();
     }
 
+    private static void renderTabGuiSelection(NVGU vg, float x, float y, float width) {
+        vg.roundedRectangle(x + 5f, y + 2f, width - 10f, 18f, 4f, NanoVGTheme.base(56));
+    }
+
     private float getTabGuiCategoryPanelWidth(List<ModuleCategory> categories) {
         float width = 72f;
         for (ModuleCategory category : categories) {
-            width = Math.max(width, NVGFonts.INTER.getWidth(category.name(), 14f) + 36f);
+            width = Math.max(width, NVGFonts.INTER.getWidth(category.name(), 14f) + 24f);
         }
         return width;
     }
 
-    private float getTabGuiModulePanelWidth(@Nullable ModuleCategory category, List<Module> modules) {
-        float width = NVGFonts.INTER_MEDIUM.getWidth(category != null ? category.name() : "Modules", 13f) + 24f;
+    private float getTabGuiModulePanelWidth(List<Module> modules) {
+        float width = 72f;
         for (Module module : modules) {
             width = Math.max(width, NVGFonts.INTER.getWidth(module.moduleName, 14f) + 43f);
         }
@@ -2319,7 +2312,7 @@ public class Interface extends Module {
     }
 
     private static int getTabGuiVisibleRows(int rowCount, float panelHeight) {
-        int visibleRows = (int) ((panelHeight - 31f) / 22f);
+        int visibleRows = (int) ((panelHeight - 14f) / 22f);
         return Math.max(1, Math.min(rowCount, visibleRows));
     }
 
