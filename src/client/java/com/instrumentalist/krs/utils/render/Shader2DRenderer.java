@@ -22,6 +22,7 @@ public final class Shader2DRenderer {
     public static final Shader2DRenderer INSTANCE = new Shader2DRenderer();
     private static final int HUD_BLUR_BASE_DOWNSCALE = 2;
     private static final int EFFECT_BATCH_SIZE = 64;
+    private static final int CONNECTED_BOX_LIMIT = 64;
     private static final int INDICATOR_BATCH_SIZE = 64;
 
     private static String rectVertexShader() {
@@ -336,6 +337,349 @@ public final class Shader2DRenderer {
             """.formatted(EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE);
     }
 
+    private static String liquidGlassFragmentShader() {
+        return """
+            #version 330 core
+
+            uniform sampler2D uBgTex;
+            uniform sampler2D uBlurTex;
+            uniform vec2 uScreenSize;
+            uniform vec4 uBoxRects[%d];
+            uniform vec4 uGlass0[%d];
+            uniform vec4 uGlass1[%d];
+            uniform vec4 uGlass2[%d];
+            uniform vec4 uGlass3[%d];
+
+            in vec2 vPosition;
+            in vec2 vScreenUv;
+            flat in int vEffectIndex;
+            out vec4 fragColor;
+
+            float rrSdf(vec2 point, vec2 halfSize, float radius) {
+                vec2 q = abs(point) - halfSize + vec2(radius);
+                return min(max(q.x, q.y), 0.0) + length(max(q, vec2(0.0))) - radius;
+            }
+
+            float bevelHeight(float distanceInside, float zRadius) {
+                if (distanceInside <= 0.0) {
+                    return 0.0;
+                }
+                if (distanceInside >= zRadius) {
+                    return zRadius;
+                }
+                return sqrt(distanceInside * (2.0 * zRadius - distanceInside));
+            }
+
+            float hash(vec2 point) {
+                return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453);
+            }
+
+            vec3 sampleRgb(sampler2D source, vec2 uv, vec2 chromaOffset) {
+                vec2 clamped = clamp(uv, vec2(0.0), vec2(1.0));
+                return vec3(
+                    texture(source, clamp(uv + chromaOffset, vec2(0.0), vec2(1.0))).r,
+                    texture(source, clamped).g,
+                    texture(source, clamp(uv - chromaOffset, vec2(0.0), vec2(1.0))).b
+                );
+            }
+
+            void main() {
+                vec4 boxRect = uBoxRects[vEffectIndex];
+                vec4 glass0 = uGlass0[vEffectIndex];
+                vec4 glass1 = uGlass1[vEffectIndex];
+                vec4 glass2 = uGlass2[vEffectIndex];
+                vec4 glass3 = uGlass3[vEffectIndex];
+
+                vec2 halfSize = max(boxRect.zw * 0.5, vec2(0.5));
+                vec2 localPx = vPosition - (boxRect.xy + boxRect.zw * 0.5);
+                float radius = min(max(glass0.x, 0.0), min(halfSize.x, halfSize.y));
+                float sdf = rrSdf(localPx, halfSize, radius);
+                float mask = 1.0 - smoothstep(-1.5, 0.5, sdf);
+
+                float shadowAlpha = max(glass3.x, 0.0);
+                float shadow = 0.0;
+                if (mask < 0.999 && shadowAlpha > 0.001) {
+                    float shadowOffY = glass3.z;
+                    float sdfShadow = rrSdf(localPx - vec2(0.0, shadowOffY), halfSize, radius);
+                    float distanceOutside = max(sdfShadow, 0.0);
+                    float spread = max(glass3.y, 1.0);
+                    float falloff = 1.0 / (spread * spread);
+                    shadow = exp(-distanceOutside * distanceOutside * falloff) * 0.55 * shadowAlpha * (1.0 - mask);
+                }
+
+                if (mask <= 0.001) {
+                    if (shadow <= 0.001) {
+                        discard;
+                    }
+                    fragColor = vec4(0.0, 0.0, 0.0, shadow);
+                    return;
+                }
+
+                float inside = -sdf;
+                float edge = smoothstep(8.0, 0.0, inside);
+
+                float zRadius = max(glass0.y, 1.0);
+                float e = 2.0;
+                float dR = -rrSdf(localPx + vec2(e, 0.0), halfSize, radius);
+                float dL = -rrSdf(localPx - vec2(e, 0.0), halfSize, radius);
+                float dU = -rrSdf(localPx + vec2(0.0, e), halfSize, radius);
+                float dD = -rrSdf(localPx - vec2(0.0, e), halfSize, radius);
+                float hC = bevelHeight(inside, zRadius);
+                vec2 hGrad = vec2(
+                    bevelHeight(dR, zRadius) - bevelHeight(dL, zRadius),
+                    bevelHeight(dU, zRadius) - bevelHeight(dD, zRadius)
+                ) / (2.0 * e);
+                vec3 normal = normalize(vec3(-hGrad, 1.0));
+                float depth = smoothstep(0.0, zRadius, inside);
+
+                vec2 pxToUv = vec2(1.0, -1.0) / max(uScreenSize, vec2(1.0));
+                float ior = 1.5;
+                float refrPow = 1.0 - 1.0 / ior;
+                float thickness = hC * 2.0;
+                float thickNorm = thickness / max(zRadius * 2.0, 1.0);
+                vec2 refrPx;
+                if (glass3.w < 0.5) {
+                    vec2 surfaceRefr = hGrad * refrPow;
+                    vec2 throughRefr = surfaceRefr * thickNorm * 0.5;
+                    refrPx = (surfaceRefr * 2.0 + throughRefr) * glass0.z * 30.0;
+                    vec2 centerDir = -localPx / max(halfSize, vec2(1.0));
+                    refrPx += centerDir * glass0.z * 4.0 * depth;
+                } else {
+                    refrPx = -localPx * glass0.z * depth * 0.35;
+                }
+                vec2 refraction = refrPx * pxToUv;
+
+                vec2 noiseSample = localPx * 0.08;
+                vec2 absPxToUv = vec2(1.0) / max(uScreenSize, vec2(1.0));
+                vec2 micro = (vec2(hash(noiseSample), hash(noiseSample + vec2(37.0))) - 0.5) * glass1.w * 4.0 * absPxToUv;
+
+                vec2 texUv = vec2(vScreenUv.x, 1.0 - vScreenUv.y);
+                float chromaScale = glass0.w * 10.0 * edge;
+                vec2 chromaOffset = normal.xy * chromaScale * pxToUv;
+                vec2 baseUv = texUv + refraction + micro;
+
+                vec3 sharp = sampleRgb(uBgTex, baseUv, chromaOffset);
+                vec3 blur = sampleRgb(uBlurTex, baseUv, chromaOffset);
+                vec3 color = mix(sharp, blur, 1.0 - edge * 0.15);
+
+                color *= 1.0 + glass2.w;
+                float luminance = dot(color, vec3(0.299, 0.587, 0.114));
+                color = mix(vec3(luminance), color, 1.0 + glass2.y);
+                color = mix(color, color * vec3(0.92, 0.95, 1.05), glass2.z);
+                color *= 1.0 + 0.06 * depth;
+
+                float fresnel = pow(1.0 - abs(normal.z), 4.0) * glass1.z;
+                vec3 viewDir = vec3(0.0, 0.0, 1.0);
+                vec3 light1 = normalize(vec3(0.4, 0.7, 1.0));
+                float spec1 = pow(max(dot(normal, normalize(light1 + viewDir)), 0.0), 90.0);
+                vec3 light2 = normalize(vec3(-0.3, -0.5, 1.0));
+                float spec2 = pow(max(dot(normal, normalize(light2 + viewDir)), 0.0), 50.0) * 0.3;
+                vec3 light3 = normalize(vec3(0.1, 0.3, 1.0));
+                float specBroad = pow(max(dot(normal, light3), 0.0), 6.0) * 0.1;
+                vec3 light4 = normalize(vec3(0.0, 0.9, 0.4));
+                float spec4 = pow(max(dot(normal, normalize(light4 + viewDir)), 0.0), 120.0) * 0.6;
+                float totalSpec = (spec1 + spec2 + specBroad + spec4) * glass1.y;
+
+                float rim = edge * glass1.x * 0.10;
+                float envReflection = (normal.y * 0.5 + 0.5) * fresnel * 0.06;
+
+                vec3 finish = color;
+                finish += vec3(totalSpec);
+                finish += vec3(rim);
+                finish += vec3(envReflection);
+                finish = mix(finish, vec3(1.0), fresnel * 0.08);
+
+                fragColor = vec4(finish, mask * clamp(glass2.x, 0.0, 1.0));
+            }
+            """.formatted(EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE);
+    }
+
+    private static String connectedLiquidGlassFragmentShader() {
+        return """
+            #version 330 core
+
+            uniform sampler2D uBgTex;
+            uniform sampler2D uBlurTex;
+            uniform vec2 uScreenSize;
+            uniform vec4 uBoxes[%d];
+            uniform vec4 uRadii[%d];
+            uniform int uBoxCount;
+            uniform vec4 uBoundRect;
+            uniform vec4 uGlass0;
+            uniform vec4 uGlass1;
+            uniform vec4 uGlass2;
+            uniform vec4 uGlass3;
+
+            in vec2 vPosition;
+            in vec2 vScreenUv;
+            out vec4 fragColor;
+
+            float rrSdf(vec2 point, vec2 halfSize, float radius) {
+                vec2 q = abs(point) - halfSize + vec2(radius);
+                return min(max(q.x, q.y), 0.0) + length(max(q, vec2(0.0))) - radius;
+            }
+
+            float rrVarying(vec2 pos, vec4 box, vec4 radii) {
+                vec2 halfSize = max(box.zw * 0.5, vec2(0.5));
+                vec2 local = pos - (box.xy + halfSize);
+                vec2 side = (local.x > 0.0) ? vec2(radii.y, radii.z) : vec2(radii.x, radii.w);
+                float rad = (local.y > 0.0) ? side.y : side.x;
+                rad = clamp(rad, 0.0, min(halfSize.x, halfSize.y));
+                return rrSdf(local, halfSize, rad);
+            }
+
+            float unionSdf(vec2 pos) {
+                float sdf = 1.0e6;
+                for (int i = 0; i < %d; i++) {
+                    if (i >= uBoxCount) {
+                        break;
+                    }
+                    sdf = min(sdf, rrVarying(pos, uBoxes[i], uRadii[i]));
+                }
+                for (int i = 0; i < %d; i++) {
+                    if (i + 1 >= uBoxCount) {
+                        break;
+                    }
+                    vec4 a = uBoxes[i];
+                    vec4 b = uBoxes[i + 1];
+                    float left = max(a.x, b.x) + 2.0;
+                    float right = min(a.x + a.z, b.x + b.z) - 2.0;
+                    float width = right - left;
+                    if (width <= 1.0) {
+                        continue;
+                    }
+                    float top = min(a.y, b.y);
+                    float bottom = max(a.y + a.w, b.y + b.w);
+                    vec2 halfSize = vec2(width, max(bottom - top, 1.0)) * 0.5;
+                    vec2 local = pos - vec2(left + halfSize.x, top + halfSize.y);
+                    vec2 q = abs(local) - halfSize;
+                    sdf = min(sdf, min(max(q.x, q.y), 0.0) + length(max(q, vec2(0.0))));
+                }
+                return sdf;
+            }
+
+            float bevelHeight(float distanceInside, float zRadius) {
+                if (distanceInside <= 0.0) {
+                    return 0.0;
+                }
+                if (distanceInside >= zRadius) {
+                    return zRadius;
+                }
+                return sqrt(distanceInside * (2.0 * zRadius - distanceInside));
+            }
+
+            float hash(vec2 point) {
+                return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453);
+            }
+
+            vec3 sampleRgb(sampler2D source, vec2 uv, vec2 chromaOffset) {
+                vec2 clamped = clamp(uv, vec2(0.0), vec2(1.0));
+                return vec3(
+                    texture(source, clamp(uv + chromaOffset, vec2(0.0), vec2(1.0))).r,
+                    texture(source, clamped).g,
+                    texture(source, clamp(uv - chromaOffset, vec2(0.0), vec2(1.0))).b
+                );
+            }
+
+            void main() {
+                vec2 halfSize = max(uBoundRect.zw * 0.5, vec2(0.5));
+                vec2 localPx = vPosition - (uBoundRect.xy + halfSize);
+                float sdf = unionSdf(vPosition);
+                float mask = 1.0 - smoothstep(-1.5, 0.5, sdf);
+
+                float shadowAlpha = max(uGlass3.x, 0.0);
+                float shadow = 0.0;
+                if (mask < 0.999 && shadowAlpha > 0.001) {
+                    float sdfShadow = unionSdf(vPosition - vec2(0.0, uGlass3.z));
+                    float distanceOutside = max(sdfShadow, 0.0);
+                    float spread = max(uGlass3.y, 1.0);
+                    float falloff = 1.0 / (spread * spread);
+                    shadow = exp(-distanceOutside * distanceOutside * falloff) * 0.55 * shadowAlpha * (1.0 - mask);
+                }
+
+                if (mask <= 0.001) {
+                    if (shadow <= 0.001) {
+                        discard;
+                    }
+                    fragColor = vec4(0.0, 0.0, 0.0, shadow);
+                    return;
+                }
+
+                float inside = -sdf;
+                float edge = smoothstep(8.0, 0.0, inside);
+
+                float zRadius = max(uGlass0.y, 1.0);
+                float e = 2.0;
+                float hC = bevelHeight(inside, zRadius);
+                vec2 hGrad = vec2(
+                    bevelHeight(-unionSdf(vPosition + vec2(e, 0.0)), zRadius) - bevelHeight(-unionSdf(vPosition - vec2(e, 0.0)), zRadius),
+                    bevelHeight(-unionSdf(vPosition + vec2(0.0, e)), zRadius) - bevelHeight(-unionSdf(vPosition - vec2(0.0, e)), zRadius)
+                ) / (2.0 * e);
+                vec3 normal = normalize(vec3(-hGrad, 1.0));
+                float depth = smoothstep(0.0, zRadius, inside);
+
+                vec2 pxToUv = vec2(1.0, -1.0) / max(uScreenSize, vec2(1.0));
+                float ior = 1.5;
+                float refrPow = 1.0 - 1.0 / ior;
+                float thickness = hC * 2.0;
+                float thickNorm = thickness / max(zRadius * 2.0, 1.0);
+                vec2 refrPx;
+                if (uGlass3.w < 0.5) {
+                    vec2 surfaceRefr = hGrad * refrPow;
+                    vec2 throughRefr = surfaceRefr * thickNorm * 0.5;
+                    refrPx = (surfaceRefr * 2.0 + throughRefr) * uGlass0.z * 30.0;
+                    vec2 centerDir = -localPx / max(halfSize, vec2(1.0));
+                    refrPx += centerDir * uGlass0.z * 4.0 * depth;
+                } else {
+                    refrPx = -localPx * uGlass0.z * depth * 0.35;
+                }
+                vec2 refraction = refrPx * pxToUv;
+
+                vec2 noiseSample = localPx * 0.08;
+                vec2 absPxToUv = vec2(1.0) / max(uScreenSize, vec2(1.0));
+                vec2 micro = (vec2(hash(noiseSample), hash(noiseSample + vec2(37.0))) - 0.5) * uGlass1.w * 4.0 * absPxToUv;
+
+                vec2 texUv = vec2(vScreenUv.x, 1.0 - vScreenUv.y);
+                float chromaScale = uGlass0.w * 10.0 * edge;
+                vec2 chromaOffset = normal.xy * chromaScale * pxToUv;
+                vec2 baseUv = texUv + refraction + micro;
+
+                vec3 sharp = sampleRgb(uBgTex, baseUv, chromaOffset);
+                vec3 blur = sampleRgb(uBlurTex, baseUv, chromaOffset);
+                vec3 color = mix(sharp, blur, 1.0 - edge * 0.15);
+
+                color *= 1.0 + uGlass2.w;
+                float luminance = dot(color, vec3(0.299, 0.587, 0.114));
+                color = mix(vec3(luminance), color, 1.0 + uGlass2.y);
+                color = mix(color, color * vec3(0.92, 0.95, 1.05), uGlass2.z);
+                color *= 1.0 + 0.06 * depth;
+
+                float fresnel = pow(1.0 - abs(normal.z), 4.0) * uGlass1.z;
+                vec3 viewDir = vec3(0.0, 0.0, 1.0);
+                vec3 light1 = normalize(vec3(0.4, 0.7, 1.0));
+                float spec1 = pow(max(dot(normal, normalize(light1 + viewDir)), 0.0), 90.0);
+                vec3 light2 = normalize(vec3(-0.3, -0.5, 1.0));
+                float spec2 = pow(max(dot(normal, normalize(light2 + viewDir)), 0.0), 50.0) * 0.3;
+                vec3 light3 = normalize(vec3(0.1, 0.3, 1.0));
+                float specBroad = pow(max(dot(normal, light3), 0.0), 6.0) * 0.1;
+                vec3 light4 = normalize(vec3(0.0, 0.9, 0.4));
+                float spec4 = pow(max(dot(normal, normalize(light4 + viewDir)), 0.0), 120.0) * 0.6;
+                float totalSpec = (spec1 + spec2 + specBroad + spec4) * uGlass1.y;
+
+                float rim = edge * uGlass1.x * 0.10;
+                float envReflection = (normal.y * 0.5 + 0.5) * fresnel * 0.06;
+
+                vec3 finish = color;
+                finish += vec3(totalSpec);
+                finish += vec3(rim);
+                finish += vec3(envReflection);
+                finish = mix(finish, vec3(1.0), fresnel * 0.08);
+
+                fragColor = vec4(finish, mask * clamp(uGlass2.x, 0.0, 1.0));
+            }
+            """.formatted(CONNECTED_BOX_LIMIT, CONNECTED_BOX_LIMIT, CONNECTED_BOX_LIMIT, CONNECTED_BOX_LIMIT);
+    }
+
     private static String indicatorVertexShader() {
         return """
             #version 330 core
@@ -540,6 +884,8 @@ public final class Shader2DRenderer {
     private int blurProgram = 0;
     private int roundedBlurProgram = 0;
     private int shadowProgram = 0;
+    private int liquidGlassProgram = 0;
+    private int connectedLiquidGlassProgram = 0;
     private int indicatorProgram = 0;
     private int maskProgram = 0;
     private int occludedMaskProgram = 0;
@@ -559,6 +905,28 @@ public final class Shader2DRenderer {
     private int shadowBoxRectsUniform = -1;
     private int shadowEffectParamsUniform = -1;
     private int shadowColorsUniform = -1;
+    private int liquidGlassDrawRectsUniform = -1;
+    private int liquidGlassScreenSizeUniform = -1;
+    private int liquidGlassBoxRectsUniform = -1;
+    private int liquidGlassBgTexUniform = -1;
+    private int liquidGlassBlurTexUniform = -1;
+    private int liquidGlass0Uniform = -1;
+    private int liquidGlass1Uniform = -1;
+    private int liquidGlass2Uniform = -1;
+    private int liquidGlass3Uniform = -1;
+    private int connectedGlassDrawRectsUniform = -1;
+    private int connectedGlassScreenSizeUniform = -1;
+    private int connectedGlassBgTexUniform = -1;
+    private int connectedGlassBlurTexUniform = -1;
+    private int connectedGlassBoxesUniform = -1;
+    private int connectedGlassRadiiUniform = -1;
+    private int connectedGlassBoxCountUniform = -1;
+    private int connectedGlassRadiusUniform = -1;
+    private int connectedGlassBoundRectUniform = -1;
+    private int connectedGlass0Uniform = -1;
+    private int connectedGlass1Uniform = -1;
+    private int connectedGlass2Uniform = -1;
+    private int connectedGlass3Uniform = -1;
     private int indicatorTransformsUniform = -1;
     private int indicatorScreenSizeUniform = -1;
     private int indicatorParamsUniform = -1;
@@ -608,9 +976,20 @@ public final class Shader2DRenderer {
     private final FloatBuffer effectBoxRects = BufferUtils.createFloatBuffer(EFFECT_BATCH_SIZE * 4);
     private final FloatBuffer effectParams = BufferUtils.createFloatBuffer(EFFECT_BATCH_SIZE * 4);
     private final FloatBuffer effectColors = BufferUtils.createFloatBuffer(EFFECT_BATCH_SIZE * 4);
+    private final FloatBuffer glassParams0 = BufferUtils.createFloatBuffer(EFFECT_BATCH_SIZE * 4);
+    private final FloatBuffer glassParams1 = BufferUtils.createFloatBuffer(EFFECT_BATCH_SIZE * 4);
+    private final FloatBuffer glassParams2 = BufferUtils.createFloatBuffer(EFFECT_BATCH_SIZE * 4);
+    private final FloatBuffer glassParams3 = BufferUtils.createFloatBuffer(EFFECT_BATCH_SIZE * 4);
+    private final FloatBuffer connectedBoxes = BufferUtils.createFloatBuffer(CONNECTED_BOX_LIMIT * 4);
+    private final FloatBuffer connectedRadii = BufferUtils.createFloatBuffer(CONNECTED_BOX_LIMIT * 4);
+    private final ArrayList<GlassRequest> singleGlassRequest = new ArrayList<>(1);
+    private final GlassRequest reusableSingleGlassRequest = new GlassRequest();
+    private final ArrayList<ConnectedGlassRequest> singleConnectedGlassRequest = new ArrayList<>(1);
+    private final ConnectedGlassRequest reusableConnectedGlassRequest = new ConnectedGlassRequest();
     private final FloatBuffer indicatorTransforms = BufferUtils.createFloatBuffer(INDICATOR_BATCH_SIZE * 4);
     private final FloatBuffer indicatorParams = BufferUtils.createFloatBuffer(INDICATOR_BATCH_SIZE * 4);
     private final FloatBuffer indicatorColors = BufferUtils.createFloatBuffer(INDICATOR_BATCH_SIZE * 4);
+    private boolean sourceCaptured = false;
     private boolean blurCacheValid = false;
     private int cachedBlurWidth = 0;
     private int cachedBlurHeight = 0;
@@ -619,9 +998,12 @@ public final class Shader2DRenderer {
     private Shader2DRenderer() {
         singleBlurRequest.add(reusableSingleBlurRequest);
         singleShadowRequest.add(reusableSingleShadowRequest);
+        singleGlassRequest.add(reusableSingleGlassRequest);
+        singleConnectedGlassRequest.add(reusableConnectedGlassRequest);
     }
 
     public void beginFrame() {
+        sourceCaptured = false;
         blurCacheValid = false;
     }
 
@@ -641,6 +1023,22 @@ public final class Shader2DRenderer {
 
     public void drawShadowRoundedRects(float frameWidth, float frameHeight, List<ShadowRequest> requests) {
         drawEffects(frameWidth, frameHeight, null, requests);
+    }
+
+    public void drawLiquidGlassRoundedRect(float frameWidth, float frameHeight, GlassRequest request) {
+        reusableSingleGlassRequest.copyFrom(request);
+        drawLiquidGlassRoundedRects(frameWidth, frameHeight, singleGlassRequest);
+    }
+
+    public void drawLiquidGlassRoundedRects(float frameWidth, float frameHeight, List<GlassRequest> requests) {
+        drawEffects(frameWidth, frameHeight, null, null, requests);
+    }
+
+    public void drawConnectedLiquidGlass(float frameWidth, float frameHeight, float[] boxes, float[] radii, int count, float radius, GlassRequest style) {
+        reusableConnectedGlassRequest.set(boxes, radii, count, radius, style);
+        singleConnectedGlassRequest.clear();
+        singleConnectedGlassRequest.add(reusableConnectedGlassRequest);
+        drawEffects(frameWidth, frameHeight, null, null, null, singleConnectedGlassRequest);
     }
 
     public void drawDirectionalIndicators(float frameWidth, float frameHeight, List<IndicatorRequest> requests) {
@@ -793,18 +1191,38 @@ public final class Shader2DRenderer {
     }
 
     public void drawEffects(float frameWidth, float frameHeight, List<BlurRequest> blurRequests, List<ShadowRequest> shadowRequests) {
+        drawEffects(frameWidth, frameHeight, blurRequests, shadowRequests, null, null);
+    }
+
+    public void drawEffects(float frameWidth, float frameHeight, List<BlurRequest> blurRequests,
+                            List<ShadowRequest> shadowRequests, List<GlassRequest> glassRequests) {
+        drawEffects(frameWidth, frameHeight, blurRequests, shadowRequests, glassRequests, null);
+    }
+
+    public void drawEffects(float frameWidth, float frameHeight, List<BlurRequest> blurRequests,
+                            List<ShadowRequest> shadowRequests, List<GlassRequest> glassRequests,
+                            List<ConnectedGlassRequest> connectedGlassRequests) {
         if (frameWidth <= 0f || frameHeight <= 0f)
             return;
 
         boolean hasBlurRequests = blurRequests != null && !blurRequests.isEmpty();
         boolean hasShadowRequests = shadowRequests != null && !shadowRequests.isEmpty();
-        if (!hasBlurRequests && !hasShadowRequests)
+        boolean hasGlassRequests = glassRequests != null && !glassRequests.isEmpty();
+        boolean hasConnectedGlassRequests = connectedGlassRequests != null && !connectedGlassRequests.isEmpty();
+        if (!hasBlurRequests && !hasShadowRequests && !hasGlassRequests && !hasConnectedGlassRequests)
             return;
 
         ensureInitialized();
 
         GLState state = GLState.capture();
         try {
+            if (hasGlassRequests) {
+                drawGlassRequests(frameWidth, frameHeight, state, glassRequests);
+            }
+            if (hasConnectedGlassRequests) {
+                drawConnectedGlassRequests(frameWidth, frameHeight, state, connectedGlassRequests);
+            }
+
             if (hasBlurRequests) {
                 int viewportWidth = Math.max(1, state.viewportWidth);
                 int viewportHeight = Math.max(1, state.viewportHeight);
@@ -1108,8 +1526,13 @@ public final class Shader2DRenderer {
     }
 
     private void ensureBlurTexture(GLState state, int viewportWidth, int viewportHeight, float blurRadius) {
+        ensureBackgroundTextures(state, viewportWidth, viewportHeight, blurRadius);
+    }
+
+    private void ensureBackgroundTextures(GLState state, int viewportWidth, int viewportHeight, float blurRadius) {
         int blurDownscale = hudBlurDownscale(viewportWidth, viewportHeight);
-        if (!blurCacheValid || cachedBlurWidth != viewportWidth || cachedBlurHeight != viewportHeight) {
+        boolean sizeChanged = cachedBlurWidth != viewportWidth || cachedBlurHeight != viewportHeight;
+        if (!sourceCaptured || sizeChanged) {
             int blurWidth = Math.max(1, (viewportWidth + blurDownscale - 1) / blurDownscale);
             int blurHeight = Math.max(1, (viewportHeight + blurDownscale - 1) / blurDownscale);
             sourceTexture.resize(viewportWidth, viewportHeight);
@@ -1123,11 +1546,15 @@ public final class Shader2DRenderer {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, sourceTexture.texture);
             GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, state.viewportX, state.viewportY, viewportWidth, viewportHeight);
 
+            sourceCaptured = true;
             blurCacheValid = false;
             cachedBlurWidth = viewportWidth;
             cachedBlurHeight = viewportHeight;
             cachedBlurRadius = -1f;
         }
+
+        if (blurRadius <= 0.01f)
+            return;
 
         if (!blurCacheValid || Math.abs(cachedBlurRadius - blurRadius) > 0.001f) {
             int blurWidth = Math.max(1, (viewportWidth + blurDownscale - 1) / blurDownscale);
@@ -1160,6 +1587,173 @@ public final class Shader2DRenderer {
             blurCacheValid = true;
             cachedBlurRadius = blurRadius;
         }
+    }
+
+    private void drawGlassRequests(float frameWidth, float frameHeight, GLState state, List<GlassRequest> requests) {
+        int viewportWidth = Math.max(1, state.viewportWidth);
+        int viewportHeight = Math.max(1, state.viewportHeight);
+        float blurRadius = 0f;
+        for (int i = 0, n = requests.size(); i < n; i++) {
+            GlassRequest request = requests.get(i);
+            if (isDrawableGlassRequest(request))
+                blurRadius = Math.max(blurRadius, clamp(request.blurAmount * 24f, 0f, 24f));
+        }
+
+        ensureBackgroundTextures(state, viewportWidth, viewportHeight, blurRadius);
+
+        prepareCommonState();
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, state.drawFramebuffer);
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, state.readFramebuffer);
+        GL11.glViewport(state.viewportX, state.viewportY, state.viewportWidth, state.viewportHeight);
+        GL11.glEnable(GL11.GL_BLEND);
+        GL20.glBlendEquationSeparate(GL14.GL_FUNC_ADD, GL14.GL_FUNC_ADD);
+        GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+
+        GL20.glUseProgram(liquidGlassProgram);
+        GL20.glUniform2f(liquidGlassScreenSizeUniform, frameWidth, frameHeight);
+        GL20.glUniform1i(liquidGlassBgTexUniform, 0);
+        GL20.glUniform1i(liquidGlassBlurTexUniform, 1);
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+        GL33.glBindSampler(0, 0);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, sourceTexture.texture);
+        GL13.glActiveTexture(GL13.GL_TEXTURE1);
+        GL33.glBindSampler(1, 0);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, blurCacheValid ? blurPongTexture.texture : sourceTexture.texture);
+        GL30.glBindVertexArray(vertexArray);
+
+        int requestIndex = 0;
+        while (requestIndex < requests.size()) {
+            clearGlassBuffers();
+            int batchCount = 0;
+
+            while (requestIndex < requests.size() && batchCount < EFFECT_BATCH_SIZE) {
+                GlassRequest request = requests.get(requestIndex++);
+                if (!isDrawableGlassRequest(request))
+                    continue;
+
+                float padding = glassPadding(request);
+                putRect(
+                        effectDrawRects,
+                        request.x - padding,
+                        request.y - padding,
+                        request.width + padding * 2f,
+                        request.height + padding * 2f
+                );
+                putRect(effectBoxRects, request.x, request.y, request.width, request.height);
+                float zRadius = request.zRadius > 0f
+                        ? request.zRadius
+                        : clamp(Math.min(request.width, request.height) * 0.22f, 4f, 18f);
+                glassParams0.put(Math.max(request.radius, 0f))
+                        .put(zRadius)
+                        .put(request.refraction)
+                        .put(request.chromAberration);
+                glassParams1.put(request.edgeHighlight)
+                        .put(request.specular)
+                        .put(request.fresnel)
+                        .put(request.distortion);
+                glassParams2.put(clamp(request.alpha, 0f, 1f))
+                        .put(request.saturation)
+                        .put(request.tintStrength)
+                        .put(request.brightness);
+                glassParams3.put(clamp(request.shadowOpacity, 0f, 1f))
+                        .put(Math.max(request.shadowSpread, 0f))
+                        .put(request.shadowOffsetY)
+                        .put(request.bevelMode);
+                batchCount++;
+            }
+
+            if (batchCount <= 0)
+                continue;
+
+            uploadGlassUniforms();
+            GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, batchCount);
+        }
+
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+    }
+
+    private static float glassPadding(GlassRequest request) {
+        return Math.max(request.shadowSpread, 1f) + Math.abs(request.shadowOffsetY) + 12f;
+    }
+
+    private void drawConnectedGlassRequests(float frameWidth, float frameHeight, GLState state, List<ConnectedGlassRequest> requests) {
+        int viewportWidth = Math.max(1, state.viewportWidth);
+        int viewportHeight = Math.max(1, state.viewportHeight);
+        float blurRadius = 0f;
+        for (int i = 0, n = requests.size(); i < n; i++) {
+            ConnectedGlassRequest request = requests.get(i);
+            if (isDrawableConnectedGlassRequest(request))
+                blurRadius = Math.max(blurRadius, clamp(request.style.blurAmount * 24f, 0f, 24f));
+        }
+
+        ensureBackgroundTextures(state, viewportWidth, viewportHeight, blurRadius);
+
+        prepareCommonState();
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, state.drawFramebuffer);
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, state.readFramebuffer);
+        GL11.glViewport(state.viewportX, state.viewportY, state.viewportWidth, state.viewportHeight);
+        GL11.glEnable(GL11.GL_BLEND);
+        GL20.glBlendEquationSeparate(GL14.GL_FUNC_ADD, GL14.GL_FUNC_ADD);
+        GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+
+        GL20.glUseProgram(connectedLiquidGlassProgram);
+        GL20.glUniform2f(connectedGlassScreenSizeUniform, frameWidth, frameHeight);
+        GL20.glUniform1i(connectedGlassBgTexUniform, 0);
+        GL20.glUniform1i(connectedGlassBlurTexUniform, 1);
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+        GL33.glBindSampler(0, 0);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, sourceTexture.texture);
+        GL13.glActiveTexture(GL13.GL_TEXTURE1);
+        GL33.glBindSampler(1, 0);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, blurCacheValid ? blurPongTexture.texture : sourceTexture.texture);
+        GL30.glBindVertexArray(vertexArray);
+
+        for (int i = 0, n = requests.size(); i < n; i++) {
+            ConnectedGlassRequest request = requests.get(i);
+            if (!isDrawableConnectedGlassRequest(request))
+                continue;
+
+            GlassRequest style = request.style;
+            float boundWidth = request.maxX - request.minX;
+            float boundHeight = request.maxY - request.minY;
+            float padding = glassPadding(style);
+            clearEffectBuffers();
+            putRect(effectDrawRects, request.minX - padding, request.minY - padding, boundWidth + padding * 2f, boundHeight + padding * 2f);
+            effectDrawRects.flip();
+            GL20.glUniform4fv(connectedGlassDrawRectsUniform, effectDrawRects);
+
+            connectedBoxes.clear();
+            connectedRadii.clear();
+            int boxCount = Math.min(request.boxCount, CONNECTED_BOX_LIMIT);
+            connectedBoxes.put(request.boxes, 0, boxCount * 4);
+            connectedRadii.put(request.radii, 0, boxCount * 4);
+            connectedBoxes.flip();
+            connectedRadii.flip();
+            GL20.glUniform4fv(connectedGlassBoxesUniform, connectedBoxes);
+            GL20.glUniform4fv(connectedGlassRadiiUniform, connectedRadii);
+            GL20.glUniform1i(connectedGlassBoxCountUniform, boxCount);
+            GL20.glUniform4f(connectedGlassBoundRectUniform, request.minX, request.minY, boundWidth, boundHeight);
+
+            float zRadius = style.zRadius > 0f
+                    ? style.zRadius
+                    : clamp(boundWidth * 0.16f, 12f, 22f);
+            GL20.glUniform4f(connectedGlass0Uniform, request.radius, zRadius, style.refraction, style.chromAberration);
+            GL20.glUniform4f(connectedGlass1Uniform, style.edgeHighlight, style.specular, style.fresnel, style.distortion);
+            GL20.glUniform4f(connectedGlass2Uniform, clamp(style.alpha, 0f, 1f), style.saturation, style.tintStrength, style.brightness);
+            GL20.glUniform4f(connectedGlass3Uniform, clamp(style.shadowOpacity, 0f, 1f), Math.max(style.shadowSpread, 0f), style.shadowOffsetY, style.bevelMode);
+            GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, 1);
+        }
+
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+    }
+
+    private static boolean isDrawableConnectedGlassRequest(ConnectedGlassRequest request) {
+        return request != null
+                && request.boxCount > 0
+                && request.maxX > request.minX
+                && request.maxY > request.minY
+                && request.style != null
+                && request.style.alpha > 0.001f;
     }
 
     private static int hudBlurDownscale(int viewportWidth, int viewportHeight) {
@@ -1234,6 +1828,13 @@ public final class Shader2DRenderer {
                 && request.color.getAlpha() > 0;
     }
 
+    private static boolean isDrawableGlassRequest(GlassRequest request) {
+        return request != null
+                && request.width > 0f
+                && request.height > 0f
+                && request.alpha > 0.001f;
+    }
+
     private static boolean isDrawableIndicatorRequest(IndicatorRequest request) {
         return request != null
                 && Float.isFinite(request.centerX)
@@ -1249,6 +1850,30 @@ public final class Shader2DRenderer {
         effectBoxRects.clear();
         effectParams.clear();
         effectColors.clear();
+    }
+
+    private void clearGlassBuffers() {
+        effectDrawRects.clear();
+        effectBoxRects.clear();
+        glassParams0.clear();
+        glassParams1.clear();
+        glassParams2.clear();
+        glassParams3.clear();
+    }
+
+    private void uploadGlassUniforms() {
+        effectDrawRects.flip();
+        effectBoxRects.flip();
+        glassParams0.flip();
+        glassParams1.flip();
+        glassParams2.flip();
+        glassParams3.flip();
+        GL20.glUniform4fv(liquidGlassDrawRectsUniform, effectDrawRects);
+        GL20.glUniform4fv(liquidGlassBoxRectsUniform, effectBoxRects);
+        GL20.glUniform4fv(liquidGlass0Uniform, glassParams0);
+        GL20.glUniform4fv(liquidGlass1Uniform, glassParams1);
+        GL20.glUniform4fv(liquidGlass2Uniform, glassParams2);
+        GL20.glUniform4fv(liquidGlass3Uniform, glassParams3);
     }
 
     private static void putRect(FloatBuffer buffer, float x, float y, float width, float height) {
@@ -1281,6 +1906,14 @@ public final class Shader2DRenderer {
         if (shadowProgram != 0) {
             GL20.glDeleteProgram(shadowProgram);
             shadowProgram = 0;
+        }
+        if (liquidGlassProgram != 0) {
+            GL20.glDeleteProgram(liquidGlassProgram);
+            liquidGlassProgram = 0;
+        }
+        if (connectedLiquidGlassProgram != 0) {
+            GL20.glDeleteProgram(connectedLiquidGlassProgram);
+            connectedLiquidGlassProgram = 0;
         }
         if (indicatorProgram != 0) {
             GL20.glDeleteProgram(indicatorProgram);
@@ -1326,6 +1959,7 @@ public final class Shader2DRenderer {
         silhouetteArmorDepthTexture.destroy();
         silhouetteBlurPingTexture.destroy();
         silhouetteBlurPongTexture.destroy();
+        sourceCaptured = false;
         blurCacheValid = false;
         cachedBlurWidth = 0;
         cachedBlurHeight = 0;
@@ -1385,6 +2019,12 @@ public final class Shader2DRenderer {
         if (shadowProgram == 0) {
             shadowProgram = createProgram(rectVertexShader(), shadowFragmentShader());
         }
+        if (liquidGlassProgram == 0) {
+            liquidGlassProgram = createProgram(rectVertexShader(), liquidGlassFragmentShader());
+        }
+        if (connectedLiquidGlassProgram == 0) {
+            connectedLiquidGlassProgram = createProgram(rectVertexShader(), connectedLiquidGlassFragmentShader());
+        }
         if (indicatorProgram == 0) {
             indicatorProgram = createProgram(indicatorVertexShader(), indicatorFragmentShader());
         }
@@ -1398,7 +2038,8 @@ public final class Shader2DRenderer {
             silhouetteCompositeProgram = createProgram(fullscreenVertexShader(), silhouetteCompositeFragmentShader());
         }
         if (blurTextureUniform < 0 || roundedBlurTextureUniform < 0 || shadowColorsUniform < 0
-                || indicatorColorsUniform < 0 || occludedDepthTextureUniform < 0 || silhouetteColorUniform < 0) {
+                || liquidGlassBgTexUniform < 0 || connectedGlassBgTexUniform < 0 || indicatorColorsUniform < 0
+                || occludedDepthTextureUniform < 0 || silhouetteColorUniform < 0) {
             loadUniformLocations();
         }
     }
@@ -1420,6 +2061,29 @@ public final class Shader2DRenderer {
         shadowBoxRectsUniform = uniform(shadowProgram, "uBoxRects[0]");
         shadowEffectParamsUniform = uniform(shadowProgram, "uEffectParams[0]");
         shadowColorsUniform = uniform(shadowProgram, "uColors[0]");
+
+        liquidGlassDrawRectsUniform = uniform(liquidGlassProgram, "uDrawRects[0]");
+        liquidGlassScreenSizeUniform = uniform(liquidGlassProgram, "uScreenSize");
+        liquidGlassBoxRectsUniform = uniform(liquidGlassProgram, "uBoxRects[0]");
+        liquidGlassBgTexUniform = uniform(liquidGlassProgram, "uBgTex");
+        liquidGlassBlurTexUniform = uniform(liquidGlassProgram, "uBlurTex");
+        liquidGlass0Uniform = uniform(liquidGlassProgram, "uGlass0[0]");
+        liquidGlass1Uniform = uniform(liquidGlassProgram, "uGlass1[0]");
+        liquidGlass2Uniform = uniform(liquidGlassProgram, "uGlass2[0]");
+        liquidGlass3Uniform = uniform(liquidGlassProgram, "uGlass3[0]");
+
+        connectedGlassDrawRectsUniform = uniform(connectedLiquidGlassProgram, "uDrawRects[0]");
+        connectedGlassScreenSizeUniform = uniform(connectedLiquidGlassProgram, "uScreenSize");
+        connectedGlassBgTexUniform = uniform(connectedLiquidGlassProgram, "uBgTex");
+        connectedGlassBlurTexUniform = uniform(connectedLiquidGlassProgram, "uBlurTex");
+        connectedGlassBoxesUniform = uniform(connectedLiquidGlassProgram, "uBoxes[0]");
+        connectedGlassRadiiUniform = uniform(connectedLiquidGlassProgram, "uRadii[0]");
+        connectedGlassBoxCountUniform = uniform(connectedLiquidGlassProgram, "uBoxCount");
+        connectedGlassBoundRectUniform = uniform(connectedLiquidGlassProgram, "uBoundRect");
+        connectedGlass0Uniform = uniform(connectedLiquidGlassProgram, "uGlass0");
+        connectedGlass1Uniform = uniform(connectedLiquidGlassProgram, "uGlass1");
+        connectedGlass2Uniform = uniform(connectedLiquidGlassProgram, "uGlass2");
+        connectedGlass3Uniform = uniform(connectedLiquidGlassProgram, "uGlass3");
 
         indicatorTransformsUniform = uniform(indicatorProgram, "uIndicators[0]");
         indicatorScreenSizeUniform = uniform(indicatorProgram, "uScreenSize");
@@ -1471,6 +2135,28 @@ public final class Shader2DRenderer {
         shadowBoxRectsUniform = -1;
         shadowEffectParamsUniform = -1;
         shadowColorsUniform = -1;
+        liquidGlassDrawRectsUniform = -1;
+        liquidGlassScreenSizeUniform = -1;
+        liquidGlassBoxRectsUniform = -1;
+        liquidGlassBgTexUniform = -1;
+        liquidGlassBlurTexUniform = -1;
+        liquidGlass0Uniform = -1;
+        liquidGlass1Uniform = -1;
+        liquidGlass2Uniform = -1;
+        liquidGlass3Uniform = -1;
+        connectedGlassDrawRectsUniform = -1;
+        connectedGlassScreenSizeUniform = -1;
+        connectedGlassBgTexUniform = -1;
+        connectedGlassBlurTexUniform = -1;
+        connectedGlassBoxesUniform = -1;
+        connectedGlassRadiiUniform = -1;
+        connectedGlassBoxCountUniform = -1;
+        connectedGlassRadiusUniform = -1;
+        connectedGlassBoundRectUniform = -1;
+        connectedGlass0Uniform = -1;
+        connectedGlass1Uniform = -1;
+        connectedGlass2Uniform = -1;
+        connectedGlass3Uniform = -1;
         indicatorTransformsUniform = -1;
         indicatorScreenSizeUniform = -1;
         indicatorParamsUniform = -1;
@@ -1587,6 +2273,146 @@ public final class Shader2DRenderer {
             this.glowRadius = glowRadius;
             this.pulse = pulse;
             this.color = color;
+            return this;
+        }
+    }
+
+    public static final class GlassRequest {
+        public float x;
+        public float y;
+        public float width;
+        public float height;
+        public float radius;
+        public float zRadius;
+        public float refraction = 0.69f;
+        public float chromAberration = 0.05f;
+        public float edgeHighlight = 0.08f;
+        public float specular = 0.42f;
+        public float fresnel = 1f;
+        public float distortion;
+        public float alpha = 1f;
+        public float saturation = 0.06f;
+        public float tintStrength = 0.1f;
+        public float brightness = -0.14f;
+        public float shadowOpacity = 0.3f;
+        public float shadowSpread = 10f;
+        public float shadowOffsetY = 2f;
+        public float bevelMode;
+        public float blurAmount = 0.25f;
+
+        public GlassRequest() {
+        }
+
+        public GlassRequest copyFrom(GlassRequest other) {
+            if (other == null)
+                return this;
+
+            this.x = other.x;
+            this.y = other.y;
+            this.width = other.width;
+            this.height = other.height;
+            this.radius = other.radius;
+            this.zRadius = other.zRadius;
+            this.refraction = other.refraction;
+            this.chromAberration = other.chromAberration;
+            this.edgeHighlight = other.edgeHighlight;
+            this.specular = other.specular;
+            this.fresnel = other.fresnel;
+            this.distortion = other.distortion;
+            this.alpha = other.alpha;
+            this.saturation = other.saturation;
+            this.tintStrength = other.tintStrength;
+            this.brightness = other.brightness;
+            this.shadowOpacity = other.shadowOpacity;
+            this.shadowSpread = other.shadowSpread;
+            this.shadowOffsetY = other.shadowOffsetY;
+            this.bevelMode = other.bevelMode;
+            this.blurAmount = other.blurAmount;
+            return this;
+        }
+
+        public GlassRequest applyGeometry(float x, float y, float width, float height, float radius, float alpha) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+            this.radius = radius;
+            this.alpha = alpha;
+            return this;
+        }
+
+        public static GlassRequest panel() {
+            GlassRequest request = new GlassRequest();
+            request.refraction = 0.72f;
+            request.chromAberration = 0.02f;
+            request.edgeHighlight = 0.08f;
+            request.specular = 0.48f;
+            request.fresnel = 1f;
+            request.blurAmount = 0.32f;
+            request.brightness = -0.22f;
+            request.saturation = 0.08f;
+            request.tintStrength = 0.12f;
+            request.shadowOpacity = 0.26f;
+            request.shadowSpread = 12f;
+            request.shadowOffsetY = 2f;
+            return request;
+        }
+
+        public static GlassRequest compact() {
+            GlassRequest request = new GlassRequest();
+            request.refraction = 0.58f;
+            request.chromAberration = 0.015f;
+            request.edgeHighlight = 0.07f;
+            request.specular = 0.36f;
+            request.fresnel = 1f;
+            request.blurAmount = 0.26f;
+            request.brightness = -0.18f;
+            request.saturation = 0.05f;
+            request.tintStrength = 0.08f;
+            request.shadowOpacity = 0.2f;
+            request.shadowSpread = 8f;
+            request.shadowOffsetY = 1f;
+            return request;
+        }
+    }
+
+    public static final class ConnectedGlassRequest {
+        public final float[] boxes = new float[CONNECTED_BOX_LIMIT * 4];
+        public final float[] radii = new float[CONNECTED_BOX_LIMIT * 4];
+        public int boxCount;
+        public float radius;
+        public float minX = Float.POSITIVE_INFINITY;
+        public float minY = Float.POSITIVE_INFINITY;
+        public float maxX = Float.NEGATIVE_INFINITY;
+        public float maxY = Float.NEGATIVE_INFINITY;
+        public final GlassRequest style = new GlassRequest();
+
+        public ConnectedGlassRequest set(float[] source, float[] sourceRadii, int count, float radius, GlassRequest style) {
+            this.boxCount = Math.max(0, Math.min(count, CONNECTED_BOX_LIMIT));
+            if (source != null && this.boxCount > 0)
+                System.arraycopy(source, 0, boxes, 0, this.boxCount * 4);
+            if (sourceRadii != null && this.boxCount > 0)
+                System.arraycopy(sourceRadii, 0, radii, 0, this.boxCount * 4);
+            else
+                java.util.Arrays.fill(radii, 0, this.boxCount * 4, radius);
+
+            this.radius = radius;
+            this.style.copyFrom(style);
+            this.minX = Float.POSITIVE_INFINITY;
+            this.minY = Float.POSITIVE_INFINITY;
+            this.maxX = Float.NEGATIVE_INFINITY;
+            this.maxY = Float.NEGATIVE_INFINITY;
+            for (int i = 0; i < this.boxCount; i++) {
+                int offset = i * 4;
+                float x = boxes[offset];
+                float y = boxes[offset + 1];
+                float width = boxes[offset + 2];
+                float height = boxes[offset + 3];
+                this.minX = Math.min(this.minX, x);
+                this.minY = Math.min(this.minY, y);
+                this.maxX = Math.max(this.maxX, x + width);
+                this.maxY = Math.max(this.maxY, y + height);
+            }
             return this;
         }
     }

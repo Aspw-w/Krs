@@ -1,27 +1,21 @@
 package com.instrumentalist.krs.utils.render;
 
 import org.nvgu.NVGU;
-import org.nvgu.util.Border;
 import org.nvgu.util.LinearGradientDirection;
 
 import java.awt.Color;
+import java.util.List;
 
-/**
- * Shared visual language for NanoVG surfaces.
- * Primary panels receive a restrained outline and deeper shadow, while compact
- * surfaces stay flat so nested UI does not turn into a stack of glowing cards.
- */
 public final class NanoVGTheme {
-    private static final float BLUR_RADIUS = 7f;
-    private static final float BLUR_ALPHA = 0.84f;
-    private static final Color PANEL_TOP = new Color(18, 24, 31, 82);
-    private static final Color PANEL_BOTTOM = new Color(8, 12, 18, 100);
-    private static final Color PANEL_BORDER_TOP = new Color(255, 255, 255, 44);
-    private static final Color PANEL_BORDER_BOTTOM = new Color(255, 255, 255, 14);
-    private static final Color PANEL_SHADOW = new Color(0, 0, 0, 102);
-    private static final Color COMPACT_SHADOW = new Color(0, 0, 0, 68);
+    private static final Shader2DRenderer.GlassRequest PANEL_GLASS = Shader2DRenderer.GlassRequest.panel();
+    private static final Shader2DRenderer.GlassRequest COMPACT_GLASS = Shader2DRenderer.GlassRequest.compact();
+    private static final Color PANEL_TOP = new Color(16, 22, 28, 48);
+    private static final Color PANEL_BOTTOM = new Color(8, 12, 18, 64);
 
-    public static final Color COMPACT_BACKGROUND = new Color(10, 15, 21, 96);
+    public static final Color COMPACT_BACKGROUND = new Color(12, 16, 22, 56);
+    private static final float[] CONNECTED_BOXES = new float[256];
+    private static final float[] CONNECTED_RADII = new float[256];
+    private static final float[] CORNER_SCRATCH = new float[4];
 
     private NanoVGTheme() {
     }
@@ -32,12 +26,7 @@ public final class NanoVGTheme {
         if (!isDrawable(width, height, opacity))
             return;
 
-        vg.blurRoundedRectangle(x, y, width, height, radius, BLUR_RADIUS, BLUR_ALPHA * opacity);
-        vg.shadowRoundedRectangle(
-                x, y, width, height, radius,
-                12f, 1f, 0f, 3f,
-                scaledAlpha(PANEL_SHADOW, opacity)
-        );
+        vg.liquidGlassRoundedRectangle(x, y, width, height, radius, opacity, PANEL_GLASS);
     }
 
     public static void renderCompactEffects(NVGU vg, float x, float y, float width, float height,
@@ -46,12 +35,128 @@ public final class NanoVGTheme {
         if (!isDrawable(width, height, opacity))
             return;
 
-        vg.blurRoundedRectangle(x, y, width, height, radius, BLUR_RADIUS, BLUR_ALPHA * opacity);
-        vg.shadowRoundedRectangle(
-                x, y, width, height, radius,
-                8f, 0f, 0f, 2f,
-                scaledAlpha(COMPACT_SHADOW, opacity)
-        );
+        vg.liquidGlassRoundedRectangle(x, y, width, height, radius, opacity, COMPACT_GLASS);
+    }
+
+    public static void renderConnectedEffects(NVGU vg, List<? extends ConnectedGlassRect> entries, float radius, float alpha) {
+        int written = packConnected(entries, radius);
+        if (written == 0)
+            return;
+
+        float opacity = opacity(alpha);
+        if (opacity <= 0.001f)
+            return;
+
+        vg.liquidGlassConnectedRoundedRectangles(CONNECTED_BOXES, CONNECTED_RADII, written, opacity, COMPACT_GLASS);
+    }
+
+    public static void renderConnected(NVGU vg, List<? extends ConnectedGlassRect> entries, float radius, float alpha) {
+        if (entries == null || entries.isEmpty())
+            return;
+
+        float opacity = opacity(alpha);
+        if (opacity <= 0.001f)
+            return;
+
+        for (int i = 0, n = entries.size(); i < n; i++) {
+            ConnectedGlassRect entry = entries.get(i);
+            if (entry == null || entry.width() <= 0f || entry.height() <= 0f)
+                continue;
+
+            writeCorners(entries, i, radius, CORNER_SCRATCH);
+            renderCompact(
+                    vg,
+                    entry.x(),
+                    entry.y(),
+                    entry.width(),
+                    entry.height(),
+                    CORNER_SCRATCH[0],
+                    CORNER_SCRATCH[1],
+                    CORNER_SCRATCH[2],
+                    CORNER_SCRATCH[3],
+                    opacity
+            );
+        }
+    }
+
+    private static int packConnected(List<? extends ConnectedGlassRect> entries, float radius) {
+        if (entries == null || entries.isEmpty())
+            return 0;
+
+        int written = 0;
+        int limit = Math.min(entries.size(), CONNECTED_BOXES.length / 4);
+        for (int i = 0; i < limit; i++) {
+            ConnectedGlassRect entry = entries.get(i);
+            if (entry == null || entry.width() <= 0f || entry.height() <= 0f)
+                continue;
+
+            int offset = written * 4;
+            CONNECTED_BOXES[offset] = entry.x();
+            CONNECTED_BOXES[offset + 1] = entry.y();
+            CONNECTED_BOXES[offset + 2] = entry.width();
+            CONNECTED_BOXES[offset + 3] = entry.height();
+            writeCorners(entries, i, radius, CORNER_SCRATCH);
+            CONNECTED_RADII[offset] = CORNER_SCRATCH[0];
+            CONNECTED_RADII[offset + 1] = CORNER_SCRATCH[1];
+            CONNECTED_RADII[offset + 2] = CORNER_SCRATCH[2];
+            CONNECTED_RADII[offset + 3] = CORNER_SCRATCH[3];
+            written++;
+        }
+        return written;
+    }
+
+    private static void writeCorners(List<? extends ConnectedGlassRect> entries, int index, float radius, float[] output) {
+        ConnectedGlassRect entry = entries.get(index);
+        if (entry.hasExplicitCorners()) {
+            output[0] = entry.topLeftRadius();
+            output[1] = entry.topRightRadius();
+            output[2] = entry.bottomRightRadius();
+            output[3] = entry.bottomLeftRadius();
+            return;
+        }
+
+        ConnectedGlassRect previous = index > 0 ? entries.get(index - 1) : null;
+        ConnectedGlassRect next = index + 1 < entries.size() ? entries.get(index + 1) : null;
+        float left = entry.x();
+        float right = entry.x() + entry.width();
+        output[0] = coversCorner(previous, left) ? 0f : radius;
+        output[1] = coversCorner(previous, right) ? 0f : radius;
+        output[2] = coversCorner(next, right) ? 0f : radius;
+        output[3] = coversCorner(next, left) ? 0f : radius;
+    }
+
+    private static boolean coversCorner(ConnectedGlassRect neighbor, float cornerX) {
+        return neighbor != null && cornerX >= neighbor.x() - 0.5f && cornerX <= neighbor.x() + neighbor.width() + 0.5f;
+    }
+
+    public interface ConnectedGlassRect {
+        float x();
+
+        float y();
+
+        float width();
+
+        float height();
+
+        default boolean hasExplicitCorners() {
+            return false;
+        }
+
+        default float topLeftRadius() {
+            return 0f;
+        }
+
+        default float topRightRadius() {
+            return 0f;
+        }
+
+        default float bottomRightRadius() {
+            return 0f;
+        }
+
+        default float bottomLeftRadius() {
+            return 0f;
+        }
     }
 
     public static void renderPanel(NVGU vg, float x, float y, float width, float height,
@@ -74,16 +179,6 @@ public final class NanoVGTheme {
                         scaledAlpha(PANEL_BOTTOM, opacity, backgroundAlphaOffset),
                         LinearGradientDirection.TOP_TO_BOTTOM
                 )
-        );
-        vg.roundedRectangleBorder(
-                x, y, width, height, radius, 1f,
-                vg.linearGradient(
-                        x, y, width, height, feather,
-                        scaledAlpha(PANEL_BORDER_TOP, opacity),
-                        scaledAlpha(PANEL_BORDER_BOTTOM, opacity),
-                        LinearGradientDirection.TOP_TO_BOTTOM
-                ),
-                Border.INSIDE
         );
     }
 

@@ -52,6 +52,10 @@ public class NVGU {
     private final float[] effectTransform = new float[6];
     private final float[] shaderTransform = new float[6];
     private final ShaderRect reusableShaderRect = new ShaderRect();
+    private final Shader2DRenderer.GlassRequest reusableGlassRequest = new Shader2DRenderer.GlassRequest();
+    private final float[] connectedGlassBoxes = new float[256];
+    private final float[] connectedGlassRadii = new float[256];
+    private static final Shader2DRenderer.GlassRequest PANEL_GLASS_STYLE = Shader2DRenderer.GlassRequest.panel();
     private final ArrayList<Shader2DRenderer.IndicatorRequest> transformedIndicatorRequests = new ArrayList<>();
     private final ArrayList<Shader2DRenderer.IndicatorRequest> transformedIndicatorRequestPool = new ArrayList<>();
     private final float[] textBounds = new float[4];
@@ -685,18 +689,93 @@ public class NVGU {
         return this;
     }
 
-    /**
-     * Draws a soft rounded-rectangle shadow using a shader.
-     * Call it before drawing the panel itself so the solid panel covers the shadow body.
-     */
+    public NVGU liquidGlassRoundedRectangle(float x, float y, float width, float height, float radius, float alpha,
+                                            Shader2DRenderer.GlassRequest style) {
+        ShaderRect rect = transformShaderRect(x, y, width, height, radius);
+        float effectiveAlpha = Math.clamp(alpha, 0f, 1f) * currentGlobalAlpha;
+        if (effectiveAlpha <= 0.001f || rect.width <= 0f || rect.height <= 0f)
+            return this;
+
+        Shader2DRenderer.GlassRequest request = reusableGlassRequest.copyFrom(style == null ? PANEL_GLASS_STYLE : style);
+        request.applyGeometry(rect.x, rect.y, rect.width, rect.height, rect.radius, effectiveAlpha);
+        request.zRadius *= rect.scale;
+        request.shadowSpread *= rect.scale;
+        request.shadowOffsetY *= rect.scaleY;
+
+        if (effectBatch != null) {
+            effectBatch.addGlass(request);
+            return this;
+        }
+
+        Shader2DRenderer.INSTANCE.drawLiquidGlassRoundedRect(frameWidth, frameHeight, request);
+        return this;
+    }
+
+    public NVGU liquidGlassConnectedRoundedRectangles(float[] boxes, float[] radii, int count, float alpha,
+                                                      Shader2DRenderer.GlassRequest style) {
+        if (boxes == null || count <= 0)
+            return this;
+
+        int available = Math.min(count, boxes.length / 4);
+        available = Math.min(available, connectedGlassBoxes.length / 4);
+        float effectiveAlpha = Math.clamp(alpha, 0f, 1f) * currentGlobalAlpha;
+        if (effectiveAlpha <= 0.001f)
+            return this;
+
+        int written = 0;
+        float scale = 1f;
+        float scaleY = 1f;
+        for (int i = 0; i < available; i++) {
+            int offset = i * 4;
+            float width = boxes[offset + 2];
+            float height = boxes[offset + 3];
+            if (width <= 0f || height <= 0f)
+                continue;
+
+            ShaderRect rect = transformShaderRect(boxes[offset], boxes[offset + 1], width, height, 0f);
+            int target = written * 4;
+            connectedGlassBoxes[target] = rect.x;
+            connectedGlassBoxes[target + 1] = rect.y;
+            connectedGlassBoxes[target + 2] = rect.width;
+            connectedGlassBoxes[target + 3] = rect.height;
+            if (radii != null && offset + 3 < radii.length) {
+                connectedGlassRadii[target] = radii[offset] * rect.scale;
+                connectedGlassRadii[target + 1] = radii[offset + 1] * rect.scale;
+                connectedGlassRadii[target + 2] = radii[offset + 2] * rect.scale;
+                connectedGlassRadii[target + 3] = radii[offset + 3] * rect.scale;
+            } else {
+                connectedGlassRadii[target] = 0f;
+                connectedGlassRadii[target + 1] = 0f;
+                connectedGlassRadii[target + 2] = 0f;
+                connectedGlassRadii[target + 3] = 0f;
+            }
+            scale = rect.scale;
+            scaleY = rect.scaleY;
+            written++;
+        }
+
+        if (written == 0)
+            return this;
+
+        Shader2DRenderer.GlassRequest request = reusableGlassRequest.copyFrom(style == null ? PANEL_GLASS_STYLE : style);
+        request.alpha = effectiveAlpha;
+        request.zRadius *= scale;
+        request.shadowSpread *= scale;
+        request.shadowOffsetY *= scaleY;
+
+        if (effectBatch != null) {
+            effectBatch.addConnectedGlass(connectedGlassBoxes, connectedGlassRadii, written, request);
+            return this;
+        }
+
+        Shader2DRenderer.INSTANCE.drawConnectedLiquidGlass(frameWidth, frameHeight, connectedGlassBoxes, connectedGlassRadii, written, 0f, request);
+        return this;
+    }
+
     public NVGU shadowRoundedRectangle(float x, float y, float width, float height, float radius, float blurRadius, Color colour) {
         return shadowRoundedRectangle(x, y, width, height, radius, blurRadius, 0f, 0f, 0f, colour);
     }
 
-    /**
-     * Draws a soft rounded-rectangle shadow using a shader.
-     * Call it before drawing the panel itself so the solid panel covers the shadow body.
-     */
     public NVGU shadowRoundedRectangle(float x, float y, float width, float height, float radius, float blurRadius, float spread, float offsetX, float offsetY, Color colour) {
         ShaderRect rect = transformShaderRect(x, y, width, height, radius);
         float offsetScaleX = rect.scaleX;
@@ -876,7 +955,14 @@ public class NVGU {
 
         endNativeFrame();
 
-        Shader2DRenderer.INSTANCE.drawEffects(frameWidth, frameHeight, batch.blurRequests, batch.shadowRequests);
+        Shader2DRenderer.INSTANCE.drawEffects(
+                frameWidth,
+                frameHeight,
+                batch.blurRequests,
+                batch.shadowRequests,
+                batch.glassRequests,
+                batch.connectedGlassRequests
+        );
 
         beginFrameInternal(frameWidth, frameHeight, frameDevicePixelRatio, false);
         nvgSave(handle);
@@ -1918,8 +2004,12 @@ public class NVGU {
     private static final class EffectBatch {
         private final ArrayList<Shader2DRenderer.BlurRequest> blurRequests = new ArrayList<>();
         private final ArrayList<Shader2DRenderer.ShadowRequest> shadowRequests = new ArrayList<>();
+        private final ArrayList<Shader2DRenderer.GlassRequest> glassRequests = new ArrayList<>();
+        private final ArrayList<Shader2DRenderer.ConnectedGlassRequest> connectedGlassRequests = new ArrayList<>();
         private final ArrayList<Shader2DRenderer.BlurRequest> blurRequestPool = new ArrayList<>();
         private final ArrayList<Shader2DRenderer.ShadowRequest> shadowRequestPool = new ArrayList<>();
+        private final ArrayList<Shader2DRenderer.GlassRequest> glassRequestPool = new ArrayList<>();
+        private final ArrayList<Shader2DRenderer.ConnectedGlassRequest> connectedGlassRequestPool = new ArrayList<>();
 
         private void addBlur(float x, float y, float width, float height, float radius, float blurRadius, float alpha) {
             int index = blurRequests.size();
@@ -1940,13 +2030,31 @@ public class NVGU {
             ));
         }
 
+        private void addGlass(Shader2DRenderer.GlassRequest request) {
+            int index = glassRequests.size();
+            while (glassRequestPool.size() <= index)
+                glassRequestPool.add(new Shader2DRenderer.GlassRequest());
+
+            glassRequests.add(glassRequestPool.get(index).copyFrom(request));
+        }
+
+        private void addConnectedGlass(float[] boxes, float[] radii, int count, Shader2DRenderer.GlassRequest style) {
+            int index = connectedGlassRequests.size();
+            while (connectedGlassRequestPool.size() <= index)
+                connectedGlassRequestPool.add(new Shader2DRenderer.ConnectedGlassRequest());
+
+            connectedGlassRequests.add(connectedGlassRequestPool.get(index).set(boxes, radii, count, 0f, style));
+        }
+
         private void clear() {
             blurRequests.clear();
             shadowRequests.clear();
+            glassRequests.clear();
+            connectedGlassRequests.clear();
         }
 
         private boolean isEmpty() {
-            return blurRequests.isEmpty() && shadowRequests.isEmpty();
+            return blurRequests.isEmpty() && shadowRequests.isEmpty() && glassRequests.isEmpty() && connectedGlassRequests.isEmpty();
         }
     }
 
