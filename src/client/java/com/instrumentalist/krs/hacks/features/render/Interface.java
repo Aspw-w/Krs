@@ -22,6 +22,7 @@ import com.instrumentalist.krs.utils.math.Interpolation;
 import com.instrumentalist.krs.utils.math.BehaviorUtils;
 import com.instrumentalist.krs.utils.nanovg.MaterialIcon;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
+import com.instrumentalist.krs.utils.nanovg.NanoVGTextFormatter;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.packet.BlinkUtil;
 import com.instrumentalist.krs.utils.render.NanoVGTheme;
@@ -614,7 +615,7 @@ public class Interface extends Module {
             if (firstSelf != secondSelf)
                 return firstSelf ? -1 : 1;
 
-            return getPlayerListName(first).compareToIgnoreCase(getPlayerListName(second));
+            return getPlayerListPlainName(first).compareToIgnoreCase(getPlayerListPlainName(second));
         });
         cachedPlayerListEntries = players;
         preparePlayerListRows(players);
@@ -1457,8 +1458,18 @@ public class Interface extends Module {
     }
 
     private static String getPlayerListName(PlayerInfo entry) {
-        String name = getPlayerListDisplayName(entry).getString();
-        name = stripPlayerListRankPrefix(name);
+        Component displayName = getPlayerListDisplayName(entry);
+        String plain = displayName.getString();
+        String plainName = stripPlayerListRankPrefix(plain);
+        if (plainName == null || plainName.isBlank()) {
+            String formatted = NanoVGTextFormatter.formatColors(displayName).strip();
+            return formatted.isEmpty() ? "Unknown" : formatted;
+        }
+        return NanoVGTextFormatter.formatColors(displayName, getPlayerListRankPrefixLength(plain));
+    }
+
+    private static String getPlayerListPlainName(PlayerInfo entry) {
+        String name = stripPlayerListRankPrefix(getPlayerListDisplayName(entry).getString());
         return name == null || name.isBlank() ? "Unknown" : name;
     }
 
@@ -1470,18 +1481,33 @@ public class Interface extends Module {
         if (name == null)
             return name;
 
+        int prefixLength = getPlayerListRankPrefixLength(name);
+        return prefixLength <= 0 ? name : name.substring(prefixLength);
+    }
+
+    private static int getPlayerListRankPrefixLength(String name) {
+        if (name == null || name.isEmpty())
+            return 0;
+
         int separatorIndex = name.indexOf('|');
-        if (separatorIndex >= 0)
-            return name.substring(separatorIndex + 1).stripLeading();
+        if (separatorIndex >= 0) {
+            int start = separatorIndex + 1;
+            while (start < name.length() && Character.isWhitespace(name.charAt(start)))
+                start++;
+            return start;
+        }
 
         if (!name.startsWith("["))
-            return name;
+            return 0;
 
         int closingBracketIndex = name.indexOf(']');
         if (closingBracketIndex <= 0)
-            return name;
+            return 0;
 
-        return name.substring(closingBracketIndex + 1).stripLeading();
+        int start = closingBracketIndex + 1;
+        while (start < name.length() && Character.isWhitespace(name.charAt(start)))
+            start++;
+        return start;
     }
 
     private static String getPlayerListPingText(int latency) {
