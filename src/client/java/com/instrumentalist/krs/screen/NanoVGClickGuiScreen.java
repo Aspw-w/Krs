@@ -152,8 +152,6 @@ public class NanoVGClickGuiScreen extends Screen {
     private Module tooltipHoverModule;
     private long hoveredModuleStartNanos;
     private String tooltipText = "";
-    private float tooltipX;
-    private float tooltipY;
     private float settingsDockReveal;
 
     public NanoVGClickGuiScreen() {
@@ -1334,7 +1332,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
         boolean hovered = isHovered(row);
         if (hovered)
-            rememberHoveredModule(module, row);
+            rememberHoveredModule(module);
         float enabled = animateIdentity(enabledAnimations, enabledAnimationFrames, module, module.tempEnabled, 0.12f);
         boolean selected = settingsPanelModule == module;
         if (enabled > 0.01f)
@@ -2318,7 +2316,7 @@ public class NanoVGClickGuiScreen extends Screen {
         }
     }
 
-    private void rememberHoveredModule(Module module, Rect row) {
+    private void rememberHoveredModule(Module module) {
         hoveredModule = module;
         if (tooltipHoverModule != module) {
             tooltipHoverModule = module;
@@ -2328,8 +2326,6 @@ public class NanoVGClickGuiScreen extends Screen {
         if (note.isEmpty())
             return;
         tooltipText = note;
-        tooltipX = row.x + 18f;
-        tooltipY = row.y + row.height + 4f;
     }
 
     private void renderHoverTooltip(NVGU vg) {
@@ -2348,13 +2344,15 @@ public class NanoVGClickGuiScreen extends Screen {
         String text = fitText(tooltipText, NVGFonts.INTER, 10f, maxWidth);
         float width = NVGFonts.INTER.getWidth(text, 10f) + paddingX * 2f;
         float height = 22f;
-        Rect panel = panelBounds(NanoVGManager.getScaledScreenWidth(), NanoVGManager.getScaledScreenHeight());
-        float drawX = tooltipX + width > panel.x + panel.width - 12f
-                ? panel.x + panel.width - 12f - width
-                : tooltipX;
-        float drawY = tooltipY + height > panel.y + panel.height - 8f
-                ? tooltipY - height - 28f
-                : tooltipY;
+        float screenWidth = NanoVGManager.getScaledScreenWidth();
+        float screenHeight = NanoVGManager.getScaledScreenHeight();
+        float preferredX = scaledMouseX + 10f;
+        float drawX = preferredX + width > screenWidth - 8f
+                ? Math.max(8f, screenWidth - 8f - width)
+                : Math.max(8f, preferredX);
+        float drawY = scaledMouseY + 16f + height > screenHeight - 8f
+                ? scaledMouseY - height - 8f
+                : scaledMouseY + 16f;
 
         vg.globalAlpha(easeOut(progress), () -> {
             NanoVGTheme.renderPanel(vg, drawX, drawY, width, height, 5f, 1f);

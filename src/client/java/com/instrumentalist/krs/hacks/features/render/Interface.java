@@ -140,7 +140,7 @@ public class Interface extends Module {
     @Setting
     private static final BooleanValue tabGui = new BooleanValue(
             "TabGui",
-            false
+            true
     );
 
     @Setting
@@ -164,7 +164,7 @@ public class Interface extends Module {
     @Setting
     private static final BooleanValue playerList = new BooleanValue(
             "Players",
-            false
+            true
     );
 
     @Setting
