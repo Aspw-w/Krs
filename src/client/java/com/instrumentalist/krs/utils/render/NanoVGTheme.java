@@ -14,10 +14,17 @@ public final class NanoVGTheme {
     public static Color ACCENT = new Color(0xFF, 0xD0, 0x00);
     private static final Shader2DRenderer.GlassRequest PANEL_GLASS = Shader2DRenderer.GlassRequest.panel();
     private static final Shader2DRenderer.GlassRequest COMPACT_GLASS = Shader2DRenderer.GlassRequest.compact();
+    private static final Shader2DRenderer.GlassRequest CONTROL_GLASS = Shader2DRenderer.GlassRequest.control();
+    private static final Shader2DRenderer.GlassRequest CONTROL_DARK_GLASS = Shader2DRenderer.GlassRequest.controlDark();
     private static final Color PANEL_TOP = new Color(0x16, 0x16, 0x16, 64);
     private static final Color PANEL_BOTTOM = new Color(0x16, 0x16, 0x16, 92);
 
     public static final Color COMPACT_BACKGROUND = new Color(0x16, 0x16, 0x16, 78);
+    public static final Color SWITCH_ON = new Color(0x2F, 0xD1, 0x6A);
+    public static final Color SLIDER_FILL = new Color(0xFF, 0xB3, 0x40);
+    public static final Color CONTROL_TRACK = new Color(255, 255, 255, 190);
+    public static final Color LIST_CHIP = new Color(255, 255, 255, 210);
+    public static final Color KNOB_FILL = Color.WHITE;
     private static final float[] CONNECTED_BOXES = new float[256];
     private static final float[] CONNECTED_RADII = new float[256];
     private static final float[] CORNER_SCRATCH = new float[4];
@@ -65,6 +72,30 @@ public final class NanoVGTheme {
             return;
 
         vg.liquidGlassRoundedRectangle(x, y, width, height, radius, opacity, COMPACT_GLASS);
+    }
+
+    public static void renderControlEffects(NVGU vg, float x, float y, float width, float height,
+                                            float radius, float alpha) {
+        renderControlEffects(vg, x, y, width, height, radius, alpha, 0f);
+    }
+
+    public static void renderControlEffects(NVGU vg, float x, float y, float width, float height,
+                                            float radius, float alpha, float brightness) {
+        float opacity = opacity(alpha);
+        if (!isDrawable(width, height, opacity))
+            return;
+
+        CONTROL_GLASS.brightness = brightness;
+        vg.liquidGlassRoundedRectangle(x, y, width, height, radius, opacity, CONTROL_GLASS);
+    }
+
+    public static void renderControlDarkEffects(NVGU vg, float x, float y, float width, float height,
+                                                float radius, float alpha) {
+        float opacity = opacity(alpha);
+        if (!isDrawable(width, height, opacity))
+            return;
+
+        vg.liquidGlassRoundedRectangle(x, y, width, height, radius, opacity, CONTROL_DARK_GLASS);
     }
 
     public static void renderConnectedEffects(NVGU vg, List<? extends ConnectedGlassRect> entries, float radius, float alpha) {
@@ -243,6 +274,14 @@ public final class NanoVGTheme {
 
     public static Color accent(int alpha) {
         return new Color(ACCENT.getRed(), ACCENT.getGreen(), ACCENT.getBlue(), Math.clamp(alpha, 0, 255));
+    }
+
+    public static Color switchOn(int alpha) {
+        return new Color(SWITCH_ON.getRed(), SWITCH_ON.getGreen(), SWITCH_ON.getBlue(), Math.clamp(alpha, 0, 255));
+    }
+
+    public static Color sliderFill(int alpha) {
+        return new Color(SLIDER_FILL.getRed(), SLIDER_FILL.getGreen(), SLIDER_FILL.getBlue(), Math.clamp(alpha, 0, 255));
     }
 
     private static Color deriveAccent(BufferedImage image) {

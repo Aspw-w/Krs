@@ -411,6 +411,10 @@ public class NVGU {
         return this;
     }
 
+    public float currentAlpha() {
+        return currentGlobalAlpha;
+    }
+
     public NVGU globalAlpha(float alpha, Runnable render) {
         float previousGlobalAlpha = currentGlobalAlpha;
         try {

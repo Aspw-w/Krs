@@ -467,6 +467,43 @@ public final class Shader2DRenderer {
                 color = mix(vec3(luminance), color, 1.0 + glass2.y);
                 color = mix(color, color * vec3(0.92, 0.95, 1.05), glass2.z);
 
+                float edgeHL = max(glass1.x, 0.0);
+                float specAmt = max(glass1.y, 0.0);
+                float fresnelAmt = max(glass1.z, 0.0);
+                if (edgeHL > 0.001 || specAmt > 0.001 || fresnelAmt > 0.001) {
+                    color *= 1.0 + 0.06 * depth;
+                    float fres = pow(1.0 - abs(normal.z), 4.0) * fresnelAmt;
+                    float borderWidth = 1.5;
+                    float innerStroke = smoothstep(-borderWidth - 1.0, -borderWidth, sdf)
+                            * (1.0 - smoothstep(-1.0, 0.0, sdf));
+                    float topBias = 0.5 + 0.5 * (-localPx.y / max(halfSize.y, 1.0));
+                    innerStroke *= (0.4 + 0.6 * topBias);
+                    float rim = edge * edgeHL * 0.22;
+                    float innerGlow = smoothstep(5.0, 0.0, -sdf) * edgeHL * 0.15;
+                    float envRefl = (normal.y * 0.5 + 0.5) * fres * 0.08;
+                    float totalSpec = 0.0;
+                    if (specAmt > 0.001) {
+                        vec3 viewDir = vec3(0.0, 0.0, 1.0);
+                        vec3 light1 = normalize(vec3(0.4, 0.7, 1.0));
+                        vec3 half1 = normalize(light1 + viewDir);
+                        float spec1 = pow(max(dot(normal, half1), 0.0), 90.0);
+                        vec3 light2 = normalize(vec3(-0.3, -0.5, 1.0));
+                        vec3 half2 = normalize(light2 + viewDir);
+                        float spec2 = pow(max(dot(normal, half2), 0.0), 50.0) * 0.3;
+                        vec3 light3 = normalize(vec3(0.1, 0.3, 1.0));
+                        float specBroad = pow(max(dot(normal, light3), 0.0), 6.0) * 0.1;
+                        vec3 light4 = normalize(vec3(0.0, 0.9, 0.4));
+                        vec3 half4 = normalize(light4 + viewDir);
+                        float spec4 = pow(max(dot(normal, half4), 0.0), 120.0) * 0.6;
+                        totalSpec = (spec1 + spec2 + specBroad + spec4) * specAmt;
+                    }
+                    color += vec3(totalSpec);
+                    color += vec3(rim + innerGlow);
+                    color += vec3(innerStroke * edgeHL * 0.55);
+                    color += vec3(envRefl);
+                    color = mix(color, vec3(1.0), fres * 0.2);
+                }
+
                 fragColor = vec4(color, mask * clamp(glass2.x, 0.0, 1.0));
             }
             """.formatted(EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE);
@@ -2328,6 +2365,31 @@ public final class Shader2DRenderer {
             request.shadowOpacity = 0.2f;
             request.shadowSpread = 8f;
             request.shadowOffsetY = 1f;
+            return request;
+        }
+
+        public static GlassRequest control() {
+            GlassRequest request = new GlassRequest();
+            request.refraction = 0.69f;
+            request.chromAberration = 0.05f;
+            request.edgeHighlight = 0.05f;
+            request.specular = 0f;
+            request.fresnel = 1f;
+            request.blurAmount = 0.22f;
+            request.brightness = 0f;
+            request.saturation = 0f;
+            request.tintStrength = 0f;
+            request.shadowOpacity = 0.3f;
+            request.shadowSpread = 8f;
+            request.shadowOffsetY = 1f;
+            request.zRadius = 40f;
+            return request;
+        }
+
+        public static GlassRequest controlDark() {
+            GlassRequest request = control();
+            request.blurAmount = 0.25f;
+            request.brightness = -0.3f;
             return request;
         }
     }
