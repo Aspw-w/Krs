@@ -79,8 +79,8 @@ public class Interface extends Module {
     private static final long MINIMAP_TERRAIN_REFRESH_NANOS = 5_000_000_000L;
     private static final long PLAYER_LIST_REFRESH_NANOS = 250_000_000L;
     private static final ThreadLocal<DecimalFormat> ONE_DECIMAL_FORMAT = ThreadLocal.withInitial(() -> new DecimalFormat("0.0"));
-    private static final Color MODULE_LIST_BACKGROUND_COLOR = NanoVGTheme.offsetAlpha(NanoVGTheme.COMPACT_BACKGROUND, 8);
-    private static final Color MODULE_LIST_TAG_COLOR = new Color(160, 160, 160, 255);
+    private static final float MODULE_LIST_FONT_SIZE = 15f;
+    private static final Color MODULE_LIST_TAG_COLOR = new Color(0xC8, 0xC8, 0xC2);
     private static long cachedTimeSecond = -1L;
     private static String cachedTimeText = "00:00:00";
 
@@ -295,7 +295,6 @@ public class Interface extends Module {
         float textX;
         float textY;
         int alpha;
-        int baseAlpha;
         Color textColor;
         float topLeftRadius;
         float topRightRadius;
@@ -303,7 +302,7 @@ public class Interface extends Module {
         float bottomLeftRadius;
 
         void update(ModuleListEntry entry, float x, float y, float width, float height,
-                    float textX, float textY, int alpha, int baseAlpha, Color textColor) {
+                    float textX, float textY, int alpha, Color textColor) {
             this.entry = entry;
             this.x = x;
             this.y = y;
@@ -312,7 +311,6 @@ public class Interface extends Module {
             this.textX = textX;
             this.textY = textY;
             this.alpha = alpha;
-            this.baseAlpha = baseAlpha;
             this.textColor = textColor;
         }
 
@@ -2361,7 +2359,6 @@ public class Interface extends Module {
         List<ModuleListEntry> renderEntries = moduleListEntryBuffer;
         renderEntries.clear();
         moduleListChangedSortKeys.clear();
-        float fontSize = 17f;
         float speed = 0.14f * (deltaTime / 16f);
 
         for (Module m : sourceModules) {
@@ -2385,7 +2382,7 @@ public class Interface extends Module {
 
             String text = m.moduleName;
             String tagText = getModuleListTagText(m);
-            entry.update(text, tagText, progress, fontSize);
+            entry.update(text, tagText, progress, MODULE_LIST_FONT_SIZE);
             Float sortedWidth = moduleListSortWidthCache.get(m);
             if (sortedWidth == null || Float.compare(sortedWidth, entry.fullWidth) != 0) {
                 moduleListSortWidthCache.put(m, entry.fullWidth);
@@ -2445,16 +2442,13 @@ public class Interface extends Module {
         if (entries.isEmpty())
             return renderEntries;
 
-        float xPadding = -5f;
-        float listY = 4f;
+        float listY = 10f;
         float screenWidth = NanoVGManager.getScaledScreenWidth();
-        float padding = 3f;
-        float fontSize = 17f;
-        float fontHeight = NVGFonts.INTER.getHeight(fontSize);
-        float rowHeight = fontHeight + 5f;
-        float defaultTopPadding = 3f;
-        float defaultBottomPadding = rowHeight - fontHeight - defaultTopPadding;
-        float rightEdge = screenWidth + xPadding - 1f;
+        float fontHeight = NVGFonts.INTER.getHeight(MODULE_LIST_FONT_SIZE);
+        float rowHeight = fontHeight + 4f;
+        float rightMargin = 10f;
+        float horizontalPadding = 8f;
+        float rightX = screenWidth - rightMargin;
         int visibleCount = countVisibleModuleListEntries(entries, rowHeight);
 
         if (visibleCount == 0)
@@ -2465,17 +2459,14 @@ public class Interface extends Module {
             if (rowHeight * entry.progress <= 0.5f)
                 continue;
 
-            float textX = rightEdge - entry.fullWidth - 2;
+            float textX = rightX - horizontalPadding - entry.fullWidth;
             int alpha = Math.clamp((int) (entry.progress * 255f), 0, 255);
-            int baseAlpha = alpha * MODULE_LIST_BACKGROUND_COLOR.getAlpha() / 255;
-            float rightX = rightEdge + padding;
-            float horizontalPadding = rightX - (textX + entry.fullWidth) + 1;
             float leftX = textX - horizontalPadding;
-            float topPadding = visibleIndex == 0 ? horizontalPadding - 2 : defaultTopPadding;
-            float bottomPadding = visibleIndex == visibleCount - 1 ? horizontalPadding - 2 : defaultBottomPadding;
+            float topPadding = visibleIndex == 0 ? 6f : 2f;
+            float bottomPadding = visibleIndex == visibleCount - 1 ? 6f : 2f;
             float effectiveHeight = (fontHeight + topPadding + bottomPadding) * entry.progress;
             float textY = listY + topPadding;
-            Color textColor = alphaColor(255, 255, 255, alpha);
+            Color textColor = alphaColor(0xF6, 0xF6, 0xF1, alpha);
 
             while (moduleListRenderEntryPool.size() <= visibleIndex)
                 moduleListRenderEntryPool.add(new ModuleListRenderEntry());
@@ -2489,7 +2480,6 @@ public class Interface extends Module {
                     textX,
                     textY,
                     alpha,
-                    baseAlpha,
                     textColor
             );
             renderEntries.add(renderEntry);
@@ -2527,24 +2517,22 @@ public class Interface extends Module {
 
         NanoVGTheme.renderConnected(vg, renderEntries, 8f, 1f);
 
-        float fontSize = 17f;
         for (ModuleListRenderEntry entry : renderEntries) {
             boolean clipAnimatedEntry = entry.alpha != 255;
             if (clipAnimatedEntry)
                 vg.pushScissor(entry.x, entry.y, entry.width, entry.height);
             try {
-                boolean drawTextShadow = entry.baseAlpha < 96;
-                NVGFonts.INTER.drawText(entry.entry.text, entry.textX, entry.textY, fontSize,
-                        entry.textColor, Alignment.LEFT_TOP, drawTextShadow);
+                NVGFonts.INTER.drawText(entry.entry.text, entry.textX, entry.textY, MODULE_LIST_FONT_SIZE,
+                        entry.textColor, Alignment.LEFT_TOP, false);
                 if (entry.entry.tagText != null) {
                     NVGFonts.INTER.drawText(
                             entry.entry.tagText,
                             entry.textX + entry.entry.textWidth,
                             entry.textY,
-                            fontSize,
-                            entry.alpha == 255 ? MODULE_LIST_TAG_COLOR : alphaColor(160, 160, 160, entry.alpha),
+                            MODULE_LIST_FONT_SIZE,
+                            alphaColor(MODULE_LIST_TAG_COLOR.getRed(), MODULE_LIST_TAG_COLOR.getGreen(), MODULE_LIST_TAG_COLOR.getBlue(), entry.alpha),
                             Alignment.LEFT_TOP,
-                            drawTextShadow
+                            false
                     );
                 }
             } finally {
@@ -2666,7 +2654,7 @@ public class Interface extends Module {
     }
 
     private void refreshSortedModules() {
-        final float fontSize = 17f;
+        final float fontSize = MODULE_LIST_FONT_SIZE;
         List<ModuleSortEntry> entries = new ArrayList<>();
         moduleListSortWidthCache.clear();
         for (Module module : ModuleManager.allModules) {

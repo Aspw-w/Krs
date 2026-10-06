@@ -22,6 +22,8 @@ public final class NanoVGTheme {
     public static final Color COMPACT_BACKGROUND = new Color(0x16, 0x16, 0x16, 78);
     public static final Color SWITCH_ON = new Color(0x2F, 0xD1, 0x6A);
     public static final Color SLIDER_FILL = new Color(0xFF, 0xB3, 0x40);
+    public static final Color INPUT_FOCUS = new Color(0xEE, 0xF2, 0xF7);
+    public static final Color SCROLLBAR_THUMB = new Color(0xEE, 0xF2, 0xF7);
     public static final Color CONTROL_TRACK = new Color(255, 255, 255, 190);
     public static final Color LIST_CHIP = new Color(255, 255, 255, 210);
     public static final Color KNOB_FILL = Color.WHITE;
@@ -282,6 +284,14 @@ public final class NanoVGTheme {
 
     public static Color sliderFill(int alpha) {
         return new Color(SLIDER_FILL.getRed(), SLIDER_FILL.getGreen(), SLIDER_FILL.getBlue(), Math.clamp(alpha, 0, 255));
+    }
+
+    public static Color inputFocus(int alpha) {
+        return new Color(INPUT_FOCUS.getRed(), INPUT_FOCUS.getGreen(), INPUT_FOCUS.getBlue(), Math.clamp(alpha, 0, 255));
+    }
+
+    public static Color scrollbarThumb(int alpha) {
+        return new Color(SCROLLBAR_THUMB.getRed(), SCROLLBAR_THUMB.getGreen(), SCROLLBAR_THUMB.getBlue(), Math.clamp(alpha, 0, 255));
     }
 
     private static Color deriveAccent(BufferedImage image) {

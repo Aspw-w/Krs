@@ -1119,8 +1119,8 @@ public class NanoVGClickGuiScreen extends Screen {
         boolean focused = textFocus == TextFocus.SEARCH;
         boolean hovered = rect.contains(scaledMouseX, scaledMouseY);
         vg.roundedRectangle(rect.x, rect.y, rect.width, rect.height, 5f, alpha(255, 255, 255, focused ? 30 : hovered ? 23 : 16));
-        vg.roundedRectangleBorder(rect.x, rect.y, rect.width, rect.height, 5f, 1f, focused ? NanoVGTheme.accent( 96) : alpha(255, 255, 255, 30), Border.INSIDE);
-        NVGFonts.ICON.drawText(MaterialIcon.SEARCH, rect.x + 7f, rect.y + 3f, 12f, focused ? NanoVGTheme.ACCENT : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, false);
+        vg.roundedRectangleBorder(rect.x, rect.y, rect.width, rect.height, 5f, 1f, focused ? NanoVGTheme.inputFocus(120) : alpha(255, 255, 255, 30), Border.INSIDE);
+        NVGFonts.ICON.drawText(MaterialIcon.SEARCH, rect.x + 7f, rect.y + 3f, 12f, focused ? NanoVGTheme.INPUT_FOCUS : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, false);
 
         String text = inputText(searchQuery, focused, "Search");
         Color color = searchQuery.isBlank() && !focused ? alpha(120, 130, 140, 205) : alpha(255, 255, 255, 235);
@@ -1153,7 +1153,7 @@ public class NanoVGClickGuiScreen extends Screen {
         else
             countLabel = visibleCount + (visibleCount == 1 ? " module" : " modules");
         NVGFonts.INTER_MEDIUM.drawText(countLabel, x + width - 2f, y + 5f, 10f,
-                searchQuery.isBlank() ? alpha(176, 186, 196, 220) : NanoVGTheme.accent( 225),
+                searchQuery.isBlank() ? alpha(176, 186, 196, 220) : NanoVGTheme.inputFocus(230),
                 Alignment.RIGHT_TOP, false);
     }
 
@@ -1311,20 +1311,20 @@ public class NanoVGClickGuiScreen extends Screen {
 
         boolean inputHovered = input.contains(scaledMouseX, scaledMouseY);
         vg.roundedRectangle(input.x, input.y, input.width, input.height, 5f, alpha(255, 255, 255, active ? 29 : inputHovered ? 22 : 16));
-        vg.roundedRectangleBorder(input.x, input.y, input.width, input.height, 5f, 1f, active ? NanoVGTheme.accent( 90) : alpha(255, 255, 255, 28), Border.INSIDE);
+        vg.roundedRectangleBorder(input.x, input.y, input.width, input.height, 5f, 1f, active ? NanoVGTheme.inputFocus(110) : alpha(255, 255, 255, 28), Border.INSIDE);
 
         String placeholder = selectedConfigTab == ConfigTab.MODULE ? "New module config" : "New bind config";
         String text = inputText(newConfigName, active, placeholder);
         String visibleText = fitText(text, NVGFonts.INTER, 11f, input.width - 32f);
         renderSelectionHighlight(vg, active, visibleText, NVGFonts.INTER, 11f, input.x + 26f, input.y + 6f, input.width - 32f);
-        NVGFonts.ICON.drawText(MaterialIcon.ADD, input.x + 8f, input.y + 5f, 12f, active ? NanoVGTheme.ACCENT : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, false);
+        NVGFonts.ICON.drawText(MaterialIcon.ADD, input.x + 8f, input.y + 5f, 12f, active ? NanoVGTheme.INPUT_FOCUS : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, false);
         NVGFonts.INTER.drawText(visibleText, input.x + 26f, input.y + 6f, 11f, newConfigName.isBlank() && !active ? alpha(120, 130, 140, 205) : alpha(255, 255, 255, 235), Alignment.LEFT_TOP, false);
 
         boolean canCreate = !cleanConfigName(newConfigName).isBlank();
         boolean hovered = button.contains(scaledMouseX, scaledMouseY);
         float progress = animate("config-create", canCreate && hovered, 0.18f);
         vg.roundedRectangle(button.x, button.y, button.width, button.height, 5f, alpha(255, 255, 255, canCreate ? (int) (22 + 16 * progress) : 14));
-        vg.roundedRectangleBorder(button.x, button.y, button.width, button.height, 5f, 1f, canCreate ? NanoVGTheme.accent( 88) : alpha(255, 255, 255, 24), Border.INSIDE);
+        vg.roundedRectangleBorder(button.x, button.y, button.width, button.height, 5f, 1f, canCreate ? NanoVGTheme.inputFocus(88) : alpha(255, 255, 255, 24), Border.INSIDE);
         NVGFonts.INTER_MEDIUM.drawText("Create", button.centerX(), button.y + 6f, 11f, canCreate ? alpha(255, 255, 255, 235) : alpha(120, 130, 140, 205), Alignment.CENTER_TOP, false);
     }
 
@@ -1591,7 +1591,7 @@ public class NanoVGClickGuiScreen extends Screen {
         float inputWidth = Math.clamp(row.width * 0.44f, 92f, 160f);
         Rect input = new Rect(row.x + row.width - inputWidth - 8f, row.y + 4f, inputWidth, 19f);
         boolean valid = parseNumberInput() != null;
-        Color borderColor = valid ? NanoVGTheme.accent( 100) : alpha(255, 88, 88, 150);
+        Color borderColor = valid ? NanoVGTheme.inputFocus(120) : alpha(255, 88, 88, 150);
         vg.roundedRectangle(input.x, input.y, input.width, input.height, 4f, alpha(255, 255, 255, 28));
         vg.roundedRectangleBorder(input.x, input.y, input.width, input.height, 4f, 1f, borderColor, Border.INSIDE);
 
@@ -1649,7 +1649,7 @@ public class NanoVGClickGuiScreen extends Screen {
         Rect input = new Rect(row.x + row.width - 132f, row.y + 4f, 124f, 19f);
         addControl(ControlType.TEXT_VALUE, input, value, module, 0);
         vg.roundedRectangle(input.x, input.y, input.width, input.height, 4f, alpha(255, 255, 255, active ? 28 : 18));
-        vg.roundedRectangleBorder(input.x, input.y, input.width, input.height, 4f, 1f, active ? NanoVGTheme.accent( 90) : alpha(255, 255, 255, 30), Border.INSIDE);
+        vg.roundedRectangleBorder(input.x, input.y, input.width, input.height, 4f, 1f, active ? NanoVGTheme.inputFocus(110) : alpha(255, 255, 255, 30), Border.INSIDE);
         String text = inputText(value.get(), active, "");
         String visibleText = fitText(text, NVGFonts.INTER, 10f, input.width - 10f);
         renderSelectionHighlight(vg, active, visibleText, NVGFonts.INTER, 10f, input.x + 6f, input.y + 5f, input.width - 10f);
@@ -2039,7 +2039,7 @@ public class NanoVGClickGuiScreen extends Screen {
         boolean hovered = scrollbarTrackRect.contains(scaledMouseX, scaledMouseY) || activeScrollbar != null;
         float progress = animate("scrollbar", hovered, 0.18f);
         vg.roundedRectangle(trackX + 1f, viewport.y + 4f, 2f, viewport.height - 8f, 1f, alpha(255, 255, 255, (int) (18 + 18 * progress)));
-        vg.roundedRectangle(scrollbarThumbRect.x, scrollbarThumbRect.y, scrollbarThumbRect.width, scrollbarThumbRect.height, 2.5f, NanoVGTheme.accent( (int) (145 + 55 * progress)));
+        vg.roundedRectangle(scrollbarThumbRect.x, scrollbarThumbRect.y, scrollbarThumbRect.width, scrollbarThumbRect.height, 2.5f, NanoVGTheme.scrollbarThumb((int) (112 + 86 * progress)));
     }
 
     private void renderSettingsPanelScrollbar(NVGU vg, float contentHeight) {
@@ -2082,7 +2082,7 @@ public class NanoVGClickGuiScreen extends Screen {
                 settingsPanelScrollbarThumbRect.width,
                 settingsPanelScrollbarThumbRect.height,
                 2.5f,
-                NanoVGTheme.accent( (int) (145 + 55 * progress))
+                NanoVGTheme.scrollbarThumb((int) (112 + 86 * progress))
         );
     }
 
@@ -2910,7 +2910,7 @@ public class NanoVGClickGuiScreen extends Screen {
                 selectedWidth + 2f,
                 fontSize + 3f,
                 2f,
-                alpha(0, 180, 220, 120)
+                NanoVGTheme.inputFocus(72)
         );
     }
 

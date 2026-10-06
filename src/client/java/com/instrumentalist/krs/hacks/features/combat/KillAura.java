@@ -310,7 +310,14 @@ public class KillAura extends Module {
     private record TeleportMoveStep(Vec3 position) implements TeleportStep {
     }
 
-    private record TeleportAttackStep(Entity target, Vec3 clientPosition) implements TeleportStep {
+    private record TeleportGoStep(Entity target, boolean preferRandom, boolean requiresPath,
+                                 Vec3 plannedFrom, ArrayList<Vec3> plannedPath) implements TeleportStep {
+    }
+
+    private record TeleportReturnStep(int estimatedPackets) implements TeleportStep {
+    }
+
+    private record TeleportAttackStep(Entity target, boolean moveClientToArrival) implements TeleportStep {
     }
 
     private record ResolvedTeleportPath(Vec3 arrivalPosition, ArrayList<Vec3> positions) {
@@ -319,7 +326,7 @@ public class KillAura extends Module {
     private static final class PendingTeleportSequence {
         private final ArrayList<TeleportStep> steps;
         private final ArrayList<Vec3> sentPositions = new ArrayList<>();
-        private final int totalMovePackets;
+        private int totalMovePackets;
         private final int totalTicks;
         private final String swingMode;
         private final String autoBlockMode;
@@ -329,6 +336,7 @@ public class KillAura extends Module {
         private final boolean canAutoBlock;
         private final boolean onGround;
         private final boolean horizontalCollision;
+        private Vec3 lastSentPosition;
         private int nextStep;
         private int sentMovePackets;
         private int elapsedTicks;
@@ -336,7 +344,7 @@ public class KillAura extends Module {
         private PendingTeleportSequence(ArrayList<TeleportStep> steps, int totalMovePackets, int totalTicks,
                                         String swingMode, String autoBlockMode, float yaw, float pitch,
                                         Entity blockTarget, boolean canAutoBlock, boolean onGround,
-                                        boolean horizontalCollision) {
+                                        boolean horizontalCollision, Vec3 lastSentPosition) {
             this.steps = steps;
             this.totalMovePackets = totalMovePackets;
             this.totalTicks = totalTicks;
@@ -348,6 +356,7 @@ public class KillAura extends Module {
             this.canAutoBlock = canAutoBlock;
             this.onGround = onGround;
             this.horizontalCollision = horizontalCollision;
+            this.lastSentPosition = lastSentPosition;
         }
     }
 
@@ -433,13 +442,12 @@ public class KillAura extends Module {
             return;
         }
 
-        if (pendingTeleportSequence != null) {
-            if (!tpReach.get() && !randomTp.get())
-                reset();
-            else
-                advancePendingTeleportSequence();
+        if (pendingTeleportSequence != null && !tpReach.get() && !randomTp.get()) {
+            reset();
             return;
         }
+
+        boolean spreadingTeleport = pendingTeleportSequence != null;
 
         float realTargetReach = getRealTargetReach();
         float realAttackReach = getRealAttackReach();
@@ -483,6 +491,11 @@ public class KillAura extends Module {
         }
 
         if (closest == null) {
+            if (spreadingTeleport) {
+                advancePendingTeleportSequence();
+                return;
+            }
+
             if (autoBlockMode.get().equalsIgnoreCase("vanilla"))
                 resetPacketUnblocking();
 
@@ -508,6 +521,11 @@ public class KillAura extends Module {
         boolean canHitTargetAtRotation = false;
         if (rotations.get())
             canHitTargetAtRotation = faceSmartRotation(closestEntity, getRotationSpeed(), realTargetReach, canAttackThroughWalls);
+
+        if (spreadingTeleport) {
+            advancePendingTeleportSequence();
+            return;
+        }
 
         String currentAutoBlockMode = autoBlockMode.get().toLowerCase(Locale.ROOT);
         boolean autoBlock = isAutoBlockMode(currentAutoBlockMode);
@@ -1436,7 +1454,7 @@ public class KillAura extends Module {
                     >= baseAttackReachSquared;
             boolean teleport = randomTp.get() || (tpReach.get() && needsExtendedTeleport);
             if (!teleport) {
-                steps.add(new TeleportAttackStep(target, null));
+                steps.add(new TeleportAttackStep(target, false));
                 continue;
             }
 
@@ -1446,25 +1464,19 @@ public class KillAura extends Module {
 
             if (resolvedPath == null) {
                 if (!needsExtendedTeleport)
-                    steps.add(new TeleportAttackStep(target, null));
+                    steps.add(new TeleportAttackStep(target, false));
                 continue;
             }
 
             ArrayList<Vec3> paths = resolvedPath.positions();
             Vec3 arrivalPosition = resolvedPath.arrivalPosition();
-
-            for (Vec3 path : paths) {
-                steps.add(new TeleportMoveStep(path));
-                totalMovePackets++;
-            }
-
-            steps.add(new TeleportAttackStep(target, returnAfterAttack ? null : arrivalPosition));
+            steps.add(new TeleportGoStep(target, randomTp.get(), needsExtendedTeleport, simulatedPosition, paths));
+            totalMovePackets += paths.size();
+            steps.add(new TeleportAttackStep(target, !returnAfterAttack));
 
             if (returnAfterAttack) {
-                for (int i = paths.size() - 1; i >= 0; i--) {
-                    steps.add(new TeleportMoveStep(paths.get(i)));
-                    totalMovePackets++;
-                }
+                steps.add(new TeleportReturnStep(paths.size()));
+                totalMovePackets += paths.size();
             } else {
                 simulatedPosition = arrivalPosition;
                 simulatedEyePosition = arrivalPosition.add(0.0D, eyeHeight, 0.0D);
@@ -1488,7 +1500,8 @@ public class KillAura extends Module {
                 blockTarget,
                 canAutoBlock,
                 tpOnGroundPacket.get(),
-                mc.player.horizontalCollision
+                mc.player.horizontalCollision,
+                mc.player.position()
         );
         advancePendingTeleportSequence();
         return true;
@@ -1500,21 +1513,38 @@ public class KillAura extends Module {
             return;
 
         sequence.elapsedTicks = Math.min(sequence.elapsedTicks + 1, sequence.totalTicks);
-        int movePacketTarget = (int) ((long) sequence.totalMovePackets
+        int totalMovePackets = Math.max(sequence.totalMovePackets, sequence.sentMovePackets);
+        int movePacketTarget = (int) ((long) totalMovePackets
                 * sequence.elapsedTicks / sequence.totalTicks);
 
         while (sequence.nextStep < sequence.steps.size()) {
             TeleportStep step = sequence.steps.get(sequence.nextStep);
+            if (step instanceof TeleportGoStep goStep) {
+                expandGoStep(sequence, goStep);
+                totalMovePackets = Math.max(sequence.totalMovePackets, sequence.sentMovePackets);
+                movePacketTarget = (int) ((long) totalMovePackets
+                        * sequence.elapsedTicks / sequence.totalTicks);
+                continue;
+            }
+            if (step instanceof TeleportReturnStep) {
+                if (!advanceLiveReturn(sequence, movePacketTarget))
+                    break;
+                totalMovePackets = Math.max(sequence.totalMovePackets, sequence.sentMovePackets);
+                movePacketTarget = (int) ((long) totalMovePackets
+                        * sequence.elapsedTicks / sequence.totalTicks);
+                continue;
+            }
             if (step instanceof TeleportMoveStep moveStep) {
                 if (sequence.sentMovePackets >= movePacketTarget)
                     break;
 
                 sendTeleportMovePacket(moveStep.position(), sequence.onGround, sequence.horizontalCollision);
+                sequence.lastSentPosition = moveStep.position();
                 sequence.sentPositions.add(moveStep.position());
                 sequence.sentMovePackets++;
             } else if (step instanceof TeleportAttackStep attackStep) {
-                if (attackStep.clientPosition() != null) {
-                    mc.player.setPos(attackStep.clientPosition());
+                if (attackStep.moveClientToArrival() && sequence.lastSentPosition != null) {
+                    mc.player.setPos(sequence.lastSentPosition);
                     sequence.sentPositions.clear();
                 }
                 performSpreadTeleportAttack(attackStep.target(), sequence.swingMode);
@@ -1524,6 +1554,9 @@ public class KillAura extends Module {
 
         if (sequence.nextStep < sequence.steps.size())
             return;
+
+        if (tpBack.get())
+            syncTeleportToCurrentPosition(sequence);
 
         pendingTeleportSequence = null;
         finishAttackCycle(
@@ -1552,6 +1585,138 @@ public class KillAura extends Module {
             pendingTeleportSequence = null;
             sendingTeleportSequencePacket = false;
         }
+    }
+
+    private void expandGoStep(PendingTeleportSequence sequence, TeleportGoStep goStep) {
+        Vec3 from = sequence.lastSentPosition != null ? sequence.lastSentPosition : mc.player.position();
+        ArrayList<Vec3> path = goStep.plannedPath();
+        int plannedCount = path != null ? path.size() : 0;
+
+        if (!isSameExactPosition(from, goStep.plannedFrom())) {
+            ResolvedTeleportPath resolvedPath = resolveTeleportPath(from, goStep.target(), goStep.preferRandom());
+            if (resolvedPath == null && goStep.preferRandom() && goStep.requiresPath())
+                resolvedPath = resolveTeleportPath(from, goStep.target(), false);
+            path = resolvedPath != null ? resolvedPath.positions() : null;
+        }
+
+        sequence.steps.remove(sequence.nextStep);
+        if (path == null || path.isEmpty()) {
+            sequence.totalMovePackets = Math.max(0, sequence.totalMovePackets - plannedCount);
+            if (goStep.requiresPath())
+                skipFollowingAttackAndReturn(sequence);
+            else
+                keepLocalAttackWithoutReturn(sequence);
+            return;
+        }
+
+        sequence.totalMovePackets += path.size() - plannedCount;
+        for (int i = 0; i < path.size(); i++)
+            sequence.steps.add(sequence.nextStep + i, new TeleportMoveStep(path.get(i)));
+    }
+
+    private boolean advanceLiveReturn(PendingTeleportSequence sequence, int movePacketTarget) {
+        Vec3 current = mc.player.position();
+        boolean lastTick = sequence.elapsedTicks >= sequence.totalTicks;
+
+        if (isSameExactPosition(sequence.lastSentPosition, current)) {
+            sequence.nextStep++;
+            return true;
+        }
+
+        if (!lastTick && sequence.sentMovePackets >= movePacketTarget)
+            return false;
+
+        ArrayList<Vec3> path = resolveReturnPath(sequence.lastSentPosition, current);
+        if (path.isEmpty()) {
+            sequence.nextStep++;
+            return true;
+        }
+
+        for (Vec3 position : path) {
+            if (!lastTick && sequence.sentMovePackets >= movePacketTarget)
+                break;
+
+            sendTeleportMovePacket(position, sequence.onGround, sequence.horizontalCollision);
+            sequence.lastSentPosition = position;
+            sequence.sentPositions.add(position);
+            sequence.sentMovePackets++;
+            sequence.totalMovePackets = Math.max(sequence.totalMovePackets, sequence.sentMovePackets);
+        }
+
+        if (lastTick && !isSameExactPosition(sequence.lastSentPosition, current)) {
+            sendTeleportMovePacket(current, sequence.onGround, sequence.horizontalCollision);
+            sequence.lastSentPosition = current;
+            sequence.sentPositions.add(current);
+            sequence.sentMovePackets++;
+            sequence.totalMovePackets = Math.max(sequence.totalMovePackets, sequence.sentMovePackets);
+        }
+
+        if (lastTick || isSameExactPosition(sequence.lastSentPosition, current)) {
+            sequence.nextStep++;
+            return true;
+        }
+
+        return false;
+    }
+
+    private void skipFollowingAttackAndReturn(PendingTeleportSequence sequence) {
+        if (sequence.nextStep < sequence.steps.size()
+                && sequence.steps.get(sequence.nextStep) instanceof TeleportAttackStep)
+            sequence.steps.remove(sequence.nextStep);
+
+        if (sequence.nextStep < sequence.steps.size()
+                && sequence.steps.get(sequence.nextStep) instanceof TeleportReturnStep returnStep) {
+            sequence.totalMovePackets = Math.max(0, sequence.totalMovePackets - returnStep.estimatedPackets());
+            sequence.steps.remove(sequence.nextStep);
+        }
+    }
+
+    private void keepLocalAttackWithoutReturn(PendingTeleportSequence sequence) {
+        if (sequence.nextStep < sequence.steps.size()
+                && sequence.steps.get(sequence.nextStep) instanceof TeleportAttackStep attackStep
+                && attackStep.moveClientToArrival()) {
+            sequence.steps.set(sequence.nextStep, new TeleportAttackStep(attackStep.target(), false));
+        }
+
+        int returnIndex = sequence.nextStep + 1;
+        if (returnIndex < sequence.steps.size()
+                && sequence.steps.get(returnIndex) instanceof TeleportReturnStep returnStep) {
+            sequence.totalMovePackets = Math.max(0, sequence.totalMovePackets - returnStep.estimatedPackets());
+            sequence.steps.remove(returnIndex);
+        }
+    }
+
+    private ArrayList<Vec3> resolveReturnPath(Vec3 from, Vec3 to) {
+        ArrayList<Vec3> path = new ArrayList<>();
+        if (to == null)
+            return path;
+
+        if (from != null && !isSameExactPosition(from, to)) {
+            ArrayList<Vec3> computed = MainPathFinder.computePath(from, to);
+            if (computed != null)
+                path.addAll(computed);
+        }
+
+        if (path.isEmpty() || !isSameExactPosition(path.getLast(), to))
+            path.add(to);
+        return path;
+    }
+
+    private void syncTeleportToCurrentPosition(PendingTeleportSequence sequence) {
+        if (mc.player == null)
+            return;
+
+        Vec3 current = mc.player.position();
+        if (isSameExactPosition(sequence.lastSentPosition, current))
+            return;
+
+        sendTeleportMovePacket(current, sequence.onGround, sequence.horizontalCollision);
+    }
+
+    private static boolean isSameExactPosition(Vec3 first, Vec3 second) {
+        return first != null
+                && second != null
+                && first.distanceToSqr(second) <= 1.0E-6D;
     }
 
     private void sendTeleportMovePacket(Vec3 position, boolean onGround, boolean horizontalCollision) {
@@ -1692,10 +1857,18 @@ public class KillAura extends Module {
         performAttack(target, swingOrderMode.get().toLowerCase(Locale.ROOT));
 
         if (resolvedPath != null && tpBack.get()) {
-            List<Vec3> reversedPaths = resolvedPath.positions().reversed();
-
-            for (Vec3 path : reversedPaths) {
-                PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(path.x, path.y, path.z, tpOnGroundPacket.get(), mc.player.horizontalCollision));
+            Vec3 lastSent = resolvedPath.positions().isEmpty()
+                    ? resolvedPath.arrivalPosition()
+                    : resolvedPath.positions().getLast();
+            ArrayList<Vec3> returnPath = resolveReturnPath(lastSent, mc.player.position());
+            for (Vec3 path : returnPath) {
+                PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(
+                        path.x,
+                        path.y,
+                        path.z,
+                        tpOnGroundPacket.get(),
+                        mc.player.horizontalCollision
+                ));
             }
         }
     }
