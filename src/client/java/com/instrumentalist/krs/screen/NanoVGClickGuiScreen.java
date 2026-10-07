@@ -12,6 +12,8 @@ import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.network.FileUtil;
 import com.instrumentalist.krs.utils.render.NanoVGTheme;
+import com.mojang.blaze3d.platform.cursor.CursorType;
+import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.ColorValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
@@ -78,6 +80,7 @@ public class NanoVGClickGuiScreen extends Screen {
     private final List<ModuleRowBounds> moduleRows = new ArrayList<>();
     private final List<ControlBounds> controls = new ArrayList<>();
     private final List<Rect> inputClips = new ArrayList<>();
+    private final List<TextFieldLayout> textFields = new ArrayList<>();
     private final List<PendingControlGlass> pendingControlGlass = new ArrayList<>();
     private final List<Runnable> pendingControlForegrounds = new ArrayList<>();
     private boolean deferControlChrome;
@@ -140,7 +143,9 @@ public class NanoVGClickGuiScreen extends Screen {
     private Module focusedTextModule;
     private SettingValue<?> focusedNumberValue;
     private String numberInput = "";
-    private boolean focusedTextSelected;
+    private int textCaret;
+    private int textAnchor;
+    private boolean draggingTextSelection;
     private Module bindingModule;
     private KeyBindValue bindingValue;
     private Module openedListModule;
@@ -203,7 +208,9 @@ public class NanoVGClickGuiScreen extends Screen {
 
         screenMouseX = NanoVGManager.toScaledMouseX(mouseX);
         screenMouseY = NanoVGManager.toScaledMouseY(mouseY);
+        updateClickGuiTransform(NanoVGManager.getScaledScreenWidth(), NanoVGManager.getScaledScreenHeight());
         updateScaledMouse();
+        context.requestCursor(resolveHoverCursor());
         Client.nanoVgManager.load(nanoVgRenderer);
     }
 
@@ -281,6 +288,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && searchRect.contains(mouseX, mouseY)) {
             focusSearch();
+            beginTextSelection(mouseX);
             return true;
         }
 
@@ -337,6 +345,12 @@ public class NanoVGClickGuiScreen extends Screen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+        if (draggingTextSelection) {
+            updateClickGuiTransform(NanoVGManager.getScaledScreenWidth(), NanoVGManager.getScaledScreenHeight());
+            updateTextSelectionDrag(toClickGuiMouseX(NanoVGManager.toScaledMouseX(event.x())));
+            return true;
+        }
+
         if (activeSettingsPanelScrollbar != null) {
             updateClickGuiTransform(NanoVGManager.getScaledScreenWidth(), NanoVGManager.getScaledScreenHeight());
             updateSettingsPanelScrollbarDrag(toClickGuiMouseY(NanoVGManager.toScaledMouseY(event.y())));
@@ -363,6 +377,7 @@ public class NanoVGClickGuiScreen extends Screen {
         pressedModule = null;
         activeScrollbar = null;
         activeSettingsPanelScrollbar = null;
+        draggingTextSelection = false;
         return super.mouseReleased(event);
     }
 
@@ -450,7 +465,12 @@ public class NanoVGClickGuiScreen extends Screen {
             }
 
             if (key == GLFW.GLFW_KEY_A && commandModifier) {
-                focusedTextSelected = !getFocusedText().isEmpty();
+                selectAllFocusedText();
+                return true;
+            }
+
+            if (key == GLFW.GLFW_KEY_C && commandModifier) {
+                copyFocusedTextToClipboard();
                 return true;
             }
 
@@ -465,13 +485,23 @@ public class NanoVGClickGuiScreen extends Screen {
             }
 
             if (key == GLFW.GLFW_KEY_DELETE) {
-                setFocusedText("");
+                deleteForwardFocusedCharacter();
+                return true;
+            }
+
+            boolean shift = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
+            if (key == GLFW.GLFW_KEY_LEFT) {
+                moveFocusedCaret(-1, shift);
+                return true;
+            }
+            if (key == GLFW.GLFW_KEY_RIGHT) {
+                moveFocusedCaret(1, shift);
                 return true;
             }
         }
 
-        if (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT) {
-            cycleCategory(key == GLFW.GLFW_KEY_RIGHT ? 1 : -1);
+        if (key == GLFW.GLFW_KEY_UP || key == GLFW.GLFW_KEY_DOWN) {
+            cycleCategory(key == GLFW.GLFW_KEY_DOWN ? 1 : -1);
             return true;
         }
 
@@ -544,6 +574,7 @@ public class NanoVGClickGuiScreen extends Screen {
         bindingModule = null;
         bindingValue = null;
         clearTextFocus();
+        resetHoverCursor();
         super.removed();
     }
 
@@ -561,6 +592,7 @@ public class NanoVGClickGuiScreen extends Screen {
         bindingModule = null;
         bindingValue = null;
         clearTextFocus();
+        resetHoverCursor();
         closing = true;
 
         if (isInGame() && minecraft != null && minecraft.gui.screen() == this) {
@@ -645,6 +677,7 @@ public class NanoVGClickGuiScreen extends Screen {
         tabBounds.clear();
         moduleRows.clear();
         controls.clear();
+        textFields.clear();
         pendingControlGlass.clear();
         pendingControlForegrounds.clear();
         deferControlChrome = false;
@@ -674,6 +707,7 @@ public class NanoVGClickGuiScreen extends Screen {
                 renderPanel(vg, panel.x, panel.y, panel.width, panel.height);
                 renderSettingsPanel(vg, panel);
                 renderHoverTooltip(vg);
+                applyHoverCursor();
             } finally {
                 vg.restore();
             }
@@ -1126,8 +1160,10 @@ public class NanoVGClickGuiScreen extends Screen {
         Color color = searchQuery.isBlank() && !focused ? alpha(120, 130, 140, 205) : alpha(255, 255, 255, 235);
         float textReserve = searchQuery.isBlank() ? 33f : 51f;
         String visibleText = fitText(text, NVGFonts.INTER, 11f, rect.width - textReserve);
-        renderSelectionHighlight(vg, focused, visibleText, NVGFonts.INTER, 11f, rect.x + 24f, rect.y + 5f, rect.width - textReserve);
+        rememberTextField(TextFocus.SEARCH, null, rect.x + 24f, 11f, rect.width - textReserve);
+        renderSelectionHighlight(vg, focused, NVGFonts.INTER, 11f, rect.x + 24f, rect.y + 5f, rect.width - textReserve);
         NVGFonts.INTER.drawText(visibleText, rect.x + 24f, rect.y + 4.5f, 11f, color, Alignment.LEFT_TOP, false);
+        renderInlineCaret(vg, focused, NVGFonts.INTER, 11f, rect.x + 24f, rect.y + 4.5f, color);
 
         if (searchQuery.isBlank()) {
             searchClearRect = new Rect(0f, 0f, 0f, 0f);
@@ -1316,9 +1352,12 @@ public class NanoVGClickGuiScreen extends Screen {
         String placeholder = selectedConfigTab == ConfigTab.MODULE ? "New module config" : "New bind config";
         String text = inputText(newConfigName, active, placeholder);
         String visibleText = fitText(text, NVGFonts.INTER, 11f, input.width - 32f);
-        renderSelectionHighlight(vg, active, visibleText, NVGFonts.INTER, 11f, input.x + 26f, input.y + 6f, input.width - 32f);
+        Color nameColor = newConfigName.isBlank() && !active ? NanoVGTheme.muted(180) : NanoVGTheme.TEXT;
+        rememberTextField(TextFocus.CONFIG_NAME, null, input.x + 26f, 11f, input.width - 32f);
+        renderSelectionHighlight(vg, active, NVGFonts.INTER, 11f, input.x + 26f, input.y + 6f, input.width - 32f);
         NVGFonts.ICON.drawText(MaterialIcon.ADD, input.x + 8f, input.y + 5f, 12f, active ? NanoVGTheme.INPUT_FOCUS : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, false);
-        NVGFonts.INTER.drawText(visibleText, input.x + 26f, input.y + 6f, 11f, newConfigName.isBlank() && !active ? NanoVGTheme.muted(180) : NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+        NVGFonts.INTER.drawText(visibleText, input.x + 26f, input.y + 6f, 11f, nameColor, Alignment.LEFT_TOP, false);
+        renderInlineCaret(vg, active, NVGFonts.INTER, 11f, input.x + 26f, input.y + 6f, nameColor);
 
         boolean canCreate = !cleanConfigName(newConfigName).isBlank();
         boolean hovered = button.contains(scaledMouseX, scaledMouseY);
@@ -1566,7 +1605,7 @@ public class NanoVGClickGuiScreen extends Screen {
         addControl(ControlType.FLOAT_INPUT, row, value, null, 0);
         renderSettingRow(vg, row, value.name, active ? null : String.format(Locale.ROOT, "%.2f%s", value.get(), value.suffix == null ? "" : value.suffix), 0f);
         if (active) {
-            renderNumberInput(vg, row, value.suffix);
+            renderNumberInput(vg, row, value, value.suffix);
             return;
         }
 
@@ -1580,7 +1619,7 @@ public class NanoVGClickGuiScreen extends Screen {
         addControl(ControlType.INT_INPUT, row, value, null, 0);
         renderSettingRow(vg, row, value.name, active ? null : value.get() + (value.suffix == null ? "" : value.suffix), 0f);
         if (active) {
-            renderNumberInput(vg, row, value.suffix);
+            renderNumberInput(vg, row, value, value.suffix);
             return;
         }
 
@@ -1589,7 +1628,7 @@ public class NanoVGClickGuiScreen extends Screen {
         drawSlider(vg, track, normalize(value.get(), value.minimum, value.maximum), value, 0);
     }
 
-    private void renderNumberInput(NVGU vg, Rect row, String suffix) {
+    private void renderNumberInput(NVGU vg, Rect row, SettingValue<?> value, String suffix) {
         float inputWidth = Math.clamp(row.width * 0.44f, 92f, 160f);
         Rect input = new Rect(row.x + row.width - inputWidth - 8f, row.y + 4f, inputWidth, 19f);
         boolean valid = parseNumberInput() != null;
@@ -1601,16 +1640,19 @@ public class NanoVGClickGuiScreen extends Screen {
         float suffixWidth = shownSuffix.isEmpty() ? 0f : NVGFonts.INTER.getWidth(shownSuffix, 9f) + 7f;
         String text = inputText(numberInput, true, "");
         String visibleText = fitText(text, NVGFonts.INTER, 10f, input.width - suffixWidth - 12f);
-        renderSelectionHighlight(vg, true, visibleText, NVGFonts.INTER, 10f, input.x + 6f, input.y + 5f, input.width - suffixWidth - 12f);
+        Color numberColor = valid ? alpha(255, 255, 255, 240) : alpha(255, 175, 175, 240);
+        rememberTextField(TextFocus.NUMBER, value, input.x + 6f, 10f, input.width - suffixWidth - 12f);
+        renderSelectionHighlight(vg, true, NVGFonts.INTER, 10f, input.x + 6f, input.y + 5f, input.width - suffixWidth - 12f);
         NVGFonts.INTER.drawText(
                 visibleText,
                 input.x + 6f,
                 input.y + 5f,
                 10f,
-                valid ? alpha(255, 255, 255, 240) : alpha(255, 175, 175, 240),
+                numberColor,
                 Alignment.LEFT_TOP,
                 false
         );
+        renderInlineCaret(vg, true, NVGFonts.INTER, 10f, input.x + 6f, input.y + 5f, numberColor);
         if (!shownSuffix.isEmpty())
             NVGFonts.INTER.drawText(shownSuffix, input.x + input.width - 6f, input.y + 5f, 9f,
                     alpha(150, 160, 170, 220), Alignment.RIGHT_TOP, false);
@@ -1654,9 +1696,11 @@ public class NanoVGClickGuiScreen extends Screen {
         vg.roundedRectangleBorder(input.x, input.y, input.width, input.height, 4f, 1f, active ? NanoVGTheme.inputFocus(110) : alpha(255, 255, 255, 30), Border.INSIDE);
         String text = inputText(value.get(), active, "");
         String visibleText = fitText(text, NVGFonts.INTER, 10f, input.width - 10f);
-        renderSelectionHighlight(vg, active, visibleText, NVGFonts.INTER, 10f, input.x + 6f, input.y + 5f, input.width - 10f);
+        rememberTextField(TextFocus.SETTING, value, input.x + 6f, 10f, input.width - 10f);
+        renderSelectionHighlight(vg, active, NVGFonts.INTER, 10f, input.x + 6f, input.y + 5f, input.width - 10f);
         Color textColor = value.get().isEmpty() && !active ? alpha(120, 130, 140, 205) : alpha(255, 255, 255, 235);
         NVGFonts.INTER.drawText(visibleText, input.x + 6f, input.y + 5f, 10f, textColor, Alignment.LEFT_TOP, false);
+        renderInlineCaret(vg, active, NVGFonts.INTER, 10f, input.x + 6f, input.y + 5f, textColor);
     }
 
     private void renderKeyBindSetting(NVGU vg, Rect row, KeyBindValue value) {
@@ -1716,7 +1760,7 @@ public class NanoVGClickGuiScreen extends Screen {
             if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT
                     && textFocus == TextFocus.NUMBER
                     && focusedNumberValue == control.target) {
-                focusedTextSelected = false;
+                beginTextSelection(mouseX);
                 return true;
             }
 
@@ -1761,7 +1805,10 @@ public class NanoVGClickGuiScreen extends Screen {
             closeListDropdown();
 
         switch (control.type) {
-            case CONFIG_NAME -> textFocus = TextFocus.CONFIG_NAME;
+            case CONFIG_NAME -> {
+                textFocus = TextFocus.CONFIG_NAME;
+                beginTextSelection(mouseX);
+            }
             case CONFIG_CREATE -> createConfigFromInput();
             case CONFIG_LOAD -> loadConfigEntry((ConfigEntry) control.target);
             case CONFIG_DELETE -> deleteConfigEntry((ConfigEntry) control.target);
@@ -1801,6 +1848,7 @@ public class NanoVGClickGuiScreen extends Screen {
                 textFocus = TextFocus.SETTING;
                 focusedTextValue = (TextValue) control.target;
                 focusedTextModule = (Module) control.owner;
+                beginTextSelection(mouseX);
             }
             case KEY_VALUE -> bindingValue = (KeyBindValue) control.target;
         }
@@ -2521,13 +2569,14 @@ public class NanoVGClickGuiScreen extends Screen {
         numberInput = value instanceof FloatValue floatValue
                 ? Float.toString(floatValue.get())
                 : Integer.toString(((IntValue) value).get());
-        focusedTextSelected = true;
         textFocus = TextFocus.NUMBER;
+        selectAllFocusedText();
     }
 
     private void clearSearch() {
         searchQuery = "";
-        focusedTextSelected = false;
+        textCaret = 0;
+        textAnchor = 0;
         if (!configView && selectedCategory != null)
             restoreCategoryScroll(selectedCategory);
         else
@@ -2627,6 +2676,28 @@ public class NanoVGClickGuiScreen extends Screen {
         return false;
     }
 
+    private void copyFocusedTextToClipboard() {
+        if (minecraft == null || textFocus == TextFocus.NONE)
+            return;
+
+        String text = getFocusedText();
+        if (text == null || text.isEmpty())
+            return;
+
+        if (hasTextSelection()) {
+            int start = Math.clamp(textSelectionStart(), 0, text.length());
+            int end = Math.clamp(textSelectionEnd(), start, text.length());
+            if (start >= end)
+                return;
+            text = text.substring(start, end);
+        }
+
+        if (text.isEmpty())
+            return;
+
+        minecraft.keyboardHandler.setClipboard(text);
+    }
+
     private void pasteClipboardIntoFocusedText() {
         if (minecraft == null || textFocus == TextFocus.NONE)
             return;
@@ -2710,7 +2781,9 @@ public class NanoVGClickGuiScreen extends Screen {
         focusedTextModule = null;
         focusedNumberValue = null;
         numberInput = "";
-        focusedTextSelected = false;
+        textCaret = 0;
+        textAnchor = 0;
+        draggingTextSelection = false;
     }
 
     private void cancelNumberInput() {
@@ -2758,12 +2831,16 @@ public class NanoVGClickGuiScreen extends Screen {
         if (textFocus != TextFocus.NUMBER || input == null || input.isEmpty())
             return;
 
-        String candidate = focusedTextSelected ? input : numberInput + input;
+        String text = numberInput == null ? "" : numberInput;
+        int start = Math.clamp(textSelectionStart(), 0, text.length());
+        int end = Math.clamp(textSelectionEnd(), start, text.length());
+        String candidate = text.substring(0, start) + input + text.substring(end);
         if (candidate.length() > 64 || !isPotentialNumberInput(candidate))
             return;
 
         numberInput = candidate;
-        focusedTextSelected = false;
+        textCaret = start + input.length();
+        textAnchor = textCaret;
     }
 
     private boolean isPotentialNumberInput(String input) {
@@ -2783,8 +2860,6 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private void setFocusedText(String text) {
-        focusedTextSelected = false;
-
         if (textFocus == TextFocus.SEARCH) {
             searchQuery = text == null ? "" : text;
             if (searchQuery.isBlank() && !configView && selectedCategory != null)
@@ -2813,21 +2888,223 @@ public class NanoVGClickGuiScreen extends Screen {
         if (textFocus == TextFocus.NONE || input == null || input.isEmpty())
             return;
 
-        String existingText = focusedTextSelected ? "" : getFocusedText();
-        setFocusedText(existingText + input);
+        replaceFocusedSelection(input);
     }
 
     private void removeLastFocusedCharacter() {
-        if (focusedTextSelected) {
-            setFocusedText("");
+        if (hasTextSelection()) {
+            replaceFocusedSelection("");
             return;
         }
 
         String text = getFocusedText();
-        if (text.isEmpty()) return;
+        if (text.isEmpty() || textCaret <= 0)
+            return;
 
-        int previous = text.offsetByCodePoints(text.length(), -1);
-        setFocusedText(text.substring(0, previous));
+        int caret = Math.clamp(textCaret, 0, text.length());
+        int previous = text.offsetByCodePoints(caret, -1);
+        setFocusedText(text.substring(0, previous) + text.substring(caret));
+        textCaret = previous;
+        textAnchor = previous;
+    }
+
+    private void deleteForwardFocusedCharacter() {
+        if (hasTextSelection()) {
+            replaceFocusedSelection("");
+            return;
+        }
+
+        String text = getFocusedText();
+        if (text.isEmpty() || textCaret >= text.length())
+            return;
+
+        int caret = Math.clamp(textCaret, 0, text.length());
+        int next = text.offsetByCodePoints(caret, 1);
+        setFocusedText(text.substring(0, caret) + text.substring(next));
+        textCaret = caret;
+        textAnchor = caret;
+    }
+
+    private void replaceFocusedSelection(String insertion) {
+        String text = getFocusedText();
+        int start = Math.clamp(textSelectionStart(), 0, text.length());
+        int end = Math.clamp(textSelectionEnd(), start, text.length());
+        setFocusedText(text.substring(0, start) + insertion + text.substring(end));
+        textCaret = start + insertion.length();
+        textAnchor = textCaret;
+    }
+
+    private void rememberTextField(TextFocus focus, Object target, float textX, float fontSize, float maxWidth) {
+        textFields.add(new TextFieldLayout(focus, target, textX, fontSize, maxWidth));
+    }
+
+    private boolean hasTextSelection() {
+        return textCaret != textAnchor;
+    }
+
+    private int textSelectionStart() {
+        return Math.min(textCaret, textAnchor);
+    }
+
+    private int textSelectionEnd() {
+        return Math.max(textCaret, textAnchor);
+    }
+
+    private void selectAllFocusedText() {
+        textAnchor = 0;
+        textCaret = getFocusedText().length();
+        draggingTextSelection = false;
+    }
+
+    private void moveFocusedCaret(int direction, boolean extendSelection) {
+        String text = getFocusedText();
+        if (text.isEmpty()) {
+            textCaret = 0;
+            textAnchor = 0;
+            return;
+        }
+
+        if (!extendSelection && hasTextSelection()) {
+            textCaret = direction < 0 ? textSelectionStart() : textSelectionEnd();
+            textAnchor = textCaret;
+            return;
+        }
+
+        int caret = Math.clamp(textCaret, 0, text.length());
+        if (direction < 0 && caret > 0)
+            caret = text.offsetByCodePoints(caret, -1);
+        else if (direction > 0 && caret < text.length())
+            caret = text.offsetByCodePoints(caret, 1);
+        textCaret = caret;
+        if (!extendSelection)
+            textAnchor = textCaret;
+    }
+
+    private void beginTextSelection(float mouseX) {
+        int index = caretIndexAt(mouseX);
+        textAnchor = index;
+        textCaret = index;
+        draggingTextSelection = true;
+    }
+
+    private void updateTextSelectionDrag(float mouseX) {
+        if (textFocus == TextFocus.NONE)
+            return;
+        textCaret = caretIndexAt(mouseX);
+    }
+
+    private int caretIndexAt(float mouseX) {
+        String text = getFocusedText();
+        TextFieldLayout layout = findFocusedTextField();
+        if (text.isEmpty())
+            return 0;
+        if (layout == null)
+            return text.length();
+
+        float local = mouseX - layout.textX;
+        if (local <= 0f)
+            return 0;
+
+        int index = 0;
+        while (index < text.length()) {
+            int next = text.offsetByCodePoints(index, 1);
+            float left = NVGFonts.INTER.getWidth(text.substring(0, index), layout.fontSize);
+            float right = NVGFonts.INTER.getWidth(text.substring(0, next), layout.fontSize);
+            if (local < (left + right) / 2f)
+                return index;
+            index = next;
+        }
+        return text.length();
+    }
+
+    private TextFieldLayout findFocusedTextField() {
+        for (int i = 0, n = textFields.size(); i < n; i++) {
+            TextFieldLayout layout = textFields.get(i);
+            if (layout.focus != textFocus)
+                continue;
+            if (textFocus == TextFocus.SETTING && layout.target != focusedTextValue)
+                continue;
+            if (textFocus == TextFocus.NUMBER && layout.target != focusedNumberValue)
+                continue;
+            return layout;
+        }
+        return null;
+    }
+
+    private void applyHoverCursor() {
+        if (minecraft == null)
+            return;
+        minecraft.getWindow().selectCursor(resolveHoverCursor());
+    }
+
+    private void resetHoverCursor() {
+        if (minecraft == null)
+            return;
+        minecraft.getWindow().selectCursor(CursorType.DEFAULT);
+    }
+
+    private CursorType resolveHoverCursor() {
+        if (closing)
+            return CursorType.DEFAULT;
+
+        if (hitRect(searchClearRect))
+            return CursorTypes.POINTING_HAND;
+        if (hitRect(closeRect))
+            return CursorTypes.POINTING_HAND;
+        if (settingsPanelModule != null && hitRect(settingsPanelCloseRect))
+            return CursorTypes.POINTING_HAND;
+        if (hitRect(scrollbarThumbRect) || hitRect(scrollbarTrackRect))
+            return CursorTypes.POINTING_HAND;
+        if (hitRect(settingsPanelScrollbarThumbRect) || hitRect(settingsPanelScrollbarTrackRect))
+            return CursorTypes.POINTING_HAND;
+
+        if (settingsPanelModule != null && hitRect(settingsPanelRect)) {
+            CursorType settingsCursor = cursorForControls(settingsPanelControlStartIndex, controls.size());
+            return settingsCursor == null ? CursorType.DEFAULT : settingsCursor;
+        }
+
+        CursorType controlCursor = cursorForControls(0, settingsPanelControlStartIndex > 0 ? settingsPanelControlStartIndex : controls.size());
+        if (controlCursor != null)
+            return controlCursor;
+
+        if (hitRect(searchRect))
+            return CursorTypes.IBEAM;
+
+        for (int i = 0, n = moduleRows.size(); i < n; i++) {
+            if (moduleRows.get(i).rect.contains(scaledMouseX, scaledMouseY))
+                return CursorTypes.POINTING_HAND;
+        }
+        for (int i = 0, n = tabBounds.size(); i < n; i++) {
+            if (tabBounds.get(i).rect.contains(scaledMouseX, scaledMouseY))
+                return CursorTypes.POINTING_HAND;
+        }
+        return CursorType.DEFAULT;
+    }
+
+    private CursorType cursorForControls(int start, int end) {
+        for (int i = end - 1; i >= start; i--) {
+            ControlBounds control = controls.get(i);
+            if (!control.rect.contains(scaledMouseX, scaledMouseY))
+                continue;
+            return cursorForControl(control);
+        }
+        return null;
+    }
+
+    private CursorType cursorForControl(ControlBounds control) {
+        return switch (control.type) {
+            case TEXT_VALUE, CONFIG_NAME -> CursorTypes.IBEAM;
+            case FLOAT_SLIDER, INT_SLIDER, COLOR_SLIDER -> CursorTypes.POINTING_HAND;
+            case FLOAT_INPUT, INT_INPUT ->
+                    textFocus == TextFocus.NUMBER && focusedNumberValue == control.target
+                            ? CursorTypes.IBEAM
+                            : CursorTypes.POINTING_HAND;
+            default -> CursorTypes.POINTING_HAND;
+        };
+    }
+
+    private boolean hitRect(Rect rect) {
+        return rect != null && rect.width() > 0f && rect.height() > 0f && rect.contains(scaledMouseX, scaledMouseY);
     }
 
     private static Rect sliderTrack(ControlBounds control) {
@@ -2896,32 +3173,60 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private String inputText(String value, boolean active, String placeholder) {
         String text = value == null ? "" : value;
-        if (active)
-            return text + (!focusedTextSelected && caretVisible() ? "_" : "");
+        if (active) {
+            if (hasTextSelection() || !caretVisible())
+                return text;
+            int caret = Math.clamp(textCaret, 0, text.length());
+            return caret >= text.length() ? text + "_" : text;
+        }
         return text.isBlank() ? (placeholder == null ? "" : placeholder) : text;
+    }
+
+    private void renderInlineCaret(NVGU vg, boolean active, NVGFont font, float fontSize, float textX, float textY, Color color) {
+        if (!active || hasTextSelection() || !caretVisible())
+            return;
+
+        String text = getFocusedText();
+        int caret = Math.clamp(textCaret, 0, text.length());
+        if (caret >= text.length())
+            return;
+
+        float caretX = textX + font.getWidth(text.substring(0, caret), fontSize);
+        font.drawText("|", caretX, textY, fontSize, color, Alignment.CENTER_TOP, false);
     }
 
     private void renderSelectionHighlight(
             NVGU vg,
             boolean active,
-            String visibleText,
             NVGFont font,
             float fontSize,
             float textX,
             float textY,
             float maxWidth
     ) {
-        if (!active || !focusedTextSelected || visibleText == null || visibleText.isEmpty())
+        if (!active || !hasTextSelection())
             return;
 
-        float selectedWidth = Math.min(Math.max(0f, maxWidth), font.getWidth(visibleText, fontSize));
-        if (selectedWidth <= 0f)
+        String text = getFocusedText();
+        if (text == null || text.isEmpty())
+            return;
+
+        int start = Math.clamp(textSelectionStart(), 0, text.length());
+        int end = Math.clamp(textSelectionEnd(), start, text.length());
+        if (start >= end)
+            return;
+
+        float startX = textX + font.getWidth(text.substring(0, start), fontSize);
+        float endX = textX + font.getWidth(text.substring(0, end), fontSize);
+        float left = Math.max(textX, startX);
+        float right = Math.min(textX + Math.max(0f, maxWidth), endX);
+        if (right <= left)
             return;
 
         vg.roundedRectangle(
-                textX - 1f,
+                left - 1f,
                 textY - 1f,
-                selectedWidth + 2f,
+                right - left + 2f,
                 fontSize + 3f,
                 2f,
                 NanoVGTheme.inputFocus(72)
@@ -3140,6 +3445,9 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private record PendingControlGlass(float x, float y, float width, float height, float radius, float alphaAtQueue, boolean dark, float brightness) {
+    }
+
+    private record TextFieldLayout(TextFocus focus, Object target, float textX, float fontSize, float maxWidth) {
     }
 
     private record Rect(float x, float y, float width, float height) {

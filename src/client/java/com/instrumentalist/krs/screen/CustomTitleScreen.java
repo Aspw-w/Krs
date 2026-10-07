@@ -10,6 +10,8 @@ import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.network.FileUtil;
 import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
 import com.instrumentalist.krs.utils.render.NanoVGTheme;
+import com.mojang.blaze3d.platform.cursor.CursorType;
+import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import com.mojang.realmsclient.RealmsMainScreen;
 import org.lwjgl.glfw.GLFW;
 import org.nvgu.NVGU;
@@ -160,6 +162,21 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         vg.roundedRectangle(knobX - 5f, sliderY - 4f, 10f, 14f, 5f, hovered ? Color.WHITE : new Color(235, 235, 235, 245));
     }
 
+    private CursorType resolveMenuCursor(double mouseX, double mouseY) {
+        if (isMinecraftMouseBlocked() || shouldRenderStartupLoadBar())
+            return CursorType.DEFAULT;
+
+        if (musicVolumeSliderDragging || isMusicSliderHovered(mouseX, mouseY))
+            return CursorTypes.POINTING_HAND;
+
+        for (MenuButton button : getVisibleMenuButtons()) {
+            if (isHovered(mouseX, mouseY, button.x - 110f, button.y - 34f, 220f, 42f))
+                return CursorTypes.POINTING_HAND;
+        }
+
+        return CursorType.DEFAULT;
+    }
+
     private boolean isMusicSliderHovered(double mouseX, double mouseY) {
         float centerX = NanoVGManager.getScaledScreenWidth() / 2f;
         float sliderX = getMusicSliderX(centerX);
@@ -306,6 +323,8 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
     public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         if (Client.nanoVgManager == null)
             return;
+
+        context.requestCursor(resolveMenuCursor(mouseX, mouseY));
 
         Consumer<NVGU> renderer = vg -> {
             float screenWidth = NanoVGManager.getScaledScreenWidth();
