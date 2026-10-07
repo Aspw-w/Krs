@@ -1384,8 +1384,9 @@ public class NanoVGClickGuiScreen extends Screen {
             rememberHoveredModule(module);
         float enabled = animateIdentity(enabledAnimations, enabledAnimationFrames, module, module.tempEnabled, 0.12f);
         boolean selected = settingsPanelModule == module;
-        if (enabled > 0.01f)
-            renderListRowWash(vg, row, enabled);
+        float wash = washProgress("module", module, module.tempEnabled);
+        if (wash > 0.01f)
+            renderListRowWash(vg, row, wash);
         if (selected)
             renderListRowMark(vg, row);
 
@@ -1432,7 +1433,7 @@ public class NanoVGClickGuiScreen extends Screen {
             if (progress <= 0.001f)
                 continue;
 
-            float settingHeight = (SETTING_ROW_STEP + listDropdownHeight(module, setting)) * easeOut(progress);
+            float settingHeight = (settingRowHeight(setting, width - u(12f)) + settingRowGap() + listDropdownHeight(module, setting)) * easeOut(progress);
             float finalRowY = rowY;
             Rect settingClip = new Rect(x + u(6f), rowY, width - u(12f), settingHeight);
             vg.scissor(settingClip.x, settingClip.y, settingClip.width, settingClip.height, () ->
@@ -1443,12 +1444,13 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private float renderBaseSettingRows(NVGU vg, Module module, float x, float y, float width) {
-        Rect array = new Rect(x, y, width, SETTING_ROW_HEIGHT);
+        float arrayHeight = wrappedSettingRowHeight("Show on array", booleanLabelMaxWidth(width));
+        Rect array = new Rect(x, y, width, arrayHeight);
         addControl(ControlType.SHOW_ON_ARRAY, array, module, null, 0);
         float shownOnArray = animateIdentity(switchAnimations, switchAnimationFrames, module, module.showOnArray, 0.12f);
-        renderBooleanRow(vg, array, "Show on array", shownOnArray, "array:" + System.identityHashCode(module), isPressed(ControlType.SHOW_ON_ARRAY, module));
+        renderBooleanRow(vg, array, "Show on array", "array", module, module.showOnArray, shownOnArray, "array:" + System.identityHashCode(module), isPressed(ControlType.SHOW_ON_ARRAY, module));
 
-        float rowY = renderModuleNote(vg, module, x, y + SETTING_ROW_STEP, width);
+        float rowY = renderModuleNote(vg, module, x, y + arrayHeight + settingRowGap(), width);
 
         Rect key = new Rect(x, rowY, width, SETTING_ROW_HEIGHT);
         addControl(ControlType.MODULE_KEY, key, module, null, 0);
@@ -1478,13 +1480,13 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private float renderSetting(NVGU vg, Module module, SettingValue<?> setting, float x, float y, float width) {
-        Rect row = new Rect(x, y, width, SETTING_ROW_HEIGHT);
+        Rect row = new Rect(x, y, width, settingRowHeight(setting, width));
 
         switch (setting) {
             case BooleanValue value -> {
                 float enabled = animateIdentity(switchAnimations, switchAnimationFrames, value, value.get(), 0.12f);
                 addControl(ControlType.BOOLEAN, row, value, null, 0);
-                renderBooleanRow(vg, row, value.name, enabled, "bool:" + System.identityHashCode(value), isPressed(ControlType.BOOLEAN, value));
+                renderBooleanRow(vg, row, value.name, "bool", value, value.get(), enabled, "bool:" + System.identityHashCode(value), isPressed(ControlType.BOOLEAN, value));
             }
             case ListValue value -> renderListSetting(vg, row, module, value);
             case FloatValue value -> renderFloatSetting(vg, row, value);
@@ -1498,20 +1500,13 @@ public class NanoVGClickGuiScreen extends Screen {
         return SETTING_ROW_STEP + listDropdownHeight(module, setting);
     }
 
-    private void renderBooleanRow(NVGU vg, Rect row, String label, float enabled, String grabId, boolean grabbed) {
-        if (enabled > 0.01f)
-            renderListRowWash(vg, row, enabled);
+    private void renderBooleanRow(NVGU vg, Rect row, String label, String washScope, Object washKey, boolean washActive, float enabled, String grabId, boolean grabbed) {
+        float wash = washProgress(washScope, washKey, washActive);
+        if (wash > 0.01f)
+            renderListRowWash(vg, row, wash);
         Rect switchRect = new Rect(row.x + u(8f), row.y + u(6f), SWITCH_WIDTH, SWITCH_HEIGHT);
         float labelX = switchRect.x + switchRect.width + u(8f);
-        NVGFonts.INTER.drawText(
-                fitText(label, NVGFonts.INTER, font(12f), Math.max(u(36f), row.x + row.width - u(8f) - labelX)),
-                labelX,
-                row.y + u(7f),
-                font(12f),
-                NanoVGTheme.TEXT,
-                Alignment.LEFT_TOP,
-                false
-        );
+        drawWrappedSettingLabel(label, labelX, row.y + u(7f), booleanLabelMaxWidth(row.width));
         drawSwitch(vg, switchRect.x, switchRect.y, switchRect.width, switchRect.height, enabled, grabId, grabbed);
     }
 
@@ -1527,57 +1522,61 @@ public class NanoVGClickGuiScreen extends Screen {
         boolean open = openedListModule == module && openedListValue == value;
         float dropdownProgress = listDropdownProgress(module, value);
         float easedDropdown = easeOut(dropdownProgress);
-        float valueWidth = Math.max(u(88f), Math.min(u(180f), row.width * 0.38f));
+        float valueWidth = listValueWidth(row.width);
         float optionX = row.x + row.width - valueWidth - u(8f);
         float optionY = row.y + u(4f);
-        float optionHeight = u(20f);
 
-        renderSettingRow(vg, row, value.name, dropdownProgress > 0.01f ? null : value.get(), 0f);
+        drawWrappedSettingLabel(value.name, row.x + u(12f), row.y + u(7f), listLabelMaxWidth(row.width));
+        if (dropdownProgress <= 0.01f && value.get() != null)
+            NVGFonts.INTER.drawText(fitText(value.get(), NVGFonts.INTER, font(11f), row.width * 0.36f), row.x + row.width - u(25f), row.y + u(8f), font(11f), NanoVGTheme.MUTED, Alignment.RIGHT_TOP, false);
         if (dropdownProgress <= 0.01f) {
             addControl(ControlType.LIST_VALUE, row, value, module, 0);
             return;
         }
 
-        renderListOptions(vg, value, optionX, optionY, valueWidth, optionHeight, easedDropdown, open);
+        renderListOptions(vg, value, optionX, optionY, valueWidth, easedDropdown, open);
         addControl(ControlType.LIST_VALUE, new Rect(row.x, row.y, Math.max(u(40f), optionX - row.x), row.height), value, module, 0);
     }
 
-    private void renderListOptions(NVGU vg, ListValue value, float x, float y, float width, float rowHeight, float progress, boolean interactive) {
-        float listHeight = Math.max(rowHeight, value.values.length * rowHeight);
-        float visibleHeight = Math.max(rowHeight, listHeight * progress);
+    private void renderListOptions(NVGU vg, ListValue value, float x, float y, float width, float progress, boolean interactive) {
+        float[] heights = listOptionHeights(value, width);
+        float listHeight = listOptionsTotalHeight(heights);
+        float visibleHeight = Math.max(u(20f), listHeight * progress);
         Rect listClip = new Rect(x, y, width, visibleHeight);
 
         withInputClip(listClip, () -> {
             if (!(interactive && progress > 0.62f))
                 return;
 
+            float optionY = y;
             for (int i = 0; i < value.values.length; i++) {
                 float optionProgress = Math.clamp((progress - i * 0.035f) / 0.78f, 0f, 1f);
-                if (optionProgress <= 0.01f)
-                    continue;
-                Rect optionRect = new Rect(x, y + i * rowHeight, width, rowHeight);
-                addControl(ControlType.LIST_OPTION, optionRect, value, null, i);
+                if (optionProgress > 0.01f)
+                    addControl(ControlType.LIST_OPTION, new Rect(x, optionY, width, heights[i]), value, null, i);
+                optionY += heights[i];
             }
         });
 
         emitControlForeground(vg, () -> vg.scissor(listClip.x, listClip.y, listClip.width, listClip.height, () -> {
+            float optionY = y;
             for (int i = 0; i < value.values.length; i++) {
                 String option = value.values[i];
+                float optionHeight = heights[i];
                 float optionProgress = Math.clamp((progress - i * 0.035f) / 0.78f, 0f, 1f);
-                if (optionProgress <= 0.01f)
-                    continue;
-
-                Rect optionRect = new Rect(x, y + i * rowHeight, width, rowHeight);
-                boolean selected = i == value.getCurrentIndex();
-                float optionGrab = knobGrab("list-option:" + System.identityHashCode(value) + ":" + i, isListOptionPressed(value, i));
-                Rect optionChip = squashedRect(optionRect, optionGrab, 0.04f, 0.16f);
-                float textOffset = u(3f) * (1f - optionProgress);
-                float finalOptionProgress = optionProgress;
-                vg.globalAlpha(finalOptionProgress, () -> {
-                    if (selected)
-                        renderListRowMark(vg, optionChip);
-                    NVGFonts.INTER.drawText(fitText(option, NVGFonts.INTER, font(11f), optionChip.width - u(18f)), optionChip.x + u(12f), optionChip.y + u(4f) + textOffset, font(11f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
-                });
+                if (optionProgress > 0.01f) {
+                    Rect optionRect = new Rect(x, optionY, width, optionHeight);
+                    boolean selected = i == value.getCurrentIndex();
+                    float optionGrab = knobGrab("list-option:" + System.identityHashCode(value) + ":" + i, isListOptionPressed(value, i));
+                    Rect optionChip = squashedRect(optionRect, optionGrab, 0.04f, 0.16f);
+                    float textOffset = u(3f) * (1f - optionProgress);
+                    float finalOptionProgress = optionProgress;
+                    vg.globalAlpha(finalOptionProgress, () -> {
+                        if (selected)
+                            renderListRowMark(vg, optionChip);
+                        drawWrappedListOption(option, optionChip.x + u(12f), optionChip.y + u(4f) + textOffset, optionChip.width - u(18f));
+                    });
+                }
+                optionY += optionHeight;
             }
         }));
     }
@@ -2396,7 +2395,9 @@ public class NanoVGClickGuiScreen extends Screen {
             return cached;
 
         List<SettingValue<?>> settings = collectSettings(module);
-        float height = u(6f) + SETTING_ROW_STEP * 2f + moduleNoteHeight(module);
+        float rowWidth = Math.max(u(40f), settingsPanelViewport.width - u(12f));
+        float arrayHeight = wrappedSettingRowHeight("Show on array", booleanLabelMaxWidth(rowWidth));
+        float height = u(6f) + arrayHeight + settingRowGap() + SETTING_ROW_STEP + moduleNoteHeight(module);
 
         if (settings.isEmpty()) {
             height += u(30f);
@@ -2405,7 +2406,7 @@ public class NanoVGClickGuiScreen extends Screen {
         }
 
         for (SettingValue<?> setting : settings) {
-            height += (SETTING_ROW_STEP + listDropdownHeight(module, setting)) * easeOut(settingVisibilityProgress(setting));
+            height += (settingRowHeight(setting, rowWidth) + settingRowGap() + listDropdownHeight(module, setting)) * easeOut(settingVisibilityProgress(setting));
         }
 
         if (!hasRenderableSettings(module))
@@ -2424,7 +2425,14 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private float listDropdownBaseHeight(ListValue value) {
-        return value == null || value.values.length <= 1 ? 0f : (value.values.length - 1) * u(20f);
+        if (value == null || value.values.length <= 1)
+            return 0f;
+        float rowWidth = Math.max(u(40f), settingsPanelViewport.width - u(12f));
+        float optionWidth = listValueWidth(rowWidth);
+        float[] heights = listOptionHeights(value, optionWidth);
+        float total = listOptionsTotalHeight(heights);
+        float settingHeight = wrappedSettingRowHeight(value.name, listLabelMaxWidth(rowWidth));
+        return Math.max(0f, u(4f) + total - settingHeight);
     }
 
     private float listDropdownProgress(Module module, ListValue value) {
@@ -3100,6 +3108,14 @@ public class NanoVGClickGuiScreen extends Screen {
         };
     }
 
+    private float washProgress(String scope, Object key, boolean active) {
+        return animations.compute(scope + ":" + System.identityHashCode(key), (ignored, current) -> {
+            if (current == null)
+                return active ? 1f : 0f;
+            return approach(current, active ? 1f : 0f, 0.18f * frameDelta);
+        });
+    }
+
     private float animate(String key, boolean active, float speed) {
         return animations.compute(key, (ignored, current) -> approach(current == null ? 0f : current, active ? 1f : 0f, speed * frameDelta));
     }
@@ -3234,6 +3250,78 @@ public class NanoVGClickGuiScreen extends Screen {
                 Math.clamp(Math.round(start.getBlue() + (end.getBlue() - start.getBlue()) * progress), 0, 255),
                 Math.clamp(Math.round(start.getAlpha() + (end.getAlpha() - start.getAlpha()) * progress), 0, 255)
         );
+    }
+
+    private float settingRowGap() {
+        return SETTING_ROW_STEP - SETTING_ROW_HEIGHT;
+    }
+
+    private float settingRowHeight(SettingValue<?> setting, float rowWidth) {
+        if (setting instanceof BooleanValue value)
+            return wrappedSettingRowHeight(value.name, booleanLabelMaxWidth(rowWidth));
+        if (setting instanceof ListValue value)
+            return wrappedSettingRowHeight(value.name, listLabelMaxWidth(rowWidth));
+        return SETTING_ROW_HEIGHT;
+    }
+
+    private float booleanLabelMaxWidth(float rowWidth) {
+        return Math.max(u(36f), rowWidth - SWITCH_WIDTH - u(24f));
+    }
+
+    private float listValueWidth(float rowWidth) {
+        return Math.max(u(88f), Math.min(u(180f), rowWidth * 0.38f));
+    }
+
+    private float listLabelMaxWidth(float rowWidth) {
+        return Math.max(u(36f), rowWidth - listValueWidth(rowWidth) - u(28f));
+    }
+
+    private float[] listOptionHeights(ListValue value, float optionWidth) {
+        float[] heights = new float[value.values.length];
+        for (int i = 0; i < value.values.length; i++)
+            heights[i] = listOptionRowHeight(value.values[i], optionWidth);
+        return heights;
+    }
+
+    private float listOptionsTotalHeight(float[] heights) {
+        float total = 0f;
+        for (float height : heights)
+            total += height;
+        return total;
+    }
+
+    private float listOptionRowHeight(String option, float optionWidth) {
+        int lines = wrapListOption(option, optionWidth - u(18f)).size();
+        return Math.max(u(20f), u(4f) + lines * u(14f) + u(3f));
+    }
+
+    private void drawWrappedListOption(String option, float x, float y, float maxWidth) {
+        float size = font(11f);
+        float lineHeight = u(14f);
+        List<String> lines = wrapListOption(option, maxWidth);
+        for (int i = 0; i < lines.size(); i++)
+            NVGFonts.INTER.drawText(lines.get(i), x, y + i * lineHeight, size, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+    }
+
+    private static List<String> wrapListOption(String option, float maxWidth) {
+        return wrapTextToWidth(option == null ? "" : option, NVGFonts.INTER, font(11f), Math.max(u(20f), maxWidth));
+    }
+
+    private float wrappedSettingRowHeight(String label, float maxWidth) {
+        int lines = wrapSettingLabel(label, maxWidth).size();
+        return Math.max(SETTING_ROW_HEIGHT, u(6f) + lines * u(15f) + u(4f));
+    }
+
+    private void drawWrappedSettingLabel(String label, float x, float y, float maxWidth) {
+        float size = font(12f);
+        float lineHeight = u(15f);
+        List<String> lines = wrapSettingLabel(label, maxWidth);
+        for (int i = 0; i < lines.size(); i++)
+            NVGFonts.INTER.drawText(lines.get(i), x, y + i * lineHeight, size, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+    }
+
+    private static List<String> wrapSettingLabel(String label, float maxWidth) {
+        return wrapTextToWidth(label == null ? "" : label, NVGFonts.INTER, font(12f), Math.max(u(20f), maxWidth));
     }
 
     private static List<String> wrapTextToWidth(String text, NVGFont font, float size, float maxWidth) {

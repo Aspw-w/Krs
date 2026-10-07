@@ -252,6 +252,7 @@ public class Interface extends Module {
     private float tabGuiExpandProgress;
     private float tabGuiCategorySelectionY = Float.NaN;
     private float tabGuiModuleSelectionY = Float.NaN;
+    private final Map<Module, Float> tabGuiEnabledWashes = new IdentityHashMap<>();
 
     private static class ModuleListEntry {
         String text;
@@ -2177,6 +2178,7 @@ public class Interface extends Module {
 
     private void updateTabGuiAnimations(float deltaSpeed, List<ModuleCategory> categories, List<Module> modules) {
         tabGuiExpandProgress = animateTabGuiValue(tabGuiExpandProgress, tabGuiExpanded && !modules.isEmpty() ? 1f : 0f, deltaSpeed);
+        updateTabGuiEnabledWashes(modules, deltaSpeed);
 
         if (categories.isEmpty()) {
             tabGuiCategorySelectionY = Float.NaN;
@@ -2276,10 +2278,11 @@ public class Interface extends Module {
             int lastModule = Math.min(modules.size(), firstModule + visibleRows);
             for (int i = firstModule; i < lastModule; i++) {
                 Module module = modules.get(i);
-                if (!module.tempEnabled)
+                float wash = tabGuiEnabledWashes.getOrDefault(module, module.tempEnabled ? 1f : 0f);
+                if (wash <= 0.01f)
                     continue;
                 float rowY = y + 6f + (i - firstModule) * 22f;
-                renderTabGuiRowWash(vg, x, rowY, width);
+                renderTabGuiRowWash(vg, x, rowY, width, wash);
             }
 
             if (!Float.isNaN(tabGuiModuleSelectionY)) {
@@ -2303,8 +2306,29 @@ public class Interface extends Module {
         vg.popScissor();
     }
 
-    private static void renderTabGuiRowWash(NVGU vg, float x, float y, float width) {
-        vg.rectangle(x + 6f, y + 1f, width - 12f, 20f, new Color(255, 255, 255, 18));
+    private void updateTabGuiEnabledWashes(List<Module> modules, float deltaSpeed) {
+        float amount = Math.clamp(deltaSpeed * 0.9f, 0.08f, 1f);
+        for (int i = 0, n = modules.size(); i < n; i++) {
+            Module module = modules.get(i);
+            float target = module.tempEnabled ? 1f : 0f;
+            Float current = tabGuiEnabledWashes.get(module);
+            if (current == null) {
+                tabGuiEnabledWashes.put(module, target);
+                continue;
+            }
+            float next = current + (target - current) * amount;
+            if (next <= 0.001f && target == 0f)
+                tabGuiEnabledWashes.remove(module);
+            else
+                tabGuiEnabledWashes.put(module, next);
+        }
+    }
+
+    private static void renderTabGuiRowWash(NVGU vg, float x, float y, float width, float progress) {
+        int alpha = Math.clamp(Math.round(18f * Math.clamp(progress, 0f, 1f)), 0, 255);
+        if (alpha <= 0)
+            return;
+        vg.rectangle(x + 6f, y + 1f, width - 12f, 20f, new Color(255, 255, 255, alpha));
     }
 
     private static void renderTabGuiSelectionMark(NVGU vg, float x, float y, float width) {
