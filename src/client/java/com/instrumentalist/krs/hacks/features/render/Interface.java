@@ -199,6 +199,7 @@ public class Interface extends Module {
     private static final ArrayList<PlayerInfo> playerListEntryBuffer = new ArrayList<>();
     private static final ArrayList<PlayerListRow> playerListRowBuffer = new ArrayList<>(10);
     private static float cachedPlayerListHeight;
+    private static float playerListDisplayHeight = Float.NaN;
     private long lastRenderNanos;
 
     private final List<TargetHudData> data = new ArrayList<>();
@@ -643,14 +644,32 @@ public class Interface extends Module {
         playerListCacheInitialized = false;
         playerListNextRefreshNanos = 0L;
         cachedPlayerListHeight = 0f;
+        playerListDisplayHeight = Float.NaN;
         return cachedPlayerListEntries;
     }
 
-    private static float getPlayerListHeight() {
+    private static float getPlayerListTargetHeight() {
         getPlayerListEntries();
         if (playerListRowBuffer.isEmpty())
             return 0f;
         return cachedPlayerListHeight;
+    }
+
+    private static float getPlayerListHeight() {
+        if (!Float.isNaN(playerListDisplayHeight))
+            return playerListDisplayHeight > 0.01f ? playerListDisplayHeight : 0f;
+        return getPlayerListTargetHeight();
+    }
+
+    private void updatePlayerListHeightAnimation(float deltaSpeed) {
+        float target = getPlayerListTargetHeight();
+        if (Float.isNaN(playerListDisplayHeight)) {
+            playerListDisplayHeight = target;
+            return;
+        }
+        playerListDisplayHeight = animateTabGuiValue(playerListDisplayHeight, target, deltaSpeed);
+        if (Math.abs(playerListDisplayHeight - target) < 0.25f)
+            playerListDisplayHeight = target;
     }
 
     private static void preparePlayerListRows(List<PlayerInfo> players) {
@@ -1410,18 +1429,20 @@ public class Interface extends Module {
     }
 
     public void renderPlayerList(NVGU vg) {
-        List<PlayerInfo> players = getPlayerListEntries();
-        if (players.isEmpty() || playerListRowBuffer.isEmpty()) return;
+        float height = getPlayerListHeight();
+        if (height <= 0.01f)
+            return;
 
+        List<PlayerInfo> players = getPlayerListEntries();
         float x = getLeftHudX();
         float y = getLeftHudTopY();
-        float height = getPlayerListHeight();
         int totalPlayers = players.size();
         int visiblePlayers = playerListRowBuffer.size();
         String countText = totalPlayers > visiblePlayers ? visiblePlayers + "/" + totalPlayers : String.valueOf(totalPlayers);
 
         NanoVGTheme.renderPanel(vg, x, y, 240f, height, NanoVGTheme.RADIUS_HUD, 1f);
 
+        vg.pushScissor(x, y, 240f, height);
         NVGFonts.INTER.drawText("Players", x + 12f, y + 6f, HUD_FONT_SIZE, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
         NVGFonts.INTER.drawText(countText, x + 12f + NVGFonts.INTER.getWidth("Players", HUD_FONT_SIZE) + 6f, y + 6f, HUD_FONT_SIZE, NanoVGTheme.MUTED, Alignment.LEFT_TOP, false);
 
@@ -1436,15 +1457,16 @@ public class Interface extends Module {
 
             rowY += row.rowHeight;
         }
+        vg.popScissor();
     }
 
     private static void renderPlayerListEffects(NVGU vg) {
-        List<PlayerInfo> players = getPlayerListEntries();
-        if (players.isEmpty()) return;
+        float height = getPlayerListHeight();
+        if (height <= 0.01f)
+            return;
 
         float x = getLeftHudX();
         float y = getLeftHudTopY();
-        float height = getPlayerListHeight();
 
         NanoVGTheme.renderPanelEffects(vg, x, y, 240f, height, NanoVGTheme.RADIUS_HUD, 1f);
     }
@@ -2818,6 +2840,11 @@ public class Interface extends Module {
             boolean renderWorldHudOverlays = RenderUtil.shouldRenderWorldHudOverlays();
 
             vg.globalAlpha(interfaceAlpha, () -> {
+                if (playerList.get())
+                    updatePlayerListHeightAnimation(finalDeltaSpeed);
+                else
+                    playerListDisplayHeight = Float.NaN;
+
                 List<TargetHudRenderEntry> visibleTargetHudEntries = Collections.emptyList();
                 if (targetHud.get() && renderWorldHudOverlays) {
                     targetHudEntryBuffer.clear();
