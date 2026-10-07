@@ -21,11 +21,15 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -49,6 +53,11 @@ public final class FileUtil implements IMinecraft {
     private final AtomicBoolean updateCheckInProgress = new AtomicBoolean();
     private OnlineConfigRequest pendingOnlineConfig;
     private boolean onlineConfigWorkerScheduled;
+    private final ConcurrentHashMap<String, Long> onlineUpdatedCache = new ConcurrentHashMap<>();
+    private final ConcurrentLinkedQueue<String> onlineUpdatedQueue = new ConcurrentLinkedQueue<>();
+    private final Set<String> onlineUpdatedQueued = ConcurrentHashMap.newKeySet();
+    private final AtomicBoolean onlineUpdatedDrainScheduled = new AtomicBoolean();
+    private final AtomicInteger onlineUpdatedGeneration = new AtomicInteger();
     private final ThreadPoolExecutor networkExecutor = new ThreadPoolExecutor(
             2,
             2,
@@ -181,6 +190,7 @@ public final class FileUtil implements IMinecraft {
         String body = get("https://uraguchi.okamabeauty.net/krs/cfgs/list.txt");
         if (body != null) {
             onlineCfgs = parseOnlineCfgs(body);
+            refreshOnlineConfigUpdatedAt(onlineCfgs);
             ChatUtil.showLog("Loaded online configs");
         } else {
             onlineCfgs = Collections.emptyList();
@@ -207,6 +217,100 @@ public final class FileUtil implements IMinecraft {
 
     public List<String> getOnlineCfgs() {
         return onlineCfgs;
+    }
+
+    public Long cachedOnlineConfigUpdatedAt(String name) {
+        String normalized = normalizeRemoteConfigName(name);
+        if (normalized == null)
+            return null;
+
+        Long cached = onlineUpdatedCache.get(normalized);
+        if (cached == null)
+            enqueueOnlineConfigUpdated(normalized);
+        return cached == null || cached <= 0L ? null : cached;
+    }
+
+    private void refreshOnlineConfigUpdatedAt(List<String> names) {
+        onlineUpdatedGeneration.incrementAndGet();
+        onlineUpdatedCache.clear();
+        onlineUpdatedQueue.clear();
+        onlineUpdatedQueued.clear();
+        for (String name : names) {
+            String normalized = normalizeRemoteConfigName(name);
+            if (normalized != null)
+                enqueueOnlineConfigUpdated(normalized);
+        }
+    }
+
+    private void enqueueOnlineConfigUpdated(String normalized) {
+        if (!onlineUpdatedQueued.add(normalized))
+            return;
+
+        onlineUpdatedQueue.add(normalized);
+        if (!onlineUpdatedDrainScheduled.compareAndSet(false, true))
+            return;
+
+        int generation = onlineUpdatedGeneration.get();
+        if (!submitNetworkTask(() -> drainOnlineConfigUpdated(generation)))
+            onlineUpdatedDrainScheduled.set(false);
+    }
+
+    private void drainOnlineConfigUpdated(int generation) {
+        try {
+            String name;
+            while ((name = onlineUpdatedQueue.poll()) != null) {
+                onlineUpdatedQueued.remove(name);
+                if (generation != onlineUpdatedGeneration.get())
+                    continue;
+
+                Long updated = readOnlineUpdatedMillis(name);
+                if (generation != onlineUpdatedGeneration.get())
+                    continue;
+
+                onlineUpdatedCache.put(name, updated == null ? 0L : updated);
+            }
+        } finally {
+            onlineUpdatedDrainScheduled.set(false);
+            if (!onlineUpdatedQueue.isEmpty() && onlineUpdatedDrainScheduled.compareAndSet(false, true)) {
+                int nextGeneration = onlineUpdatedGeneration.get();
+                if (!submitNetworkTask(() -> drainOnlineConfigUpdated(nextGeneration)))
+                    onlineUpdatedDrainScheduled.set(false);
+            }
+        }
+    }
+
+    private Long readOnlineUpdatedMillis(String name) {
+        return readUpdatedPrefix(loadOnlineNow(name));
+    }
+
+    private static Long readUpdatedPrefix(String json) {
+        if (json == null || json.isBlank())
+            return null;
+
+        int key = json.indexOf("\"_updated\"");
+        if (key < 0 || key > 32)
+            return null;
+
+        int colon = json.indexOf(':', key + 10);
+        if (colon < 0 || colon > key + 24)
+            return null;
+
+        int start = colon + 1;
+        while (start < json.length() && Character.isWhitespace(json.charAt(start)))
+            start++;
+
+        int end = start;
+        while (end < json.length() && Character.isDigit(json.charAt(end)))
+            end++;
+        if (end == start)
+            return null;
+
+        try {
+            long updated = Long.parseLong(json.substring(start, end));
+            return updated > 0L ? updated : null;
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private String get(String url) {

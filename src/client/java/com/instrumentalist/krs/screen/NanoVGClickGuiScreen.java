@@ -1557,14 +1557,14 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private Long configUpdatedMillis(ConfigEntry config) {
-        if (config == null || Client.configManager == null)
+        if (config == null)
+            return null;
+        if (config.type() == ConfigTab.ONLINE)
+            return FileUtil.INSTANCE.cachedOnlineConfigUpdatedAt(config.name());
+        if (Client.configManager == null)
             return null;
 
-        boolean bind = config.type() == ConfigTab.BIND;
-        String name = config.type() == ConfigTab.ONLINE
-                ? ConfigManager.onlineConfigClientName(config.name())
-                : config.name();
-        return Client.configManager.configUpdatedAt(bind, name);
+        return Client.configManager.configUpdatedAt(config.type() == ConfigTab.BIND, config.name());
     }
 
     private static ConfigEntry restoreRememberedConfig(ConfigEntry remembered) {
