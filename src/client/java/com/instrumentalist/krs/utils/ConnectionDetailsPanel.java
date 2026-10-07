@@ -1,6 +1,5 @@
 package com.instrumentalist.krs.utils;
 
-import com.instrumentalist.krs.utils.nanovg.MaterialIcon;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.network.IConnection;
@@ -22,6 +21,14 @@ import java.util.Locale;
 import java.util.Objects;
 
 public final class ConnectionDetailsPanel {
+
+    private static final float FONT_SIZE = 15f;
+    private static final float LINE_HEIGHT = 16f;
+    private static final float ROW_HEIGHT = 22f;
+    private static final float PAD = 12f;
+    private static final float TITLE_STATUS_GAP = 6f;
+    private static final float MAX_PANEL_WIDTH = 972f;
+    private static final Color PROGRESS_FILL = new Color(255, 255, 255, 230);
 
     private static ConnectionSnapshot snapshot;
 
@@ -88,7 +95,7 @@ public final class ConnectionDetailsPanel {
         if (current == null)
             return;
 
-        render(vg, current, "Connecting to server", hideAddress, true, new Color(74, 189, 255, 230));
+        render(vg, current, "Connecting to server", hideAddress, true);
     }
 
     public static void renderConnected(NVGU vg, boolean hideAddress) {
@@ -96,7 +103,7 @@ public final class ConnectionDetailsPanel {
         if (current == null)
             return;
 
-        render(vg, current, "Connected to server", hideAddress, false, new Color(79, 220, 138, 230));
+        render(vg, current, "Connected to server", hideAddress, false);
     }
 
     public static void renderDisconnected(NVGU vg, boolean hideAddress, Component reason) {
@@ -105,104 +112,248 @@ public final class ConnectionDetailsPanel {
             return;
 
         ConnectionSnapshot disconnectedSnapshot = current.withMessage(reason, "Disconnected");
-        render(vg, disconnectedSnapshot, "Disconnected from server", hideAddress, false, new Color(255, 110, 98, 230));
+        render(vg, disconnectedSnapshot, "Disconnected from server", hideAddress, false);
     }
 
     public static boolean hasSnapshot() {
         return snapshot != null;
     }
 
-    private static void render(NVGU vg, ConnectionSnapshot current, String title, boolean hideAddress, boolean animatedProgress, Color accentColor) {
+    private static void render(NVGU vg, ConnectionSnapshot current, String title, boolean hideAddress, boolean animatedProgress) {
         float screenWidth = NanoVGManager.getScaledScreenWidth();
         float screenHeight = NanoVGManager.getScaledScreenHeight();
-        float panelWidth = Math.min(620f, Math.max(340f, screenWidth - 32f));
-        boolean twoColumns = panelWidth >= 500f && screenHeight >= 420f;
-        float panelHeight = screenHeight < 420f ? 154f : twoColumns ? 260f : 276f;
-        float panelX = (screenWidth - panelWidth) / 2f;
-        float panelY = Math.max(3f, Math.min(5f, screenHeight - panelHeight - 3f));
+        if (!(screenWidth > 1f) || !(screenHeight > 1f))
+            return;
 
         List<ConnectionInfoRow> rows = buildConnectionRows(current, hideAddress);
 
-        vg.beginEffectBatch();
-        NanoVGTheme.renderPanelEffects(vg, panelX, panelY, panelWidth, panelHeight, 8f, 1f);
-        vg.flushEffectBatch();
+        boolean disconnectedScreen = Objects.equals(title, "Disconnected from server");
+        String statusText = disconnectedScreen && (current.message.toString().toLowerCase().contains("banned") || current.message.toString().toLowerCase().contains("blocked"))
+                ? "You got banned? Quit cheating now!"
+                : disconnectedScreen ? "Something went wrong"
+                : componentToString(current.message, "Waiting for server");
 
-        NanoVGTheme.renderPanel(vg, panelX, panelY, panelWidth, panelHeight, 8f, 1f);
+        PanelLayout layout = chooseLayout(rows, title, statusText, screenWidth, screenHeight);
+        float panelX = (screenWidth - layout.width) / 2f;
+        float panelY = Math.max(8f, Math.min(10f, screenHeight - layout.height - 8f));
+
+        vg.beginEffectBatch();
+        NanoVGTheme.renderPanelEffects(vg, panelX, panelY, layout.width, layout.height, NanoVGTheme.RADIUS_HUD, 1f);
+        vg.flushEffectBatch();
+        NanoVGTheme.renderPanel(vg, panelX, panelY, layout.width, layout.height, NanoVGTheme.RADIUS_HUD, 1f);
+
+        float textX = panelX + PAD;
+        drawLines(vg, layout.titleLines, textX, panelY + 6f, NanoVGTheme.TEXT, NVGFonts.INTER_MEDIUM);
+        drawLines(vg, layout.statusLines, textX, panelY + 6f + layout.titleLines.size() * LINE_HEIGHT + TITLE_STATUS_GAP, NanoVGTheme.MUTED, NVGFonts.INTER);
 
         float elapsedSeconds = current.elapsedMs() / 1000f;
-        float pulse = (float) ((Math.sin(elapsedSeconds * 3.4f) + 1.0f) * 0.5f);
-        Color pulseColor = new Color(accentColor.getRed(), accentColor.getGreen(), accentColor.getBlue(), (int) (120f + pulse * 90f));
-        vg.circle(panelX + 24f, panelY + 28f, 5f + pulse * 1.4f, pulseColor);
-        vg.circle(panelX + 24f, panelY + 28f, 3.2f, accentColor);
-
-        NVGFonts.INTER_MEDIUM.drawText(title, panelX + 38f, panelY + 18f, 18f, new Color(255, 255, 255, 245), Alignment.LEFT_TOP, true);
-
-        boolean disconnectedScreen = Objects.equals(title, "Disconnected from server");
-        NVGFonts.INTER.drawText(disconnectedScreen && (current.message.toString().toLowerCase().contains("banned") || current.message.toString().toLowerCase().contains("blocked")) ? "You got banned? Quit cheating now!" : disconnectedScreen ? "Something went wrong" : componentToString(current.message, "Waiting for server"), panelX + 38f, panelY + 41f, 12f, new Color(155, 166, 182, 220), Alignment.LEFT_TOP, true);
-
-        float progressWidth = panelWidth - 36f;
-        float progressX = panelX + 18f;
-        float progressY = panelY + 68f;
+        float progressWidth = layout.width - PAD * 2f;
+        float progressX = textX;
+        float progressY = panelY + layout.progressY;
+        float trackHeight = 4f;
         float markerWidth = Math.max(48f, progressWidth * 0.18f);
         float markerX = animatedProgress ? progressX + ((elapsedSeconds * 56f) % (progressWidth + markerWidth)) - markerWidth : progressX;
         float drawMarkerWidth = animatedProgress ? markerWidth : progressWidth;
-        vg.roundedRectangle(progressX, progressY, progressWidth, 3f, 2f, new Color(255, 255, 255, 30));
-        vg.pushScissor(progressX, progressY - 2f, progressWidth, 7f);
-        vg.roundedRectangle(markerX, progressY, drawMarkerWidth, 3f, 2f, accentColor);
-        vg.popScissor();
-
-        float contentTop = panelY + 88f;
-        float rowHeight = screenHeight < 420f ? 20f : 22f;
-        int rowsPerColumn = Math.max(3, (int) ((panelY + panelHeight - contentTop - 12f) / rowHeight));
-        int maxRows = Math.min(rows.size(), twoColumns ? rowsPerColumn * 2 : rowsPerColumn);
-        float firstColumnX = panelX + 22f;
-        float columnGap = 18f;
-        float columnWidth = twoColumns ? (panelWidth - 44f - columnGap) / 2f : panelWidth - 44f;
-
-        for (int i = 0; i < maxRows; i++) {
-            ConnectionInfoRow row = rows.get(i);
-            int column = twoColumns ? i / rowsPerColumn : 0;
-            int rowIndex = twoColumns ? i % rowsPerColumn : i;
-            float x = firstColumnX + column * (columnWidth + columnGap);
-            float y = contentTop + rowIndex * rowHeight;
-            float valueX = x + Math.min(124f, columnWidth * 0.42f);
-            float maxValueWidth = Math.max(44f, columnWidth - (valueX - x));
-            drawIcon(row.icon, x, y - 2f, row.accent ? accentColor : new Color(155, 166, 182, 220));
-            NVGFonts.INTER_MEDIUM.drawText(row.label, x + 22f, y, 12f, new Color(155, 166, 182, 220), Alignment.LEFT_TOP, true);
-            NVGFonts.INTER.drawText(fitText(row.value, NVGFonts.INTER, 12f, maxValueWidth), valueX, y, 12f, row.accent ? accentColor : new Color(222, 228, 238, 232), Alignment.LEFT_TOP, true);
+        if (progressWidth > 0f && trackHeight > 0f) {
+            vg.roundedRectangle(progressX, progressY, progressWidth, trackHeight, 2f, NanoVGTheme.base(90));
+            vg.pushScissor(progressX, progressY - 2f, progressWidth, trackHeight + 4f);
+            if (drawMarkerWidth > 0f)
+                vg.roundedRectangle(markerX, progressY, drawMarkerWidth, trackHeight, 2f, PROGRESS_FILL);
+            vg.popScissor();
         }
+
+        for (PlacedRow row : layout.rows) {
+            float x = textX + row.column * (layout.columnWidth + layout.columnGap);
+            float y = panelY + row.y;
+            NVGFonts.INTER.drawText(row.label, x, y + 3f, FONT_SIZE, NanoVGTheme.MUTED, Alignment.LEFT_TOP, false);
+            float valueY = row.stacked ? y + 3f + LINE_HEIGHT : y + 3f;
+            drawLines(vg, row.valueLines, x + row.valueX, valueY, NanoVGTheme.TEXT, NVGFonts.INTER);
+        }
+    }
+
+    private static PanelLayout chooseLayout(List<ConnectionInfoRow> rows, String title, String status, float screenWidth, float screenHeight) {
+        float maxPanelWidth = Math.min(Math.max(240f, screenWidth - 32f), MAX_PANEL_WIDTH);
+        float maxPanelHeight = Math.max(80f, screenHeight - 16f);
+        float[] widths = {240f, 360f, 480f, 640f, 800f, MAX_PANEL_WIDTH};
+        PanelLayout widest = null;
+        float lastWidth = -1f;
+        for (float requested : widths) {
+            float width = Math.min(requested, maxPanelWidth);
+            if (Math.abs(width - lastWidth) < 0.5f)
+                continue;
+            lastWidth = width;
+
+            PanelLayout single = layoutPanel(rows, title, status, width, false);
+            widest = single;
+            if (!wraps(single) && single.height <= maxPanelHeight)
+                return single;
+        }
+
+        if (widest != null && widest.height > maxPanelHeight && maxPanelWidth >= 800f && rows.size() > 4) {
+            PanelLayout dual = layoutPanel(rows, title, status, maxPanelWidth, true);
+            if (dual.height < widest.height)
+                return dual;
+        }
+        return widest;
+    }
+
+    private static boolean wraps(PanelLayout layout) {
+        if (layout.titleLines.size() > 1 || layout.statusLines.size() > 1)
+            return true;
+
+        for (PlacedRow row : layout.rows) {
+            if (row.stacked || row.valueLines.size() > 1)
+                return true;
+        }
+        return false;
+    }
+
+    private static PanelLayout layoutPanel(List<ConnectionInfoRow> rows, String title, String status, float panelWidth, boolean twoColumns) {
+        float columnGap = 6f;
+        int columns = twoColumns ? 2 : 1;
+        float innerWidth = panelWidth - PAD * 2f;
+        float columnWidth = columns == 2 ? (innerWidth - columnGap) / 2f : innerWidth;
+        List<String> titleLines = wrapText(title, innerWidth, NVGFonts.INTER_MEDIUM);
+        List<String> statusLines = wrapText(status, innerWidth, NVGFonts.INTER);
+        float progressY = 6f + titleLines.size() * LINE_HEIGHT + TITLE_STATUS_GAP + statusLines.size() * LINE_HEIGHT + 8f;
+        float contentTop = progressY + 14f;
+
+        int split = columns == 2 ? (rows.size() + 1) / 2 : rows.size();
+        float[] labelWidths = new float[columns];
+        for (int i = 0; i < rows.size(); i++) {
+            int column = i < split ? 0 : 1;
+            labelWidths[column] = Math.max(labelWidths[column], NVGFonts.INTER.getWidth(rows.get(i).label, FONT_SIZE));
+        }
+
+        float[] columnHeight = new float[columns];
+        List<PlacedRow> placed = new ArrayList<>(rows.size());
+        for (int i = 0; i < rows.size(); i++) {
+            int column = i < split ? 0 : 1;
+            ConnectionInfoRow row = rows.get(i);
+            float valueMaxWidth = columnWidth - labelWidths[column] - 8f;
+            boolean stacked = valueMaxWidth < 72f;
+            List<String> valueLines = wrapText(row.value, stacked ? columnWidth : valueMaxWidth, NVGFonts.INTER);
+            float height = stacked
+                    ? 6f + LINE_HEIGHT + valueLines.size() * LINE_HEIGHT
+                    : Math.max(ROW_HEIGHT, 6f + valueLines.size() * LINE_HEIGHT);
+            placed.add(new PlacedRow(
+                    row.label,
+                    valueLines,
+                    column,
+                    contentTop + columnHeight[column],
+                    stacked,
+                    stacked ? 0f : labelWidths[column] + 8f
+            ));
+            columnHeight[column] += height;
+        }
+
+        float columnsHeight = 0f;
+        for (float height : columnHeight)
+            columnsHeight = Math.max(columnsHeight, height);
+
+        return new PanelLayout(
+                panelWidth,
+                contentTop + columnsHeight + 6f,
+                columnWidth,
+                columnGap,
+                titleLines,
+                statusLines,
+                progressY,
+                placed
+        );
+    }
+
+    private static void drawLines(NVGU vg, List<String> lines, float x, float y, Color color, NVGFont font) {
+        for (int i = 0; i < lines.size(); i++)
+            font.drawText(lines.get(i), x, y + i * LINE_HEIGHT, FONT_SIZE, color, Alignment.LEFT_TOP, false);
+    }
+
+    private static List<String> wrapText(String text, float maxWidth, NVGFont font) {
+        List<String> lines = new ArrayList<>();
+        if (text == null || text.isEmpty()) {
+            lines.add("");
+            return lines;
+        }
+
+        String normalized = text.replace("\r\n", "\n").replace('\r', '\n');
+        int index = 0;
+        while (index <= normalized.length()) {
+            int lineBreak = normalized.indexOf('\n', index);
+            if (lineBreak < 0)
+                lineBreak = normalized.length();
+            wrapParagraph(normalized.substring(index, lineBreak), maxWidth, font, lines);
+            if (lineBreak >= normalized.length())
+                break;
+            index = lineBreak + 1;
+        }
+        return lines.isEmpty() ? List.of("") : lines;
+    }
+
+    private static void wrapParagraph(String paragraph, float maxWidth, NVGFont font, List<String> lines) {
+        if (paragraph.isEmpty()) {
+            lines.add("");
+            return;
+        }
+        if (maxWidth <= 1f || font.getWidth(paragraph, FONT_SIZE) <= maxWidth) {
+            lines.add(paragraph);
+            return;
+        }
+
+        int start = 0;
+        while (start < paragraph.length()) {
+            int end = findWrapEnd(paragraph, start, maxWidth, font);
+            lines.add(paragraph.substring(start, end).strip());
+            start = end;
+            while (start < paragraph.length() && Character.isWhitespace(paragraph.charAt(start)))
+                start++;
+        }
+    }
+
+    private static int findWrapEnd(String text, int start, float maxWidth, NVGFont font) {
+        int bestFit = Math.min(text.length(), start + 1);
+        int lastWhitespace = -1;
+        for (int end = start + 1; end <= text.length(); end++) {
+            if (font.getWidth(text.substring(start, end), FONT_SIZE) > maxWidth)
+                break;
+
+            bestFit = end;
+            if (Character.isWhitespace(text.charAt(end - 1)))
+                lastWhitespace = end;
+        }
+
+        if (bestFit >= text.length())
+            return text.length();
+        if (lastWhitespace > start)
+            return lastWhitespace;
+        return bestFit;
     }
 
     private static List<ConnectionInfoRow> buildConnectionRows(ConnectionSnapshot current, boolean hideAddress) {
         List<ConnectionInfoRow> rows = new ArrayList<>(10);
-        rows.add(new ConnectionInfoRow(MaterialIcon.CLOCK, "Elapsed", String.format(Locale.ROOT, "%.1fs", current.elapsedMs() / 1000f), false));
+        rows.add(new ConnectionInfoRow("Elapsed", String.format(Locale.ROOT, "%.1fs", current.elapsedMs() / 1000f)));
 
         if (current.serverData != null)
-            rows.add(new ConnectionInfoRow(MaterialIcon.LAN, "Address", hideAddress ? "Hidden" : blankToUnknown(current.serverData.ip), false));
+            rows.add(new ConnectionInfoRow("Address", hideAddress ? "Hidden" : blankToUnknown(current.serverData.ip)));
 
         if (current.serverAddress != null)
-            rows.add(new ConnectionInfoRow(MaterialIcon.TUNE, "Port", hideAddress ? "Hidden" : Integer.toString(current.serverAddress.getPort()), false));
+            rows.add(new ConnectionInfoRow("Port", hideAddress ? "Hidden" : Integer.toString(current.serverAddress.getPort())));
 
-        rows.add(new ConnectionInfoRow(MaterialIcon.OPEN_IN_BROWSER, "Remote", hideAddress ? "Hidden" : blankToUnknown(current.remoteAddress), false));
-        rows.add(new ConnectionInfoRow(MaterialIcon.SIGNAL, "Packets", String.format(Locale.ROOT, "%.1f in / %.1f out", current.averageReceivedPackets, current.averageSentPackets), false));
+        rows.add(new ConnectionInfoRow("Remote", hideAddress ? "Hidden" : blankToUnknown(current.remoteAddress)));
+        rows.add(new ConnectionInfoRow("Packets", String.format(Locale.ROOT, "%.1f in / %.1f out", current.averageReceivedPackets, current.averageSentPackets)));
 
         if (current.serverData != null) {
-            rows.add(new ConnectionInfoRow(MaterialIcon.READER, "Version", componentToString(current.serverData.version, "Unknown"), false));
-            rows.add(new ConnectionInfoRow(MaterialIcon.KEY, "Encrypted", current.encrypted ? "Yes" : "No", false));
-            rows.add(new ConnectionInfoRow(MaterialIcon.PERSON, "Players", formatPlayers(current.serverData), false));
-            rows.add(new ConnectionInfoRow(MaterialIcon.PUBLIC, "Type", formatEnumName(current.serverData.type()), false));
-            rows.add(new ConnectionInfoRow(MaterialIcon.SEARCH, "List state", formatEnumName(current.serverData.state()), false));
-            rows.add(new ConnectionInfoRow(MaterialIcon.SIGNAL, "Last ping", formatPing(current.serverData.ping), false));
+            rows.add(new ConnectionInfoRow("Version", componentToString(current.serverData.version, "Unknown")));
+            rows.add(new ConnectionInfoRow("Encrypted", current.encrypted ? "Yes" : "No"));
+            rows.add(new ConnectionInfoRow("Players", formatPlayers(current.serverData)));
+            rows.add(new ConnectionInfoRow("Type", formatEnumName(current.serverData.type())));
+            rows.add(new ConnectionInfoRow("List state", formatEnumName(current.serverData.state())));
+            rows.add(new ConnectionInfoRow("Last ping", formatPing(current.serverData.ping)));
         } else {
-            rows.add(new ConnectionInfoRow(MaterialIcon.KEY, "Encrypted", current.encrypted ? "Yes" : "No", false));
+            rows.add(new ConnectionInfoRow("Encrypted", current.encrypted ? "Yes" : "No"));
         }
 
-        rows.add(new ConnectionInfoRow(MaterialIcon.RELOAD, "Transfer", current.transferState == null ? "None" : "Present", false));
+        rows.add(new ConnectionInfoRow("Transfer", current.transferState == null ? "None" : "Present"));
         return rows;
-    }
-
-    private static void drawIcon(String icon, float x, float y, Color color) {
-        NVGFonts.ICON.drawText(icon, x, y, 15f, color, Alignment.LEFT_TOP, true);
     }
 
     private static String connectionState(Connection connection, boolean aborted) {
@@ -290,23 +441,22 @@ public final class ConnectionDetailsPanel {
         return builder.toString();
     }
 
-    private static String fitText(String text, NVGFont font, float size, float maxWidth) {
-        if (text == null)
-            return "";
-
-        if (font.getWidth(text, size) <= maxWidth)
-            return text;
-
-        String ellipsis = "...";
-        int end = text.length();
-        while (end > 0 && font.getWidth(text.substring(0, end) + ellipsis, size) > maxWidth) {
-            end--;
-        }
-
-        return end <= 0 ? ellipsis : text.substring(0, end) + ellipsis;
+    private record ConnectionInfoRow(String label, String value) {
     }
 
-    private record ConnectionInfoRow(String icon, String label, String value, boolean accent) {
+    private record PlacedRow(String label, List<String> valueLines, int column, float y, boolean stacked, float valueX) {
+    }
+
+    private record PanelLayout(
+            float width,
+            float height,
+            float columnWidth,
+            float columnGap,
+            List<String> titleLines,
+            List<String> statusLines,
+            float progressY,
+            List<PlacedRow> rows
+    ) {
     }
 
     private record ConnectionSnapshot(

@@ -332,7 +332,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         float markerX = trackX - markerWidth + (trackWidth + markerWidth * 2f) * phase;
 
         vg.scissor(trackX, trackY, trackWidth, trackHeight, () ->
-                vg.roundedRectangle(markerX, trackY, markerWidth, trackHeight, 3f, NanoVGTheme.ACCENT)
+                vg.roundedRectangle(markerX, trackY, markerWidth, trackHeight, 3f, new Color(255, 255, 255, 230))
         );
     }
 
