@@ -64,6 +64,7 @@ dependencies {
     runtimeOnly 'org.lwjgl:lwjgl-nanovg::natives-windows'
     runtimeOnly 'org.lwjgl:lwjgl-nanovg::natives-linux'
     runtimeOnly 'org.lwjgl:lwjgl-nanovg::natives-macos'
+    runtimeOnly 'org.lwjgl:lwjgl-nanovg::natives-macos-arm64'
     library("org.lwjgl:lwjgl-nanovg:${lwjglVersion}") {
         transitive = false
     }
@@ -76,12 +77,31 @@ dependencies {
     library("org.lwjgl:lwjgl-nanovg:${lwjglVersion}:natives-macos") {
         transitive = false
     }
+    library("org.lwjgl:lwjgl-nanovg:${lwjglVersion}:natives-macos-arm64") {
+        transitive = false
+    }
 
     // STB for font loading
     implementation 'org.lwjgl:lwjgl-stb'
     runtimeOnly 'org.lwjgl:lwjgl-stb::natives-windows'
     runtimeOnly 'org.lwjgl:lwjgl-stb::natives-linux'
     runtimeOnly 'org.lwjgl:lwjgl-stb::natives-macos'
+    runtimeOnly 'org.lwjgl:lwjgl-stb::natives-macos-arm64'
+    library("org.lwjgl:lwjgl-stb:${lwjglVersion}") {
+        transitive = false
+    }
+    library("org.lwjgl:lwjgl-stb:${lwjglVersion}:natives-windows") {
+        transitive = false
+    }
+    library("org.lwjgl:lwjgl-stb:${lwjglVersion}:natives-linux") {
+        transitive = false
+    }
+    library("org.lwjgl:lwjgl-stb:${lwjglVersion}:natives-macos") {
+        transitive = false
+    }
+    library("org.lwjgl:lwjgl-stb:${lwjglVersion}:natives-macos-arm64") {
+        transitive = false
+    }
 }
 
 tasks.withType(ProcessResources).configureEach {
