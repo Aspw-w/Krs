@@ -253,7 +253,7 @@ public class VulcanOldSpeed implements SpeedEvent {
     }
 
     private void jump(LocalPlayer player) {
-        player.jumpFromGround();
+        player.input.makeJump();
         jumps++;
     }
 

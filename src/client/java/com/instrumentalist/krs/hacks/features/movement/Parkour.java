@@ -48,7 +48,7 @@ public class Parkour extends Module {
         if (!jumpTimer.hasTimePassed(jumpDelay.get()))
             return;
 
-        player.jumpFromGround();
+        player.input.makeJump();
         jumpTimer.reset();
     }
 }

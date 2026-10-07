@@ -21,7 +21,7 @@ public class VulcanSpeed implements SpeedEvent {
 
         if (mc.player.onGround()) {
             MovementUtil.strafe(MovementUtil.getSpeed());
-            mc.player.jumpFromGround();
+            mc.player.input.makeJump();
             return;
         }
 

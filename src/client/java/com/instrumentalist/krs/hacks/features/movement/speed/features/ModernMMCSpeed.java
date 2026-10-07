@@ -29,7 +29,7 @@ public class ModernMMCSpeed implements SpeedEvent {
 
         if (MovementUtil.isMoving()) {
             if (mc.player.onGround()) {
-                mc.player.jumpFromGround();
+                mc.player.input.makeJump();
             }
         }
     }
@@ -42,13 +42,6 @@ public class ModernMMCSpeed implements SpeedEvent {
 
     @Override
     public void onSendPacket(SendPacketEvent event) {
-        if (mc.player == null) return;
-
-        Packet<?> packet = event.packet;
-
-        if (packet instanceof ServerboundMovePlayerPacket) {
-            PacketUtil.sendPacket(new ServerboundPlayerInputPacket(new Input(false, false, false, false, true, true, false)));
-        }
     }
 
     @Override

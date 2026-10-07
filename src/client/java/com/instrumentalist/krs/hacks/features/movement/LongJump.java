@@ -85,7 +85,7 @@ public class LongJump extends Module {
                 grimTicks++;
 
                 if (mc.player.onGround())
-                    mc.player.jumpFromGround();
+                    mc.player.input.makeJump();
 
                 int airTicks = MovementUtil.fallTicks;
                 if (airTicks == 1) {
@@ -128,7 +128,7 @@ public class LongJump extends Module {
                 }
 
                 if (mc.player.onGround())
-                    mc.player.jumpFromGround();
+                    mc.player.input.makeJump();
 
                 matrix2Started = true;
 

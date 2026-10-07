@@ -20,7 +20,7 @@ public class BoostSpeed implements SpeedEvent {
         if (MovementUtil.isMoving()) {
             if (mc.player.onGround()) {
                 MovementUtil.strafe(Math.max(0.24f, boostSpeed));
-                mc.player.jumpFromGround();
+                mc.player.input.makeJump();
                 if (!mc.player.horizontalCollision)
                     boostSpeed = Math.min(boostSpeed + 0.1f, 1f);
             } else MovementUtil.strafe(Math.max(0.24f, MovementUtil.getSpeed()));

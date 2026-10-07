@@ -61,7 +61,7 @@ public class NCPBoostFly implements FlyEvent {
                 }
 
                 TimerUtil.timerSpeed = 0.3f;
-                mc.player.jumpFromGround();
+                mc.player.input.makeJump();
                 MovementUtil.stopXZ();
                 moveSpeed = 1.61f;
                 timer = true;

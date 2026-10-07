@@ -22,7 +22,7 @@ public class VanillaSpeed implements SpeedEvent {
         if (mc.player == null) return;
 
         if (SpeedModule.vanillaAutoBHop.get() && mc.player.onGround() && MovementUtil.isMoving())
-            mc.player.jumpFromGround();
+            mc.player.input.makeJump();
 
         MovementUtil.strafe(SpeedModule.vanillaSpeed.get());
     }

@@ -109,7 +109,7 @@ public class MatrixFly implements FlyEvent {
         switch (FlyModule.matrixMode.get().toLowerCase(java.util.Locale.ROOT)) {
             case "normal" -> {
                 if (player.onGround())
-                    player.jumpFromGround();
+                    player.input.makeJump();
 
                 if (airTicks > 1)
                     MovementUtil.setVelocityY(player.getDeltaMovement().y + 0.00348);
@@ -130,13 +130,13 @@ public class MatrixFly implements FlyEvent {
 
                 if (player.hurtTime >= 1 && player.hurtTime <= 8) {
                     if (player.onGround())
-                        player.jumpFromGround();
+                        player.input.makeJump();
                     else if (player.getDeltaMovement().y < 0.2)
                         highBoost = true;
                 }
 
                 if (FlyModule.matrixHighSelfDamage.get() && highSelfDamageJumps < 4 && player.onGround()) {
-                    player.jumpFromGround();
+                    player.input.makeJump();
                     highSelfDamageJumps++;
                 }
             }
@@ -147,7 +147,7 @@ public class MatrixFly implements FlyEvent {
                 }
 
                 if (FlyModule.matrixDamageSelfDamage.get() && player.hurtTime <= 0 && damageSelfDamageJumps < 4 && player.onGround()) {
-                    player.jumpFromGround();
+                    player.input.makeJump();
                     damageSelfDamageJumps++;
                 }
 

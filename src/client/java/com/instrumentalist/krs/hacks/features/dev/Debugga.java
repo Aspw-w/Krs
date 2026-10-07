@@ -28,14 +28,4 @@ public class Debugga extends Module {
         if (target == null) return;
         ChatUtil.printChat(target.getUUID() + "");
     }
-
-    @Override
-    public void onUpdate(UpdateEvent event) {
-        if (mc.player == null) return;
-
-        if (mc.player.onGround()) {
-            mc.player.jumpFromGround();
-            mc.player.jumpFromGround();
-        }
-    }
 }

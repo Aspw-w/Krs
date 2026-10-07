@@ -77,8 +77,7 @@ public class NoSlow extends Module {
                 event.cancel();
 
                 if (player.onGround()) {
-                    mc.options.keyJump.setDown(false);
-                    player.jumpFromGround();
+                    player.input.makeJump();
                 }
 
                 waitingPacket = true;
@@ -106,15 +105,6 @@ public class NoSlow extends Module {
             ));
             waitingPacket = false;
         }
-    }
-
-    @Override
-    public void onTick(TickEvent event) {
-        var player = mc.player;
-        if (player == null) return;
-
-        if (mode.get().equalsIgnoreCase("hypixel ncp") && player.onGround() && waitingPacket)
-            mc.options.keyJump.setDown(false);
     }
 
     public static boolean shouldNoSlowSneak() {

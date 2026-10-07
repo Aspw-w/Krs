@@ -20,7 +20,7 @@ public class MinibloxSpeed implements SpeedEvent {
         if (mc.player.onGround()) {
             MovementUtil.strafe(0.36f);
             if (MovementUtil.isMoving())
-                mc.player.jumpFromGround();
+                mc.player.input.makeJump();
         } else {
             switch (MovementUtil.fallTicks) {
                 case 3:
