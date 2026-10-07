@@ -473,7 +473,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
                             mc.gui.setScreen(new OptionsScreen(this, mc.options, false));
                             return true;
 
-                        case "Update Available":
+                        case "Update Here":
                             FileUtil.INSTANCE.openInBrowser(RELEASES_URL);
                             return true;
 
