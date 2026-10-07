@@ -1877,7 +1877,7 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private static void renderListRowWash(NVGU vg, Rect row, float alphaScale) {
-        vg.rectangle(row.x + u(6f), row.y + u(1f), row.width - u(12f), row.height - u(2f), alpha(255, 255, 255, (int) (18 * alphaScale)));
+        vg.roundedRectangle(row.x + u(6f), row.y + u(1f), row.width - u(12f), row.height - u(2f), u(4f), alpha(255, 255, 255, (int) (18 * alphaScale)));
     }
 
     private static void renderListRowMark(NVGU vg, Rect row) {

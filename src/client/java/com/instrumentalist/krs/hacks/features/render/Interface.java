@@ -1384,7 +1384,7 @@ public class Interface extends Module {
         boolean blinking = BlinkUtil.INSTANCE.getBlinking();
         progress = advanceModuleInformationFade(INFO_BLINKING, blinking, deltaSpeed);
         if (progress > 0f)
-            entries.add(new StyledTextRenderEntry("Blinking... " + (Blink.directions.get().equalsIgnoreCase("incoming") ? "(incoming)" : "(x" + BlinkUtil.INSTANCE.getPacketCount() + ")"), centerX, startY, progress));
+            entries.add(new StyledTextRenderEntry("Blinking... " + (Blink.directions.get().equalsIgnoreCase("incoming") ? "(Incoming)" : "(x" + BlinkUtil.INSTANCE.getPacketCount() + ")"), centerX, startY, progress));
         if (blinking) startY -= 40f;
 
         boolean scaffoldActive = ModuleManager.getModuleState(Scaffold.class) && mc.player != null;
@@ -2326,7 +2326,7 @@ public class Interface extends Module {
         int alpha = Math.clamp(Math.round(18f * Math.clamp(progress, 0f, 1f)), 0, 255);
         if (alpha <= 0)
             return;
-        vg.rectangle(x + 6f, y + 1f, width - 12f, 20f, new Color(255, 255, 255, alpha));
+        vg.roundedRectangle(x + 6f, y + 1f, width - 12f, 20f, 4f, new Color(255, 255, 255, alpha));
     }
 
     private static void renderTabGuiSelectionMark(NVGU vg, float x, float y, float width) {
