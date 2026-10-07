@@ -11,7 +11,15 @@ import java.util.List;
 
 public final class NanoVGTheme {
     public static final Color BASE = new Color(0x16, 0x16, 0x16);
+    public static final Color TEXT = new Color(0xF6, 0xF6, 0xF1);
+    public static final Color MUTED = new Color(0xC8, 0xC8, 0xC2);
+    public static final Color DANGER = new Color(0xFF, 0x3D, 0x2E);
+    public static final Color WARNING = new Color(0xFF, 0x8A, 0x00);
     public static Color ACCENT = new Color(0xFF, 0xD0, 0x00);
+    public static final float RADIUS_HUD = 8f;
+    public static final float RADIUS_PANEL = 12f;
+    public static final float RADIUS_MENU = 18f;
+    public static final float RADIUS_CONTROL = 8f;
     private static final Shader2DRenderer.GlassRequest PANEL_GLASS = Shader2DRenderer.GlassRequest.panel();
     private static final Shader2DRenderer.GlassRequest COMPACT_GLASS = Shader2DRenderer.GlassRequest.compact();
     private static final Shader2DRenderer.GlassRequest CONTROL_GLASS = Shader2DRenderer.GlassRequest.control();
@@ -276,6 +284,22 @@ public final class NanoVGTheme {
 
     public static Color accent(int alpha) {
         return new Color(ACCENT.getRed(), ACCENT.getGreen(), ACCENT.getBlue(), Math.clamp(alpha, 0, 255));
+    }
+
+    public static Color text(int alpha) {
+        return new Color(TEXT.getRed(), TEXT.getGreen(), TEXT.getBlue(), Math.clamp(alpha, 0, 255));
+    }
+
+    public static Color muted(int alpha) {
+        return new Color(MUTED.getRed(), MUTED.getGreen(), MUTED.getBlue(), Math.clamp(alpha, 0, 255));
+    }
+
+    public static Color danger(int alpha) {
+        return new Color(DANGER.getRed(), DANGER.getGreen(), DANGER.getBlue(), Math.clamp(alpha, 0, 255));
+    }
+
+    public static Color warning(int alpha) {
+        return new Color(WARNING.getRed(), WARNING.getGreen(), WARNING.getBlue(), Math.clamp(alpha, 0, 255));
     }
 
     public static Color switchOn(int alpha) {
