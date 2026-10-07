@@ -254,7 +254,7 @@ public class NanoVGClickGuiScreen extends Screen {
                     || button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE)) {
                 for (int i = settingsPanelControlStartIndex; i < controls.size(); i++) {
                     ControlBounds control = controls.get(i);
-                    if (control.rect.contains(mouseX, mouseY) && handleControlClick(control, mouseX, button))
+                    if (control.rect.contains(mouseX, mouseY) && handleControlClick(control, mouseX, button, doubleClick))
                         return true;
                 }
 
@@ -282,14 +282,14 @@ public class NanoVGClickGuiScreen extends Screen {
                 || button == GLFW.GLFW_MOUSE_BUTTON_RIGHT
                 || button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
             for (ControlBounds control : controls) {
-                if (control.rect.contains(mouseX, mouseY) && handleControlClick(control, mouseX, button))
+                if (control.rect.contains(mouseX, mouseY) && handleControlClick(control, mouseX, button, doubleClick))
                     return true;
             }
         }
 
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && searchRect.contains(mouseX, mouseY)) {
             focusSearch();
-            beginTextSelection(mouseX);
+            beginTextSelectionOrSelectAll(mouseX, doubleClick);
             return true;
         }
 
@@ -1748,7 +1748,7 @@ public class NanoVGClickGuiScreen extends Screen {
         return inputClips.isEmpty() ? null : inputClips.get(inputClips.size() - 1);
     }
 
-    private boolean handleControlClick(ControlBounds control, float mouseX, int button) {
+    private boolean handleControlClick(ControlBounds control, float mouseX, int button, boolean doubleClick) {
         if (control.type == ControlType.FLOAT_INPUT || control.type == ControlType.INT_INPUT) {
             if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
                 focusNumberInput((SettingValue<?>) control.target);
@@ -1758,7 +1758,7 @@ public class NanoVGClickGuiScreen extends Screen {
             if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT
                     && textFocus == TextFocus.NUMBER
                     && focusedNumberValue == control.target) {
-                beginTextSelection(mouseX);
+                beginTextSelectionOrSelectAll(mouseX, doubleClick);
                 return true;
             }
 
@@ -1805,7 +1805,7 @@ public class NanoVGClickGuiScreen extends Screen {
         switch (control.type) {
             case CONFIG_NAME -> {
                 textFocus = TextFocus.CONFIG_NAME;
-                beginTextSelection(mouseX);
+                beginTextSelectionOrSelectAll(mouseX, doubleClick);
             }
             case CONFIG_CREATE -> createConfigFromInput();
             case CONFIG_LOAD -> loadConfigEntry((ConfigEntry) control.target);
@@ -1846,7 +1846,7 @@ public class NanoVGClickGuiScreen extends Screen {
                 textFocus = TextFocus.SETTING;
                 focusedTextValue = (TextValue) control.target;
                 focusedTextModule = (Module) control.owner;
-                beginTextSelection(mouseX);
+                beginTextSelectionOrSelectAll(mouseX, doubleClick);
             }
             case KEY_VALUE -> bindingValue = (KeyBindValue) control.target;
         }
@@ -2993,6 +2993,14 @@ public class NanoVGClickGuiScreen extends Screen {
         textCaret = caret;
         if (!extendSelection)
             textAnchor = textCaret;
+    }
+
+    private void beginTextSelectionOrSelectAll(float mouseX, boolean doubleClick) {
+        if (doubleClick) {
+            selectAllFocusedText();
+            return;
+        }
+        beginTextSelection(mouseX);
     }
 
     private void beginTextSelection(float mouseX) {
