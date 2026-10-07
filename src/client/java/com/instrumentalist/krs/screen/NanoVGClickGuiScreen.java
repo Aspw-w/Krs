@@ -165,6 +165,7 @@ public class NanoVGClickGuiScreen extends Screen {
     private long hoveredModuleStartNanos;
     private String tooltipText = "";
     private float settingsDockReveal;
+    private float tabMarkY = Float.NaN;
 
     public NanoVGClickGuiScreen() {
         this(null);
@@ -1176,15 +1177,15 @@ public class NanoVGClickGuiScreen extends Screen {
         float gap = u(5f);
         float tabHeight = u(22f);
         float tabFont = font(14f);
+        Rect selectedRect = null;
 
         for (int i = 0; i < categories.length; i++) {
             ModuleCategory category = categories[i];
             Rect rect = new Rect(x, y + u(5f) + i * (tabHeight + gap), width, tabHeight);
             tabBounds.add(new TabBounds(category, null, rect));
 
-            boolean selected = !configView && searchQuery.isBlank() && selectedCategory == category;
-            if (selected)
-                renderListRowMark(vg, rect);
+            if (!configView && searchQuery.isBlank() && selectedCategory == category)
+                selectedRect = rect;
 
             NVGFonts.INTER.drawText(fitText(category.name(), NVGFonts.INTER, tabFont, rect.width - u(20f)), rect.x + u(12f), rect.y + u(4f), tabFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
         }
@@ -1199,12 +1200,19 @@ public class NanoVGClickGuiScreen extends Screen {
             Rect rect = new Rect(x, configStartY + i * (tabHeight + gap), width, tabHeight);
             tabBounds.add(new TabBounds(null, tab, rect));
 
-            boolean selected = configView && searchQuery.isBlank() && selectedConfigTab == tab;
-            if (selected)
-                renderListRowMark(vg, rect);
+            if (configView && searchQuery.isBlank() && selectedConfigTab == tab)
+                selectedRect = rect;
 
             NVGFonts.INTER.drawText(fitText(tab.sidebarLabel, NVGFonts.INTER, tabFont, rect.width - u(20f)), rect.x + u(12f), rect.y + u(4f), tabFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
         }
+
+        if (selectedRect == null)
+            return;
+
+        tabMarkY = Float.isNaN(tabMarkY)
+                ? selectedRect.y
+                : approach(tabMarkY, selectedRect.y, Math.clamp(0.16f * frameDelta * 0.9f, 0.08f, 1f));
+        renderListRowMark(vg, new Rect(selectedRect.x, tabMarkY, selectedRect.width, selectedRect.height));
     }
 
     private int renderModuleList(NVGU vg, float x, float y, float width, float height) {
@@ -1387,8 +1395,9 @@ public class NanoVGClickGuiScreen extends Screen {
         float wash = washProgress("module", module, module.tempEnabled);
         if (wash > 0.01f)
             renderListRowWash(vg, row, wash);
-        if (selected)
-            renderListRowMark(vg, row);
+        float mark = animate("module-mark:" + System.identityHashCode(module), selected, 0.18f);
+        if (mark > 0.01f)
+            renderListRowMark(vg, row, mark);
 
         Rect switchRect = new Rect(row.x + u(14f), row.y + u(7f), SWITCH_WIDTH, SWITCH_HEIGHT);
         float nameX = switchRect.x + switchRect.width + u(8f);
@@ -1872,7 +1881,14 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private static void renderListRowMark(NVGU vg, Rect row) {
-        vg.roundedRectangle(row.x + u(6f), row.y + u(7f), u(2f), Math.max(u(8f), row.height - u(14f)), u(1f), alpha(255, 255, 255, 220));
+        renderListRowMark(vg, row, 1f);
+    }
+
+    private static void renderListRowMark(NVGU vg, Rect row, float alphaScale) {
+        int markAlpha = Math.clamp(Math.round(220f * Math.clamp(alphaScale, 0f, 1f)), 0, 255);
+        if (markAlpha <= 0)
+            return;
+        vg.roundedRectangle(row.x + u(6f), row.y + u(7f), u(2f), Math.max(u(8f), row.height - u(14f)), u(1f), alpha(255, 255, 255, markAlpha));
     }
 
     private void withControlChrome(NVGU vg, Rect clip, Runnable content) {

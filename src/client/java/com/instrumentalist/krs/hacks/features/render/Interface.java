@@ -8,6 +8,7 @@ import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.exploit.Blink;
 import com.instrumentalist.krs.hacks.features.exploit.disabler.DisablerModule;
 import com.instrumentalist.krs.hacks.features.player.LookTP;
 import com.instrumentalist.krs.hacks.features.player.MurdererDetector;
@@ -1383,7 +1384,7 @@ public class Interface extends Module {
         boolean blinking = BlinkUtil.INSTANCE.getBlinking();
         progress = advanceModuleInformationFade(INFO_BLINKING, blinking, deltaSpeed);
         if (progress > 0f)
-            entries.add(new StyledTextRenderEntry("Blinking... (x" + BlinkUtil.INSTANCE.getPacketCount() + ")", centerX, startY, progress));
+            entries.add(new StyledTextRenderEntry("Blinking... " + (Blink.directions.get().equalsIgnoreCase("incoming") ? "(incoming)" : "(x" + BlinkUtil.INSTANCE.getPacketCount() + ")"), centerX, startY, progress));
         if (blinking) startY -= 40f;
 
         boolean scaffoldActive = ModuleManager.getModuleState(Scaffold.class) && mc.player != null;
@@ -1427,9 +1428,6 @@ public class Interface extends Module {
         float rowY = y + 28f;
         for (int i = 0; i < visiblePlayers; i++) {
             PlayerListRow row = playerListRowBuffer.get(i);
-
-            if (i % 2 == 0)
-                vg.rectangle(x + 6f, rowY + 1f, 240f - 12f, row.rowHeight - 2f, new Color(255, 255, 255, 18));
 
             for (int line = 0; line < row.nameLines.size(); line++) {
                 NVGFonts.INTER.drawText(row.nameLines.get(line), x + 12f, rowY + 3f + line * 16f, HUD_FONT_SIZE, row.nameColor, Alignment.LEFT_TOP, false);
