@@ -86,7 +86,8 @@ public class KillAura extends Module {
             "Target Range",
             4f,
             0f,
-            8f
+            8f,
+            "m"
     );
 
     @Setting
@@ -94,7 +95,8 @@ public class KillAura extends Module {
             "Attack Range",
             3f,
             0f,
-            6f
+            6f,
+            "m"
     );
 
     @Setting
@@ -228,6 +230,7 @@ public class KillAura extends Module {
             40f,
             0f,
             200f,
+            "m",
             tpReach::get
     );
 

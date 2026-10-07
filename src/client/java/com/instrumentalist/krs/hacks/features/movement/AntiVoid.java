@@ -19,7 +19,7 @@ public class AntiVoid extends Module {
     private final BooleanValue stopXZ = new BooleanValue("StopXZ", true);
 
     @Setting
-    private final IntValue distance = new IntValue("Distance", 6, 0, 10);
+    private final IntValue distance = new IntValue("Distance", 6, 0, 10, "m");
 
     private int canTick = 0;
     private Integer unSafeY = null;

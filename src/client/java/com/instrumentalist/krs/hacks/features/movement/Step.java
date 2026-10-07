@@ -66,6 +66,7 @@ public class Step extends Module {
             0.6f,
             0.1f,
             10f,
+            "x",
             customTimer::get
     );
 

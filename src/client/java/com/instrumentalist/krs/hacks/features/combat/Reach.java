@@ -17,13 +17,13 @@ public class Reach extends Module {
     private static final BooleanValue block = new BooleanValue("Block", true);
 
     @Setting
-    private static final FloatValue blockReach = new FloatValue("Block Reach", 6f, 0.1f, 6f, block::get);
+    private static final FloatValue blockReach = new FloatValue("Block Reach", 6f, 0.1f, 6f, "m", block::get);
 
     @Setting
     private static final BooleanValue entity = new BooleanValue("Entity", true);
 
     @Setting
-    private static final FloatValue entityReach = new FloatValue("Entity Reach", 6f, 0.1f, 6f, entity::get);
+    private static final FloatValue entityReach = new FloatValue("Entity Reach", 6f, 0.1f, 6f, "m", entity::get);
 
     public static double hookBlockReach(double original) {
         if (ModuleManager.getModuleState(Reach.class) && block.get())

@@ -23,7 +23,7 @@ public class FastLadder extends Module {
     private final FloatValue speed = new FloatValue("Speed", 0.4f, 0.2f, 1f, () -> mode.get().equalsIgnoreCase("vanilla"));
 
     @Setting
-    private final FloatValue timerSpeed = new FloatValue("Timer Speed", 2f, 1.1f, 3f, () -> mode.get().equalsIgnoreCase("timer"));
+    private final FloatValue timerSpeed = new FloatValue("Timer Speed", 2f, 1.1f, 3f, "x", () -> mode.get().equalsIgnoreCase("timer"));
 
     private boolean wasClimbing = false;
 

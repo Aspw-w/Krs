@@ -41,7 +41,8 @@ public class TargetStrafe extends Module {
             "Distance",
             1f,
             0f,
-            8f
+            8f,
+            "m"
     );
 
     @Setting

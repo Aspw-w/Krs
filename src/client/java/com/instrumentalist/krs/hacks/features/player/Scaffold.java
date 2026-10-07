@@ -132,10 +132,10 @@ public class Scaffold extends Module {
     private static final BooleanValue customTimer = new BooleanValue("Custom Timer", false);
 
     @Setting
-    private static final FloatValue towerTimerSpeed = new FloatValue("Tower Timer Speed", 1.5f, 0.1f, 10f, () -> customTimer.get() && tower.get());
+    private static final FloatValue towerTimerSpeed = new FloatValue("Tower Timer Speed", 1.5f, 0.1f, 10f, "x", () -> customTimer.get() && tower.get());
 
     @Setting
-    private static final FloatValue normalTimerSpeed = new FloatValue("Normal Timer Speed", 1.5f, 0.1f, 10f, customTimer::get);
+    private static final FloatValue normalTimerSpeed = new FloatValue("Normal Timer Speed", 1.5f, 0.1f, 10f, "x", customTimer::get);
 
     @Setting
     private static final BooleanValue keepY = new BooleanValue("KeepY", true);

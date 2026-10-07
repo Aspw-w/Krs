@@ -87,7 +87,7 @@ public class FlyModule extends Module {
     public static final FloatValue grimSpeed = new FloatValue("Grim Speed", 0.275f, 0f, 0.32f, () -> flyMode.get().equalsIgnoreCase("grim 1.9-1.18.1"));
 
     @Setting
-    public static final FloatValue grimTimerSpeed = new FloatValue("Grim Timer Speed", 1f, 0.1f, 10f, () -> flyMode.get().equalsIgnoreCase("grim 1.9-1.18.1"));
+    public static final FloatValue grimTimerSpeed = new FloatValue("Grim Timer Speed", 1f, 0.1f, 10f, "x", () -> flyMode.get().equalsIgnoreCase("grim 1.9-1.18.1"));
 
     @Setting
     public static final BooleanValue grimSlowFall = new BooleanValue("Grim Slow Fall", false, () -> flyMode.get().equalsIgnoreCase("grim 1.9-1.18.1"));

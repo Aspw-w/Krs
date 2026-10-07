@@ -143,11 +143,11 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         vg.roundedRectangle(state.x - 110f, state.y - 34f, 220f, 38f, 14f, baseColor);
 
         if (state.animation > 1f) {
-            vg.roundedRectangle(state.x - state.animation, state.y - 2.5f, state.animation * 2f, 3f, 2f, NanoVGTheme.accent(state.hovered ? 230 : 170));
+            vg.roundedRectangle(state.x - state.animation, state.y - 2.5f, state.animation * 2f, 3f, 2f, new Color(255, 255, 255, state.hovered ? 230 : 170));
         }
 
         NVGFont font = state.fontSize > 22f ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
-        font.drawText(state.label, state.x, state.y - 15f - (state.fontSize - 21f), state.fontSize, state.hovered ? NanoVGTheme.ACCENT : Color.WHITE, Alignment.CENTER_MIDDLE, true);
+        font.drawText(state.label, state.x, state.y - 15f - (state.fontSize - 21f), state.fontSize, Color.WHITE, Alignment.CENTER_MIDDLE, true);
     }
 
     private void renderMusicVolumeSlider(NVGU vg, float centerX, float mouseX, float mouseY) {

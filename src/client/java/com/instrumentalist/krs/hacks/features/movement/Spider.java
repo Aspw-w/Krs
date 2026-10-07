@@ -20,7 +20,7 @@ public class Spider extends Module {
     private final FloatValue speed = new FloatValue("Speed", 0.32f, 0.1f, 1f, () -> !mode.get().equalsIgnoreCase("timer"));
 
     @Setting
-    private final FloatValue timerSpeed = new FloatValue("Timer Speed", 1.7f, 1.1f, 4f, () -> mode.get().equalsIgnoreCase("timer"));
+    private final FloatValue timerSpeed = new FloatValue("Timer Speed", 1.7f, 1.1f, 4f, "x", () -> mode.get().equalsIgnoreCase("timer"));
 
     @Setting
     private final BooleanValue onlyMoving = new BooleanValue("Only Moving", true);

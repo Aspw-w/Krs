@@ -18,7 +18,7 @@ public class Timer extends Module {
     public static final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "Rounding Error"}, "Vanilla");
 
     @Setting
-    private static final FloatValue speed = new FloatValue("Speed", 1.5f, 0.1f, 10f, () -> mode.get().equalsIgnoreCase("vanilla"));
+    private static final FloatValue speed = new FloatValue("Speed", 1.5f, 0.1f, 10f, "x", () -> mode.get().equalsIgnoreCase("vanilla"));
 
     @Setting
     private static final BooleanValue moveOnly = new BooleanValue("Move Only", false, () -> mode.get().equalsIgnoreCase("vanilla"));
