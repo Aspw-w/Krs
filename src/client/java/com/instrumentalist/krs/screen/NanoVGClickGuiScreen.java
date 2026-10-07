@@ -1535,6 +1535,12 @@ public class NanoVGClickGuiScreen extends Screen {
         float optionX = row.x + row.width - valueWidth - u(8f);
         float optionY = row.y + u(4f);
 
+        if (dropdownProgress > 0.01f) {
+            float[] heights = listOptionHeights(value, valueWidth);
+            float openHeight = Math.max(row.height, u(4f) + listOptionsTotalHeight(heights) * easedDropdown);
+            renderListRowWash(vg, new Rect(row.x, row.y, row.width, openHeight), easedDropdown);
+        }
+
         drawWrappedSettingLabel(value.name, row.x + u(12f), row.y + u(7f), listLabelMaxWidth(row.width));
         if (dropdownProgress <= 0.01f && value.get() != null)
             NVGFonts.INTER.drawText(fitText(value.get(), NVGFonts.INTER, font(11f), row.width * 0.36f), row.x + row.width - u(25f), row.y + u(8f), font(11f), NanoVGTheme.MUTED, Alignment.RIGHT_TOP, false);
