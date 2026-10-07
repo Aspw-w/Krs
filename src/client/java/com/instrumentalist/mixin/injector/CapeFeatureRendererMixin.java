@@ -2,6 +2,7 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.ClientCape;
+import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.model.HumanoidModel;
@@ -39,7 +40,9 @@ public abstract class CapeFeatureRendererMixin extends RenderLayer<AvatarRenderS
 
     @Inject(method = "submit(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;ILnet/minecraft/client/renderer/entity/state/AvatarRenderState;FF)V", at = @At("HEAD"), cancellable = true)
     public void render(PoseStack matrixStack, SubmitNodeCollector submitter, int i, AvatarRenderState playerEntityRenderState, float f, float g, CallbackInfo ci) {
-        if (((IEntityRenderState) playerEntityRenderState).client$getEntity() instanceof LocalPlayer && ModuleManager.getModuleState(ClientCape.class)) {
+        if (!GuiEntityRenderGuard.isActive()
+                && ((IEntityRenderState) playerEntityRenderState).client$getEntity() instanceof LocalPlayer
+                && ModuleManager.getModuleState(ClientCape.class)) {
             ci.cancel();
 
             if (!playerEntityRenderState.isInvisible && playerEntityRenderState.showCape) {

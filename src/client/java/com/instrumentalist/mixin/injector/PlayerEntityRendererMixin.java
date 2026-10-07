@@ -96,6 +96,7 @@ public abstract class PlayerEntityRendererMixin implements IMinecraft {
 
         if (!(avatar instanceof AbstractClientPlayer player)) return;
         if (player != mc.player) return;
+        if (GuiEntityRenderGuard.isActive()) return;
 
         applyEmptyHandSpoofArmPose(state);
         applyOldHittingUseState(state);

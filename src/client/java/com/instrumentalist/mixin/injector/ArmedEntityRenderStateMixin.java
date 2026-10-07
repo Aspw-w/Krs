@@ -2,6 +2,7 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
+import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
 import net.minecraft.client.renderer.entity.state.ArmedEntityRenderState;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.world.entity.HumanoidArm;
@@ -18,6 +19,9 @@ public abstract class ArmedEntityRenderStateMixin implements IMinecraft {
 
     @Inject(method = "extractArmedEntityRenderState", at = @At("RETURN"))
     private static void hookThirdPersonItemSpoof(LivingEntity entity, ArmedEntityRenderState state, ItemModelResolver itemModelResolver, float tickDelta, CallbackInfo ci) {
+        if (GuiEntityRenderGuard.isActive())
+            return;
+
         var player = mc.player;
         Integer spoofSlot = PlayerUtil.INSTANCE.getSpoofSlot();
         if (player == null || entity != player || !PlayerUtil.INSTANCE.getSpoofing() || spoofSlot == null || spoofSlot < 0 || spoofSlot > 8)

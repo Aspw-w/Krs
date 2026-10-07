@@ -2,6 +2,7 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.ClientCape;
+import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
 import net.minecraft.client.model.player.PlayerCapeModel;
 import net.minecraft.client.model.player.PlayerModel;
@@ -21,7 +22,8 @@ public abstract class PlayerCapeModelMixin extends PlayerModel {
 
     @Inject(method = "setupAnim(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;)V", at = @At("TAIL"))
     private void krs$removeSwingCapeYaw(AvatarRenderState state, CallbackInfo ci) {
-        if (state instanceof IEntityRenderState renderState
+        if (!GuiEntityRenderGuard.isActive()
+                && state instanceof IEntityRenderState renderState
                 && renderState.client$getEntity() instanceof LocalPlayer
                 && ModuleManager.getModuleState(ClientCape.class)
                 && ClientCape.oldCapeMovement.get()) {

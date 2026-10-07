@@ -1405,20 +1405,10 @@ public class NanoVGClickGuiScreen extends Screen {
         String bindLabel = module.key != GLFW.GLFW_KEY_UNKNOWN ? keyName(module.key) : "";
         float nameRight = row.x + row.width - u(8f);
         if (!bindLabel.isBlank()) {
-            float bindWidth = Math.min(u(72f), NVGFonts.INTER.getWidth(bindLabel, font(9f)) + u(12f));
-            Rect bindRect = new Rect(nameRight - bindWidth, row.y + u(6f), bindWidth, u(16f));
-            nameRight = bindRect.x - u(8f);
-            vg.roundedRectangle(bindRect.x, bindRect.y, bindRect.width, bindRect.height, u(4f), alpha(255, 255, 255, hovered || selected ? 18 : 12));
-            vg.roundedRectangleBorder(bindRect.x, bindRect.y, bindRect.width, bindRect.height, u(4f), u(1f), alpha(255, 255, 255, 24), Border.INSIDE);
-            NVGFonts.INTER.drawText(
-                    fitText(bindLabel, NVGFonts.INTER, font(10f), bindRect.width - u(6f)),
-                    bindRect.centerX(),
-                    bindRect.y + u(3f),
-                    font(10f),
-                    NanoVGTheme.MUTED,
-                    Alignment.CENTER_TOP,
-                    false
-            );
+            float bindFont = font(10f);
+            float bindWidth = NVGFonts.INTER.getWidth(bindLabel, bindFont);
+            NVGFonts.INTER.drawText(bindLabel, nameRight, row.y + u(8f), bindFont, NanoVGTheme.MUTED, Alignment.RIGHT_TOP, false);
+            nameRight -= bindWidth + u(8f);
         }
 
         float nameMaxWidth = Math.max(u(36f), nameRight - nameX);
@@ -1463,8 +1453,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
         Rect key = new Rect(x, rowY, width, SETTING_ROW_HEIGHT);
         addControl(ControlType.MODULE_KEY, key, module, null, 0);
-        renderSettingRow(vg, key, "Keybind", bindingModule == module ? "Press key..." : keyName(module.key), 0f);
-        NVGFonts.ICON.drawText(MaterialIcon.KEY, key.x + key.width - u(9f), key.y + u(6f), font(12f), bindingModule == module ? NanoVGTheme.TEXT : NanoVGTheme.muted(220), Alignment.RIGHT_TOP, false);
+        renderKeybindRow(vg, key, "Keybind", bindingModule == module ? "Press key..." : keyName(module.key));
 
         return rowY + SETTING_ROW_STEP;
     }
@@ -1525,6 +1514,12 @@ public class NanoVGClickGuiScreen extends Screen {
         NVGFonts.INTER.drawText(fitText(label, NVGFonts.INTER, font(12f), row.width * 0.50f), row.x + u(12f), row.y + u(7f), font(12f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
         if (value != null)
             NVGFonts.INTER.drawText(fitText(value, NVGFonts.INTER, font(11f), row.width * 0.36f), row.x + row.width - u(25f), row.y + u(8f), font(11f), NanoVGTheme.MUTED, Alignment.RIGHT_TOP, false);
+    }
+
+    private void renderKeybindRow(NVGU vg, Rect row, String label, String value) {
+        NVGFonts.INTER.drawText(fitText(label, NVGFonts.INTER, font(12f), row.width * 0.50f), row.x + u(12f), row.y + u(7f), font(12f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+        if (value != null)
+            NVGFonts.INTER.drawText(value, row.x + row.width - u(25f), row.y + u(8f), font(11f), NanoVGTheme.MUTED, Alignment.RIGHT_TOP, false);
     }
 
     private void renderListSetting(NVGU vg, Rect row, Module module, ListValue value) {
@@ -1703,9 +1698,8 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private void renderKeyBindSetting(NVGU vg, Rect row, KeyBindValue value) {
         boolean active = bindingValue == value;
-        renderSettingRow(vg, row, value.name, active ? "Press key..." : keyName(value.get()), 0f);
+        renderKeybindRow(vg, row, value.name, active ? "Press key..." : keyName(value.get()));
         addControl(ControlType.KEY_VALUE, row, value, null, 0);
-        NVGFonts.ICON.drawText(MaterialIcon.KEY, row.x + row.width - u(9f), row.y + u(6f), font(12f), active ? NanoVGTheme.TEXT : NanoVGTheme.muted(220), Alignment.RIGHT_TOP, false);
     }
 
     private void withInputClip(Rect clip, Runnable runnable) {

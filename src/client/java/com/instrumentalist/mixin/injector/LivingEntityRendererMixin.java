@@ -4,6 +4,7 @@ import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.Rotations;
 import com.instrumentalist.krs.hacks.features.render.TrueSight;
+import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -73,7 +74,8 @@ public abstract class LivingEntityRendererMixin {
 
     @Unique
     private boolean krs$shouldApplyVanillaRotation(LivingEntity entity) {
-        return Client.rotationManager != null
+        return !GuiEntityRenderGuard.isActive()
+                && Client.rotationManager != null
                 && Client.rotationManager.isRotating()
                 && Rotations.shouldUseVanilla()
                 && entity == Minecraft.getInstance().player;

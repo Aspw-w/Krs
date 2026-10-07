@@ -18,4 +18,13 @@ public final class GuiEntityRenderGuard {
     public static boolean isActive() {
         return depth > 0;
     }
+
+    public static void run(Runnable action) {
+        begin();
+        try {
+            action.run();
+        } finally {
+            end();
+        }
+    }
 }
