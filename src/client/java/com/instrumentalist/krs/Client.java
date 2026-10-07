@@ -11,7 +11,6 @@ import com.instrumentalist.krs.utils.network.WebAccessUtil;
 import com.instrumentalist.krs.utils.NotificationManager;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
-import com.instrumentalist.krs.utils.render.NanoVGTheme;
 import com.instrumentalist.krs.utils.rotation.RotationManager;
 import com.mojang.logging.LogUtils;
 import org.nvgu.NVGU;
@@ -42,7 +41,6 @@ public class Client implements IMinecraft {
 
     public static void inject() {
         ChatUtil.showLog("Started loading Krs...");
-        NanoVGTheme.loadAccentFromTitle();
 
         eventManager = new EventManager();
         ChatUtil.showLog("Initialized Event Manager");

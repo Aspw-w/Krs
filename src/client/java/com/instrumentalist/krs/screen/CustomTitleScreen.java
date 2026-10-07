@@ -39,13 +39,15 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
     private static String cachedTime = "";
     private static final Mp3MusicPlayer MAIN_MENU_MUSIC = new Mp3MusicPlayer("assets/krs/musics/mainmenu.mp3");
     private static final float MUSIC_SLIDER_WIDTH = 180f;
-    private static final float MUSIC_SLIDER_TRACK_HEIGHT = 6f;
+    private static final float MUSIC_SLIDER_TRACK_HEIGHT = 7f;
     private static final Color BUTTON_IDLE = NanoVGTheme.base(168);
     private static final Color BUTTON_HOVERED = NanoVGTheme.base(210);
     private static final String RELEASES_URL = "https://github.com/Aspw-w/Krs/releases";
 
     private boolean musicVolumeSliderDragging;
     private boolean musicVolumeDirty;
+    private float musicSliderGrab;
+    private long lastMusicSliderNanos;
 
     private final MenuButton singlePlayerButton = new MenuButton("Single Player");
     private final MenuButton multiPlayerButton = new MenuButton("Multi Player");
@@ -152,14 +154,33 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         float sliderX = getMusicSliderX(centerX);
         float sliderY = getMusicSliderY();
         float volume = getMainMenuMusicVolume();
-        boolean hovered = musicVolumeSliderDragging || isMusicSliderHovered(mouseX, mouseY);
-        float filledWidth = MUSIC_SLIDER_WIDTH * volume;
-        float knobX = sliderX + filledWidth;
+        float fill = Math.clamp(volume, 0f, 1f);
+        float radius = MUSIC_SLIDER_TRACK_HEIGHT / 2f;
+        float grab = updateMusicSliderGrab();
+        float knobWidth = 9f * (1f + 0.46f * grab);
+        float knobHeight = 13f * (1f - 0.30f * grab);
+        float knobX = sliderX + MUSIC_SLIDER_WIDTH * fill - knobWidth / 2f;
+        float knobY = sliderY + MUSIC_SLIDER_TRACK_HEIGHT / 2f - knobHeight / 2f;
         String sliderText = volume == 0f ? "Music OFF" : "Volume: " + Math.round(volume * 100f) + "%";
-        NVGFonts.INTER.drawText(sliderText, centerX, sliderY - 10f, 12f, hovered ? NanoVGTheme.ACCENT : Color.WHITE, Alignment.CENTER_MIDDLE, true);
-        vg.roundedRectangle(sliderX, sliderY, MUSIC_SLIDER_WIDTH, MUSIC_SLIDER_TRACK_HEIGHT, 3f, NanoVGTheme.base(190));
-        vg.roundedRectangle(sliderX, sliderY, filledWidth, MUSIC_SLIDER_TRACK_HEIGHT, 3f, NanoVGTheme.accent(hovered ? 245 : 215));
-        vg.roundedRectangle(knobX - 5f, sliderY - 4f, 10f, 14f, 5f, hovered ? Color.WHITE : new Color(235, 235, 235, 245));
+        NVGFonts.INTER.drawText(sliderText, centerX, sliderY - 10f, 12f, Color.WHITE, Alignment.CENTER_MIDDLE, true);
+        vg.beginEffectBatch();
+        NanoVGTheme.renderControlEffects(vg, sliderX, sliderY, MUSIC_SLIDER_WIDTH, MUSIC_SLIDER_TRACK_HEIGHT, radius, 1f);
+        NanoVGTheme.renderControlEffects(vg, knobX, knobY, knobWidth, knobHeight, Math.min(knobWidth, knobHeight) / 2f, 1f);
+        vg.flushEffectBatch();
+        vg.roundedRectangle(sliderX, sliderY, MUSIC_SLIDER_WIDTH, MUSIC_SLIDER_TRACK_HEIGHT, radius, NanoVGTheme.CONTROL_TRACK);
+        if (fill > 0.001f)
+            vg.roundedRectangle(sliderX, sliderY, MUSIC_SLIDER_WIDTH * fill, MUSIC_SLIDER_TRACK_HEIGHT, radius, NanoVGTheme.sliderFill(235));
+        vg.roundedRectangle(knobX, knobY, knobWidth, knobHeight, Math.min(knobWidth, knobHeight) / 2f, NanoVGTheme.KNOB_FILL);
+    }
+
+    private float updateMusicSliderGrab() {
+        long now = System.nanoTime();
+        float delta = lastMusicSliderNanos == 0L ? 1f : Math.clamp((now - lastMusicSliderNanos) / 16_666_666f, 0.25f, 3f);
+        lastMusicSliderNanos = now;
+        float target = musicVolumeSliderDragging ? 1f : 0f;
+        float speed = musicVolumeSliderDragging ? 0.38f : 0.11f;
+        musicSliderGrab += (target - musicSliderGrab) * Math.clamp(speed * delta, 0f, 1f);
+        return musicSliderGrab;
     }
 
     private CursorType resolveMenuCursor(double mouseX, double mouseY) {

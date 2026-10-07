@@ -1,6 +1,7 @@
 package com.instrumentalist.krs.hacks.features.dev;
 
 import com.instrumentalist.krs.events.features.AttackEvent;
+import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.ChatUtil;
@@ -26,5 +27,15 @@ public class Debugga extends Module {
         Entity target = event.entity;
         if (target == null) return;
         ChatUtil.printChat(target.getUUID() + "");
+    }
+
+    @Override
+    public void onUpdate(UpdateEvent event) {
+        if (mc.player == null) return;
+
+        if (mc.player.onGround()) {
+            mc.player.jumpFromGround();
+            mc.player.jumpFromGround();
+        }
     }
 }
