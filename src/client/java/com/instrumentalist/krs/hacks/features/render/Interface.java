@@ -1035,6 +1035,11 @@ public class Interface extends Module {
         }
     }
 
+    private static final float TARGET_HUD_HEIGHT = 75f;
+    private static final float TARGET_HUD_FACE_SIZE = 56f;
+    private static final float TARGET_HUD_FACE_PAD = 10f;
+    private static final float TARGET_HUD_FACE_GAP = 8f;
+
     private static class TargetHudRenderEntry implements ConnectedHudRect {
         final TargetHudState state;
         final Entity targetEntity;
@@ -1048,7 +1053,6 @@ public class Interface extends Module {
         final float barHeight;
         final float textX;
         final String entityName;
-        final String posStr;
         final String healthPctStr;
         final String regenPctStr;
         final int alphaValue;
@@ -1059,7 +1063,7 @@ public class Interface extends Module {
 
         TargetHudRenderEntry(TargetHudState state, Entity targetEntity, float hudX, float hudY, float hudWidth,
                              float iconFix, float healthBarX, float healthBarY, float regenBarY, float barHeight,
-                             float textX, String entityName, String posStr, String healthPctStr, String regenPctStr,
+                             float textX, String entityName, String healthPctStr, String regenPctStr,
                              int alphaValue, int barAlpha, double depthSquared) {
             this.state = state;
             this.targetEntity = targetEntity;
@@ -1073,13 +1077,12 @@ public class Interface extends Module {
             this.barHeight = barHeight;
             this.textX = textX;
             this.entityName = entityName;
-            this.posStr = posStr;
             this.healthPctStr = healthPctStr;
             this.regenPctStr = regenPctStr;
             this.alphaValue = alphaValue;
             this.barAlpha = barAlpha;
             this.depthSquared = depthSquared;
-            this.bounds = new HudClipRect(hudX, hudY, hudWidth, 95f);
+            this.bounds = new HudClipRect(hudX, hudY, hudWidth, TARGET_HUD_HEIGHT);
         }
 
         HudClipRect bounds() {
@@ -1099,7 +1102,7 @@ public class Interface extends Module {
         }
 
         public float height() {
-            return 95f;
+            return TARGET_HUD_HEIGHT;
         }
     }
 
@@ -1171,25 +1174,16 @@ public class Interface extends Module {
             health = 0f;
         if (!Float.isFinite(maxHealth) || maxHealth <= 0f)
             maxHealth = 1f;
-        double posX = state.lastTargetEntity.getX();
-        double posY = state.lastTargetEntity.getY();
-        double posZ = state.lastTargetEntity.getZ();
-
         DecimalFormat formatter = ONE_DECIMAL_FORMAT.get();
-        String posStr = formatOneDecimal(formatter, posX) + ", " + formatOneDecimal(formatter, posY) + ", " + formatOneDecimal(formatter, posZ);
         String healthPctStr = formatOneDecimal(formatter, (health / maxHealth) * 100) + "%";
         String regenPctStr = formatOneDecimal(formatter, (timeUntilRegen / 20f) * 100) + "%";
 
-        float width = NVGFonts.INTER.getWidth(posStr, 16f);
+        float width = NVGFonts.INTER_MEDIUM.getWidth(entityName, 16f);
         float textWidth = Math.max(NVGFonts.INTER.getWidth(healthPctStr, 14f), NVGFonts.INTER.getWidth(regenPctStr, 14f));
-
-        float entityNameWidth = NVGFonts.INTER.getWidth(entityName, 16f);
-        if (entityNameWidth > width)
-            width = entityNameWidth;
 
         float barHeight = 10f;
         float healthBarX = hudX + 10f;
-        float healthBarY = hudY + 55f;
+        float healthBarY = hudY + 35f;
         float regenBarY = healthBarY + barHeight + 5f;
         float healthRatioTarget = Math.max(0, Math.min(health / maxHealth, 1));
         float regenRatioTarget = Math.max(0, Math.min(timeUntilRegen / 20f, 1));
@@ -1202,7 +1196,9 @@ public class Interface extends Module {
         int alphaValue = Math.min(255, (int) (state.targetHudAlpha * 250));
         int barAlpha = Math.min(255, (int) (state.targetHudAlpha * 220));
 
-        float iconFix = state.cachedPlayerTexture != null || state.playerTextureReady ? 81f : 0f;
+        float iconFix = state.cachedPlayerTexture != null || state.playerTextureReady
+                ? TARGET_HUD_FACE_PAD + TARGET_HUD_FACE_SIZE + TARGET_HUD_FACE_GAP - 10f
+                : 0f;
         float hudWidth = state.previousTargetWidth + textWidth + 40f + iconFix;
 
         return new TargetHudRenderEntry(
@@ -1218,7 +1214,6 @@ public class Interface extends Module {
                 barHeight,
                 textX,
                 entityName,
-                posStr,
                 healthPctStr,
                 regenPctStr,
                 alphaValue,
@@ -1306,7 +1301,7 @@ public class Interface extends Module {
     private static void drawTargetHudEffects(NVGU vg, TargetHudRenderEntry entry) {
         NanoVGTheme.renderPanelEffects(
                 vg,
-                entry.hudX, entry.hudY, entry.hudWidth, 95f,
+                entry.hudX, entry.hudY, entry.hudWidth, TARGET_HUD_HEIGHT,
                 16f,
                 entry.state.targetHudAlpha
         );
@@ -1317,7 +1312,7 @@ public class Interface extends Module {
 
         NanoVGTheme.renderPanel(
                 vg,
-                entry.hudX, entry.hudY, entry.hudWidth, 95f,
+                entry.hudX, entry.hudY, entry.hudWidth, TARGET_HUD_HEIGHT,
                 16f,
                 state.targetHudAlpha
         );
@@ -1340,15 +1335,17 @@ public class Interface extends Module {
             }
 
             if (state.playerTextureReady && vg.hasTexture(identifier)) {
-                vg.texturedRoundedRectangle(entry.hudX - 35f - ((state.targetHudAlpha * 75f) / 2f) + entry.iconFix, entry.hudY + 47f - ((state.targetHudAlpha * 75f) / 2f), state.targetHudAlpha * 75f, state.targetHudAlpha * 75f, 120f - (state.targetHudAlpha * 115f), identifier);
+                float faceSize = state.targetHudAlpha * TARGET_HUD_FACE_SIZE;
+                float faceX = entry.hudX + TARGET_HUD_FACE_PAD + (TARGET_HUD_FACE_SIZE - faceSize) / 2f;
+                float faceY = entry.hudY + (TARGET_HUD_HEIGHT - faceSize) / 2f;
+                vg.texturedRoundedRectangle(faceX, faceY, faceSize, faceSize, 120f - (state.targetHudAlpha * 115f), identifier);
             } else if (state.playerTextureReady) {
                 state.playerTextureReady = false;
                 state.playerTextureFailed = false;
             }
         }
 
-        NVGFonts.INTER.drawText(entry.entityName, entry.hudX + 10f + entry.iconFix, entry.hudY + 10f, 16f, alphaColor(255, 255, 255, entry.alphaValue), Alignment.LEFT_TOP, true);
-        NVGFonts.INTER.drawText(entry.posStr, entry.hudX + 10f + entry.iconFix, entry.hudY + 30f, 16f, alphaColor(100, 255, 100, entry.alphaValue), Alignment.LEFT_TOP, true);
+        NVGFonts.INTER_MEDIUM.drawText(entry.entityName, entry.hudX + 10f + entry.iconFix, entry.hudY + 10f, 16f, alphaColor(255, 255, 255, entry.alphaValue), Alignment.LEFT_TOP, true);
 
         vg.roundedRectangle(entry.healthBarX + entry.iconFix, entry.healthBarY, state.previousTargetWidth, entry.barHeight, 5f, alphaColor(50, 50, 50, entry.alphaValue));
         if (state.previousHealthRatio >= 0.01f)
