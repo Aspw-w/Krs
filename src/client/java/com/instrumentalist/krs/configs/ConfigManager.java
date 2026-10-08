@@ -30,7 +30,7 @@ public class ConfigManager implements IMinecraft {
     private static final String UPDATED_AT_KEY = "_updated";
     private static final float DEFAULT_MAIN_MENU_MUSIC_VOLUME = 0f;
     private static final long MAX_LOCAL_CONFIG_BYTES = 4L * 1024L * 1024L;
-    private static final int MAX_CONFIG_NAME_LENGTH = 96;
+    public static final int MAX_CONFIG_NAME_LENGTH = 96;
     public final File BASE_DIR = new File(mc.gameDirectory, Client.configLocation);
     private final File CLIENT_FILE = new File(BASE_DIR, "client.json");
     public String configCurrent = "default", bindCurrent = "default";
@@ -379,6 +379,83 @@ public class ConfigManager implements IMinecraft {
             return;
 
         (bind ? bindUpdatedCache : moduleUpdatedCache).remove(cacheKey);
+    }
+
+    public String renameConfig(boolean bind, String oldName, String newName) {
+        String from = normalizeConfigName(oldName);
+        String to = normalizeConfigName(newName);
+        if (from.isBlank() || to.isBlank())
+            return null;
+        if (from.equals(to))
+            return from;
+
+        File fromFile = configFile(bind, from);
+        File toFile = configFile(bind, to);
+        if (fromFile == null || toFile == null || !fromFile.isFile())
+            return null;
+
+        boolean caseOnly = from.equalsIgnoreCase(to);
+        if (!caseOnly && toFile.isFile())
+            return null;
+
+        Path source = fromFile.toPath();
+        Path target = toFile.toPath();
+        Path temp = null;
+        try {
+            if (caseOnly) {
+                temp = source.resolveSibling("." + fromFile.getName() + "." + System.nanoTime() + ".rename");
+                moveConfigFile(source, temp, false);
+                moveConfigFile(temp, target, false);
+                temp = null;
+            } else {
+                moveConfigFile(source, target, false);
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to rename config: " + e.getMessage());
+            if (temp != null) {
+                try {
+                    moveConfigFile(temp, source, true);
+                } catch (IOException ignored) {
+                }
+            }
+            return null;
+        }
+
+        Long updated = (bind ? bindUpdatedCache : moduleUpdatedCache).remove(updatedCacheKey(from));
+        if (updated != null)
+            rememberUpdated(bind, to, updated);
+        else {
+            Long stored = readUpdatedAt(toFile);
+            if (stored != null)
+                rememberUpdated(bind, to, stored);
+        }
+
+        if (bind) {
+            if (from.equalsIgnoreCase(this.bindCurrent)) {
+                this.bindCurrent = to;
+                saveClientJS();
+            }
+        } else if (from.equalsIgnoreCase(this.configCurrent)) {
+            this.configCurrent = to;
+            saveClientJS();
+        }
+
+        FileUtil.INSTANCE.invalidateLocalConfigCache();
+        return to;
+    }
+
+    private static void moveConfigFile(Path source, Path target, boolean replace) throws IOException {
+        try {
+            if (replace)
+                Files.move(source, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            else
+                Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException ignored) {
+            if (replace)
+                Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+            else
+                Files.move(source, target);
+        }
     }
 
     private void loadModuleConfigObject(JsonObject configObject) {

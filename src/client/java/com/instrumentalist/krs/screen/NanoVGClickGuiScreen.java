@@ -122,6 +122,8 @@ public class NanoVGClickGuiScreen extends Screen {
     private ConfigTab selectedConfigTab = ConfigTab.MODULE;
     private String searchQuery = "";
     private String newConfigName = "";
+    private String renameConfigName = "";
+    private ConfigEntry renamingConfig;
     private float listScroll;
     private float targetListScroll;
     private float scrollVelocity;
@@ -455,15 +457,21 @@ public class NanoVGClickGuiScreen extends Screen {
         }
 
         if (textFocus != TextFocus.NONE) {
-            if (key == GLFW.GLFW_KEY_ESCAPE && textFocus == TextFocus.NUMBER) {
-                cancelNumberInput();
+            if (key == GLFW.GLFW_KEY_ESCAPE && (textFocus == TextFocus.NUMBER || textFocus == TextFocus.CONFIG_RENAME)) {
+                if (textFocus == TextFocus.NUMBER)
+                    cancelNumberInput();
+                else
+                    cancelConfigRename();
                 return true;
             }
 
             if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
                 if (textFocus == TextFocus.CONFIG_NAME)
                     createConfigFromInput();
-                else if (textFocus == TextFocus.NUMBER) {
+                else if (textFocus == TextFocus.CONFIG_RENAME) {
+                    if (commitConfigRename())
+                        resetTextFocus();
+                } else if (textFocus == TextFocus.NUMBER) {
                     if (commitNumberInput())
                         resetTextFocus();
                 }
@@ -1409,10 +1417,11 @@ public class NanoVGClickGuiScreen extends Screen {
     private void renderConfigRow(NVGU vg, ConfigEntry config, int index, int visibleCount, float x, float y, float width) {
         Rect row = new Rect(x, y, width, SETTING_ROW_STEP - u(4f));
         boolean showDelete = config.type != ConfigTab.ONLINE;
-        boolean deletable = showDelete && !config.current;
+        boolean renaming = textFocus == TextFocus.CONFIG_RENAME && isSameConfig(renamingConfig, config);
+        boolean deletable = showDelete && !config.current && !renaming;
         Rect delete = showDelete ? new Rect(row.x + row.width - u(28f), row.y + u(5f), u(20f), u(20f)) : null;
         Rect load = showDelete ? new Rect(row.x, row.y, Math.max(u(1f), row.width - SETTING_ROW_STEP), row.height) : row;
-        addControl(ControlType.CONFIG_LOAD, load, config, null, 0);
+        addControl(renaming ? ControlType.CONFIG_RENAME : ControlType.CONFIG_LOAD, load, config, null, 0);
         if (deletable)
             addControl(ControlType.CONFIG_DELETE, delete, config, null, 0);
 
@@ -1425,7 +1434,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
         float nameX = row.x + u(12f);
         float nameRight = row.x + row.width - (showDelete ? u(36f) : u(8f));
-        String updatedLabel = configListUpdatedLabel(config);
+        String updatedLabel = renaming ? "" : configListUpdatedLabel(config);
         if (!updatedLabel.isBlank()) {
             float updatedFont = font(10f);
             float updatedWidth = NVGFonts.INTER.getWidth(updatedLabel, updatedFont);
@@ -1433,7 +1442,10 @@ public class NanoVGClickGuiScreen extends Screen {
             nameRight -= updatedWidth + u(8f);
         }
         float nameWidth = Math.max(u(28f), nameRight - nameX);
-        NVGFonts.INTER.drawText(fitText(config.name, NVGFonts.INTER, font(14f), nameWidth), nameX, row.y + u(7f), font(14f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+        if (renaming)
+            renderConfigRenameField(vg, config, nameX, row.y, nameWidth, row.height);
+        else
+            NVGFonts.INTER.drawText(fitText(config.name, NVGFonts.INTER, font(14f), nameWidth), nameX, row.y + u(7f), font(14f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
 
         if (delete != null) {
             boolean deleteHovered = deletable && isHovered(delete);
@@ -1443,6 +1455,24 @@ public class NanoVGClickGuiScreen extends Screen {
             Color deleteColor = !deletable ? alpha(120, 130, 140, 135) : deleteHovered ? alpha(255, 195, 195, 245) : alpha(176, 186, 196, 220);
             NVGFonts.ICON.drawText(MaterialIcon.DELETE, delete.centerX(), delete.centerY() - u(1f), font(12f), deleteColor, Alignment.CENTER_MIDDLE, false);
         }
+    }
+
+    private void renderConfigRenameField(NVGU vg, ConfigEntry config, float nameX, float rowY, float nameWidth, float rowHeight) {
+        Rect input = new Rect(nameX - u(4f), rowY + u(3f), nameWidth + u(4f), rowHeight - u(6f));
+        vg.roundedRectangle(input.x, input.y, input.width, input.height, u(5f), alpha(255, 255, 255, 29));
+        vg.roundedRectangleBorder(input.x, input.y, input.width, input.height, u(5f), u(1f), NanoVGTheme.inputFocus(110), Border.INSIDE);
+
+        float renameFont = font(14f);
+        float textX = input.x + u(6f);
+        float textY = rowY + u(7f);
+        float textMaxWidth = Math.max(u(12f), input.width - u(10f));
+        String text = inputText(renameConfigName, true, "");
+        rememberTextField(TextFocus.CONFIG_RENAME, config, textX, renameFont, textMaxWidth);
+        vg.scissor(input.x, input.y, input.width, input.height, () -> {
+            renderSelectionHighlight(vg, true, NVGFonts.INTER, renameFont, textX, textY, textMaxWidth);
+            NVGFonts.INTER.drawText(text, textX, textY, renameFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+            renderInlineCaret(vg, true, NVGFonts.INTER, renameFont, textX, textY, NanoVGTheme.TEXT);
+        });
     }
 
     private void renderModuleBlock(NVGU vg, Module module, int index, int visibleCount, float x, float y, float width) {
@@ -1900,6 +1930,27 @@ public class NanoVGClickGuiScreen extends Screen {
             return false;
         }
 
+        if (control.type == ControlType.CONFIG_LOAD || control.type == ControlType.CONFIG_RENAME) {
+            ConfigEntry entry = (ConfigEntry) control.target;
+            if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE)
+                return beginConfigRename(entry);
+
+            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT
+                    && textFocus == TextFocus.CONFIG_RENAME
+                    && isSameConfig(renamingConfig, entry)) {
+                beginTextSelectionOrSelectAll(mouseX, doubleClick);
+                return true;
+            }
+
+            if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT
+                    && textFocus == TextFocus.CONFIG_RENAME
+                    && isSameConfig(renamingConfig, entry)) {
+                cancelConfigRename();
+                toggleConfigPanel(entry);
+                return true;
+            }
+        }
+
         if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE)
             return false;
 
@@ -1908,7 +1959,7 @@ public class NanoVGClickGuiScreen extends Screen {
         if (control.type != ControlType.KEY_VALUE) bindingValue = null;
 
         if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
-            if (control.type == ControlType.CONFIG_LOAD) {
+            if (control.type == ControlType.CONFIG_LOAD || control.type == ControlType.CONFIG_RENAME) {
                 toggleConfigPanel((ConfigEntry) control.target);
                 return true;
             }
@@ -1949,6 +2000,8 @@ public class NanoVGClickGuiScreen extends Screen {
             }
             case CONFIG_CREATE -> createConfigFromInput();
             case CONFIG_LOAD -> loadConfigEntry((ConfigEntry) control.target);
+            case CONFIG_RENAME -> {
+            }
             case CONFIG_DELETE -> deleteConfigEntry((ConfigEntry) control.target);
             case SHOW_ON_ARRAY -> {
                 Module module = (Module) control.target;
@@ -2765,6 +2818,60 @@ public class NanoVGClickGuiScreen extends Screen {
         selectAllFocusedText();
     }
 
+    private boolean beginConfigRename(ConfigEntry entry) {
+        if (entry == null || entry.type == ConfigTab.ONLINE)
+            return false;
+
+        if (textFocus == TextFocus.CONFIG_RENAME && isSameConfig(renamingConfig, entry)) {
+            selectAllFocusedText();
+            return true;
+        }
+
+        clearTextFocus();
+        bindingModule = null;
+        bindingValue = null;
+        activeSlider = null;
+        pressedControl = null;
+        pressedModule = null;
+        closeListDropdown();
+
+        renamingConfig = entry;
+        renameConfigName = entry.name == null ? "" : entry.name;
+        textFocus = TextFocus.CONFIG_RENAME;
+        selectAllFocusedText();
+        return true;
+    }
+
+    private void cancelConfigRename() {
+        resetTextFocus();
+    }
+
+    private boolean commitConfigRename() {
+        if (renamingConfig == null || renamingConfig.type == ConfigTab.ONLINE)
+            return false;
+
+        String cleaned = cleanConfigName(renameConfigName);
+        if (cleaned.isBlank())
+            return false;
+
+        boolean bind = renamingConfig.type == ConfigTab.BIND;
+        String renamed = Client.configManager.renameConfig(bind, renamingConfig.name, cleaned);
+        if (renamed == null)
+            return false;
+
+        if (settingsPanelConfig != null
+                && settingsPanelConfig.type == renamingConfig.type
+                && settingsPanelConfig.name.equalsIgnoreCase(renamingConfig.name)) {
+            boolean current = bind
+                    ? renamed.equalsIgnoreCase(Client.configManager.bindCurrent)
+                    : renamed.equalsIgnoreCase(Client.configManager.configCurrent);
+            settingsPanelConfig = new ConfigEntry(renamed, renamingConfig.type, current);
+            settingsPanelRenderConfig = settingsPanelConfig;
+        }
+
+        return true;
+    }
+
     private void clearSearch() {
         searchQuery = "";
         textCaret = 0;
@@ -2965,6 +3072,8 @@ public class NanoVGClickGuiScreen extends Screen {
     private void clearTextFocus() {
         if (textFocus == TextFocus.NUMBER)
             commitNumberInput();
+        if (textFocus == TextFocus.CONFIG_RENAME)
+            commitConfigRename();
         resetTextFocus();
     }
 
@@ -2973,6 +3082,8 @@ public class NanoVGClickGuiScreen extends Screen {
         focusedTextValue = null;
         focusedTextModule = null;
         focusedNumberValue = null;
+        renamingConfig = null;
+        renameConfigName = "";
         numberInput = "";
         textCaret = 0;
         textAnchor = 0;
@@ -3047,6 +3158,7 @@ public class NanoVGClickGuiScreen extends Screen {
     private String getFocusedText() {
         if (textFocus == TextFocus.SEARCH) return searchQuery;
         if (textFocus == TextFocus.CONFIG_NAME) return newConfigName;
+        if (textFocus == TextFocus.CONFIG_RENAME) return renameConfigName;
         if (textFocus == TextFocus.SETTING && focusedTextValue != null) return focusedTextValue.get();
         if (textFocus == TextFocus.NUMBER) return numberInput;
         return "";
@@ -3064,6 +3176,14 @@ public class NanoVGClickGuiScreen extends Screen {
 
         if (textFocus == TextFocus.CONFIG_NAME) {
             newConfigName = text == null ? "" : text;
+            return;
+        }
+
+        if (textFocus == TextFocus.CONFIG_RENAME) {
+            String next = text == null ? "" : text;
+            if (next.length() > ConfigManager.MAX_CONFIG_NAME_LENGTH)
+                next = next.substring(0, ConfigManager.MAX_CONFIG_NAME_LENGTH);
+            renameConfigName = next;
             return;
         }
 
@@ -3227,6 +3347,10 @@ public class NanoVGClickGuiScreen extends Screen {
                 continue;
             if (textFocus == TextFocus.NUMBER && layout.target != focusedNumberValue)
                 continue;
+            if (textFocus == TextFocus.CONFIG_RENAME) {
+                if (!(layout.target instanceof ConfigEntry layoutConfig) || !isSameConfig(layoutConfig, renamingConfig))
+                    continue;
+            }
             return layout;
         }
         return null;
@@ -3294,7 +3418,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private CursorType cursorForControl(ControlBounds control) {
         return switch (control.type) {
-            case TEXT_VALUE, CONFIG_NAME -> CursorTypes.IBEAM;
+            case TEXT_VALUE, CONFIG_NAME, CONFIG_RENAME -> CursorTypes.IBEAM;
             case FLOAT_SLIDER, INT_SLIDER, COLOR_SLIDER -> CursorTypes.POINTING_HAND;
             case FLOAT_INPUT, INT_INPUT ->
                     textFocus == TextFocus.NUMBER && focusedNumberValue == control.target
@@ -3678,13 +3802,15 @@ public class NanoVGClickGuiScreen extends Screen {
         SEARCH,
         SETTING,
         NUMBER,
-        CONFIG_NAME
+        CONFIG_NAME,
+        CONFIG_RENAME
     }
 
     private enum ControlType {
         CONFIG_NAME,
         CONFIG_CREATE,
         CONFIG_LOAD,
+        CONFIG_RENAME,
         CONFIG_DELETE,
         SHOW_ON_ARRAY,
         MODULE_ENABLED,
