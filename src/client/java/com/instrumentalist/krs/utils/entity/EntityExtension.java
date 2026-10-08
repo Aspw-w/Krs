@@ -25,10 +25,6 @@ public final class EntityExtension {
         return Mth.sqrt(f * f + g * g + h * h);
     }
 
-    public static double boxedDistanceTo(Entity entity, Entity other) {
-        return Math.sqrt(squaredBoxedDistanceTo(entity, other));
-    }
-
     public static double squaredBoxedDistanceTo(Entity entity, Entity other) {
         if (entity == null || other == null)
             return Double.POSITIVE_INFINITY;

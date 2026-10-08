@@ -5,7 +5,6 @@ package com.instrumentalist.krs.hacks.features.movement.fly.features;
 import com.instrumentalist.krs.events.features.*;
 import com.instrumentalist.krs.hacks.features.movement.fly.FlyEvent;
 import com.instrumentalist.krs.hacks.features.movement.fly.FlyModule;
-import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.packet.PacketUtil;

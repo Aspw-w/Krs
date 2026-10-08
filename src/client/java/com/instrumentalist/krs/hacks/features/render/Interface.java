@@ -823,14 +823,6 @@ public class Interface extends Module {
         return someInformationRenderState;
     }
 
-    private void renderSomeInformation(NVGU vg) {
-        SomeInformationRenderState state = prepareSomeInformation();
-        vg.beginEffectBatch();
-        renderSomeInformationEffects(vg, state);
-        vg.flushEffectBatch();
-        renderSomeInformationBody(vg, state);
-    }
-
     private static void renderSomeInformationEffects(NVGU vg, SomeInformationRenderState state) {
         NanoVGTheme.renderConnectedEffects(vg, state.informationEntries, 8f, 1f);
         NanoVGTheme.renderConnectedEffects(vg, state.potionEntries, 8f, 1f);

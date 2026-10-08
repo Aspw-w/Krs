@@ -1,20 +1,16 @@
 package com.instrumentalist.krs.hacks.features.movement;
 
-import com.instrumentalist.krs.events.features.BlockEvent;
 import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
-import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.shapes.Shapes;
 import org.lwjgl.glfw.GLFW;
 
-import java.util.Locale;
 
 public class NoWeb extends Module {
     @Setting

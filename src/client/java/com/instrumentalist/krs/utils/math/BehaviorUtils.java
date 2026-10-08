@@ -34,12 +34,6 @@ public class BehaviorUtils implements IMinecraft {
         return Teams.isInClientPlayersTeam(entity);
     }
 
-    public static List<Entity> getTargetList() {
-        ArrayList<Entity> result = new ArrayList<>(4);
-        fillTargetList(result);
-        return result.isEmpty() ? Collections.emptyList() : result;
-    }
-
     public static void fillTargetList(List<Entity> result) {
         if (result == null) return;
 

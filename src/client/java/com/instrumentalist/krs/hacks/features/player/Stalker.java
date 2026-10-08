@@ -5,11 +5,9 @@ package com.instrumentalist.krs.hacks.features.player;
 import com.instrumentalist.krs.events.features.*;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
-import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.entity.EntityExtension;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.pathfinder.MainPathFinder;
-import com.instrumentalist.krs.utils.render.RenderUtil;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;

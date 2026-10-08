@@ -3,7 +3,6 @@ package com.instrumentalist.krs.hacks.features.player;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import org.lwjgl.glfw.GLFW;
 

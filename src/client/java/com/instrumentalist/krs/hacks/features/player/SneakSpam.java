@@ -3,7 +3,6 @@ package com.instrumentalist.krs.hacks.features.player;
 
 
 import com.instrumentalist.krs.events.features.MotionEvent;
-import com.instrumentalist.krs.events.features.RenderHudEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.mojang.blaze3d.platform.InputConstants;

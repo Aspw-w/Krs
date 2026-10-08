@@ -3,7 +3,6 @@ package com.instrumentalist.krs.hacks.features.level;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.render.ViewModel;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.network.protocol.game.ServerboundSwingPacket;

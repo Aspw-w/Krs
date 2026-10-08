@@ -5,9 +5,6 @@ package com.instrumentalist.krs.hacks.features.combat;
 import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
-import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.utils.value.BooleanValue;
-import com.instrumentalist.krs.utils.value.FloatValue;
 import org.lwjgl.glfw.GLFW;
 
 public class NoCombatDelay extends Module {

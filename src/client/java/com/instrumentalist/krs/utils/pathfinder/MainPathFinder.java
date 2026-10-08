@@ -9,10 +9,8 @@ import net.minecraft.world.level.block.BarrierBlock;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.BushBlock;
 import net.minecraft.world.level.block.CactusBlock;
 import net.minecraft.world.level.block.CarpetBlock;
-import net.minecraft.world.level.block.CeilingHangingSignBlock;
 import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.EndPortalBlock;
@@ -27,11 +25,9 @@ import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.StainedGlassBlock;
 import net.minecraft.world.level.block.StairBlock;
-import net.minecraft.world.level.block.StandingSignBlock;
 import net.minecraft.world.level.block.TintedGlassBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.WallBlock;
-import net.minecraft.world.level.block.WallHangingSignBlock;
 import net.minecraft.world.level.block.WebBlock;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.piston.PistonHeadBlock;
@@ -108,24 +104,6 @@ public class MainPathFinder implements IMinecraft {
         Block b = level.getBlockState(block).getBlock();
 
         return !(b instanceof FenceBlock) && !(b instanceof WallBlock);
-    }
-
-    public static boolean canPassThrough(final BlockPos pos) {
-        ClientLevel level = mc.level;
-        if (level == null) return false;
-        Block block = level.getBlockState(pos).getBlock();
-        Block down = level.getBlockState(pos.below()).getBlock();
-
-        return block.defaultBlockState().isAir()
-                || down instanceof AbstractSkullBlock
-                || block instanceof BushBlock
-                || block instanceof StandingSignBlock
-                || block instanceof CeilingHangingSignBlock
-                || block instanceof WallHangingSignBlock
-                || block == Blocks.LADDER
-                || block == Blocks.VINE
-                || block == Blocks.SCAFFOLDING
-                || block == Blocks.WATER;
     }
 
     private static ArrayList<Vec3> getVerticalPassThroughPath(final Vec3 from, final Vec3 to) {

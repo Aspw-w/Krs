@@ -5,7 +5,6 @@ import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.math.MSTimer;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
-import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
