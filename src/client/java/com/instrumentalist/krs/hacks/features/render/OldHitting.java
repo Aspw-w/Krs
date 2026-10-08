@@ -7,6 +7,8 @@ import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.combat.KillAura;
 import com.instrumentalist.krs.utils.math.ToolUtil;
+import com.instrumentalist.krs.utils.value.BooleanValue;
+import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.world.entity.HumanoidArm;
@@ -24,6 +26,20 @@ public class OldHitting extends Module {
 
     @Setting
     private static final ListValue thirdPersonMode = new ListValue("Third Person Mode", new String[]{"Vanilla", "Legacy Vanilla"}, "Legacy Vanilla");
+
+    @Setting
+    private static final BooleanValue guardLerp = new BooleanValue("Guard Lerp", true);
+
+    @Setting
+    private static final ListValue guardEase = new ListValue("Guard Ease", new String[]{"Linear", "Expo"}, "Expo", guardLerp::get);
+
+    @Setting
+    private static final IntValue guardDuration = new IntValue("Guard Duration", 120, 10, 500, "ms", guardLerp::get);
+
+    private static float guardProgress = 0f;
+    private static float guardStart = 0f;
+    private static float guardTarget = 0f;
+    private static float guardTime = 1f;
 
     private static boolean canBlock = false;
 
@@ -64,6 +80,7 @@ public class OldHitting extends Module {
     @Override
     public void onDisable() {
         canBlock = false;
+        resetGuardProgress();
     }
 
     @Override
@@ -107,6 +124,35 @@ public class OldHitting extends Module {
 
     public static boolean shouldUseLegacyVanillaThirdPerson() {
         return thirdPersonMode.get().equalsIgnoreCase("legacy vanilla") && shouldBlock();
+    }
+
+    public static float updateGuardProgress() {
+        var player = mc.player;
+        if (player == null || !ModuleManager.getModuleState(OldHitting.class)
+                || !ToolUtil.INSTANCE.isSword(player.getMainHandItem())) {
+            resetGuardProgress();
+            return 0f;
+        }
+
+        float deltaMs = mc.isPaused() ? 0f : Math.min(mc.getDeltaTracker().getGameTimeDeltaTicks() * 50f, 1000f);
+
+        float target = shouldBlock() ? 1f : 0f;
+        if (target != guardTarget) {
+            guardStart = guardProgress;
+            guardTarget = target;
+            guardTime = 0f;
+        }
+
+        float duration = guardDuration.get() * Math.abs(guardTarget - guardStart);
+        guardTime = !guardLerp.get() || duration <= 0f ? 1f : Math.min(1f, guardTime + deltaMs / duration);
+        float eased = guardEase.get().equalsIgnoreCase("expo") && guardTime < 1f ? 1f - (float) Math.pow(2, -10 * guardTime) : guardTime;
+        guardProgress = guardStart + (guardTarget - guardStart) * eased;
+        return guardProgress;
+    }
+
+    private static void resetGuardProgress() {
+        guardProgress = guardStart = guardTarget = 0f;
+        guardTime = 1f;
     }
 
     public static boolean shouldBlock() {

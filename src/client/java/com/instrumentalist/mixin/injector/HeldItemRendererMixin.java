@@ -16,7 +16,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Locale;
+import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
@@ -386,10 +388,15 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
             matrices.scale(1f, 1f, itemFovScale);
         }
 
-        if (animationBlocking) {
+        float guardProgress = bl ? OldHitting.updateGuardProgress() : 0.0F;
+        boolean guardTransition = bl && guardProgress != 0.0F && guardProgress != 1.0F;
+        boolean guardActive = substituteMainHand || bl && guardProgress != 0.0F;
+
+        if (animationBlocking || guardActive) {
             ci.cancel();
-            if (bl || substituteMainHand) {
-                PlayerUtil.INSTANCE.fullResetSpoofState();
+            if (guardActive) {
+                if (animationBlocking)
+                    PlayerUtil.INSTANCE.fullResetSpoofState();
 
                 matrices.pushPose();
                 try {
@@ -399,17 +406,14 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
                             : equipProgress;
                     float renderedSwingProgress = substituteMainHand ? 0.0F : swingProgress;
 
-                    if (OldHitting.mode.get().equalsIgnoreCase("vanilla")) {
-                        this.customApplyEquipOffset(matrices, arm, renderedEquipProgress, null);
-                        this.applySwingOffset(matrices, arm, renderedSwingProgress, null);
-
-                        this.slightlyTiltItemPosition(player, InteractionHand.MAIN_HAND, renderedItem, matrices, false);
-                        this.applyVanillaBlockTransformation(matrices, arm);
+                    if (guardTransition) {
+                        PoseStack normalPose = new PoseStack();
+                        PoseStack guardPose = new PoseStack();
+                        this.applyNormalSwordTransform(normalPose, player, arm, renderedItem, renderedEquipProgress, renderedSwingProgress);
+                        this.applyGuardTransform(guardPose, player, arm, renderedItem, renderedEquipProgress, renderedSwingProgress);
+                        krs$applyInterpolatedGuardPose(matrices, normalPose.last().pose(), guardPose.last().pose(), guardProgress);
                     } else {
-                        matrices.translate(0.0F, 0.0F, -0.02F);
-                        matrices.mulPose(Axis.ZP.rotationDegrees(direction * -1.0F));
-                        this.applySwordAnimation(matrices, arm, renderedEquipProgress, renderedSwingProgress);
-                        this.applyFirstPersonDisplayTransform(matrices, arm);
+                        this.applyGuardTransform(matrices, player, arm, renderedItem, renderedEquipProgress, renderedSwingProgress);
                     }
 
                     this.renderItem(player, renderedItem, arm == HumanoidArm.RIGHT ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND, matrices, submitter, light);
@@ -440,6 +444,58 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
                 matrices.popPose();
             }
         }
+    }
+
+    @Unique
+    private void applyGuardTransform(PoseStack matrices, AbstractClientPlayer player, HumanoidArm arm, ItemStack renderedItem, float equipProgress, float swingProgress) {
+        int direction = arm == HumanoidArm.RIGHT ? 1 : -1;
+        if (OldHitting.mode.get().equalsIgnoreCase("vanilla")) {
+            this.customApplyEquipOffset(matrices, arm, equipProgress, null);
+            this.applySwingOffset(matrices, arm, swingProgress, null);
+
+            this.slightlyTiltItemPosition(player, InteractionHand.MAIN_HAND, renderedItem, matrices, false);
+            this.applyVanillaBlockTransformation(matrices, arm);
+        } else {
+            matrices.translate(0.0F, 0.0F, -0.02F);
+            matrices.mulPose(Axis.ZP.rotationDegrees(direction * -1.0F));
+            this.applySwordAnimation(matrices, arm, equipProgress, swingProgress);
+            this.applyFirstPersonDisplayTransform(matrices, arm);
+        }
+    }
+
+    @Unique
+    private void applyNormalSwordTransform(PoseStack matrices, AbstractClientPlayer player, HumanoidArm arm, ItemStack renderedItem, float equipProgress, float swingProgress) {
+        int direction = arm == HumanoidArm.RIGHT ? 1 : -1;
+        if (this.shouldUseCustomEquipOffset())
+            this.customApplyEquipOffset(matrices, arm, equipProgress, null);
+        else
+            matrices.translate(direction * 0.56F, -0.52F + equipProgress * -0.6F, -0.72F);
+
+        if (!(ModuleManager.getModuleState(ViewModel.class) && ViewModel.fluxSwing.get())) {
+            float f = -0.4F * Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
+            float g = 0.2F * Mth.sin(Mth.sqrt(swingProgress) * ((float) Math.PI * 2F));
+            float h = -0.2F * Mth.sin(swingProgress * (float) Math.PI);
+            matrices.translate(direction * f, g, h);
+        }
+        this.applySwingOffset(matrices, arm, swingProgress, null);
+
+        this.slightlyTiltItemPosition(player, InteractionHand.MAIN_HAND, renderedItem, matrices, true);
+    }
+
+    @Unique
+    private static Quaternionf krs$extractRotation(Matrix4fc matrix) {
+        return new Quaternionf().setFromUnnormalized(matrix.get3x3(new org.joml.Matrix3f())).normalize();
+    }
+
+    @Unique
+    private static void krs$applyInterpolatedGuardPose(PoseStack matrices, Matrix4fc from, Matrix4fc to, float progress) {
+        Vector3f translation = from.getTranslation(new Vector3f()).lerp(to.getTranslation(new Vector3f()), progress);
+        Quaternionf rotation = krs$extractRotation(from).slerp(krs$extractRotation(to), progress).normalize();
+        float scale = Mth.lerp(progress, from.getScale(new Vector3f()).x, to.getScale(new Vector3f()).x);
+
+        matrices.translate(translation.x, translation.y, translation.z);
+        matrices.mulPose(rotation);
+        matrices.scale(scale, scale, scale);
     }
 
     @Unique
