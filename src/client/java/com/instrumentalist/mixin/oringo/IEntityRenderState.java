@@ -6,4 +6,8 @@ public interface IEntityRenderState {
     Entity client$getEntity();
 
     void client$setEntity(Entity entity);
+
+    void client$setApplyLocalAnim(boolean val);
+
+    boolean client$shouldApplyLocalAnim();
 }

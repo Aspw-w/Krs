@@ -11,6 +11,9 @@ public abstract class EntityRenderStateMixin implements IEntityRenderState {
     @Unique
     private Entity entity;
 
+    @Unique
+    private boolean client$applyLocalAnim;
+
     @Override
     public Entity client$getEntity() {
         return entity;
@@ -20,4 +23,10 @@ public abstract class EntityRenderStateMixin implements IEntityRenderState {
     public void client$setEntity(Entity entity) {
         this.entity = entity;
     }
+
+    @Override
+    public void client$setApplyLocalAnim(boolean value) { this.client$applyLocalAnim = value; }
+
+    @Override
+    public boolean client$shouldApplyLocalAnim() { return this.client$applyLocalAnim; }
 }
