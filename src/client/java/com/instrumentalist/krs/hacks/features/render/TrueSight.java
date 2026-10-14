@@ -3,7 +3,7 @@ package com.instrumentalist.krs.hacks.features.render;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.value.BooleanValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class TrueSight extends Module {
 
@@ -14,7 +14,7 @@ public class TrueSight extends Module {
     public static final BooleanValue barriers = new BooleanValue("Barriers", true);
 
     public TrueSight() {
-        super("True Sight", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("True Sight", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

@@ -22,10 +22,10 @@ public class VanillaFly implements FlyEvent {
 
         float yMotion = 0f;
 
-        if (InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyJump.saveString()).getValue()) && InventoryMove.canMoveFreely())
+        if (InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyJump.saveString()).getValue()) && InventoryMove.canMoveFreely())
             yMotion += FlyModule.vanillaVSpeed.get();
 
-        if (InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyShift.saveString()).getValue()) && InventoryMove.canMoveFreely())
+        if (InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyShift.saveString()).getValue()) && InventoryMove.canMoveFreely())
             yMotion -= FlyModule.vanillaVSpeed.get();
 
         MovementUtil.setVelocityY(yMotion);

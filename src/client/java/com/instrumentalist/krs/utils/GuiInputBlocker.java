@@ -5,7 +5,7 @@ import com.instrumentalist.krs.screen.NanoVGClickGuiScreen;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.screens.ChatScreen;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 import xyz.breadloaf.imguimc.imgui.ImguiLoader;
 
 public final class GuiInputBlocker implements IMinecraft {
@@ -48,7 +48,7 @@ public final class GuiInputBlocker implements IMinecraft {
     }
 
     public static boolean shouldBlockMinecraftKeyEvent(int keyCode) {
-        return shouldBlockMinecraftKeyboard() && keyCode != GLFW.GLFW_KEY_ESCAPE;
+        return shouldBlockMinecraftKeyboard() && keyCode != Keys.KEY_ESCAPE;
     }
 
     public static int sanitizeMouseCoordinate(int coordinate) {

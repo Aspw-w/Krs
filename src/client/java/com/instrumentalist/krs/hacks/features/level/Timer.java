@@ -8,7 +8,7 @@ import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.ListValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -24,7 +24,7 @@ public class Timer extends Module {
     private static final BooleanValue moveOnly = new BooleanValue("Move Only", false, () -> mode.get().equalsIgnoreCase("vanilla"));
 
     public Timer() {
-        super("Timer", ModuleCategory.Level, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Timer", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

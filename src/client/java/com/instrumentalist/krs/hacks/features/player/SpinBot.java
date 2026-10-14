@@ -7,12 +7,12 @@ import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.value.FloatValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class SpinBot extends Module {
 
     public SpinBot() {
-        super("Spin Bot", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Spin Bot", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting

@@ -8,12 +8,12 @@ import com.instrumentalist.krs.utils.value.IntValue;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUseAnimation;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class FastEat extends Module {
 
     public FastEat() {
-        super("Fast Eat", ModuleCategory.Combat, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Fast Eat", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting

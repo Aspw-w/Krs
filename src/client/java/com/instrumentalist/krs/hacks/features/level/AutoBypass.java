@@ -12,7 +12,7 @@ import com.instrumentalist.krs.utils.value.TextValue;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 import net.minecraft.network.protocol.Packet;
@@ -21,7 +21,7 @@ import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 public class AutoBypass extends Module {
 
     public AutoBypass() {
-        super("Auto Bypass", ModuleCategory.Level, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Auto Bypass", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting

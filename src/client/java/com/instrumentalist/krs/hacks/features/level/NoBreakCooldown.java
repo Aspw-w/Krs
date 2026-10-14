@@ -2,12 +2,12 @@ package com.instrumentalist.krs.hacks.features.level;
 
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class NoBreakCooldown extends Module {
 
     public NoBreakCooldown() {
-        super("No Break Cooldown", ModuleCategory.Level, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("No Break Cooldown", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

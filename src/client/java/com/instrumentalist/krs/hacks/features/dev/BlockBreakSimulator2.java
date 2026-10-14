@@ -1,5 +1,6 @@
 package com.instrumentalist.krs.hacks.features.dev;
 
+import com.instrumentalist.krs.utils.entity.PlayerUtil;
 
 
 import com.instrumentalist.krs.events.features.MotionEvent;
@@ -14,12 +15,12 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class BlockBreakSimulator2 extends Module {
 
     public BlockBreakSimulator2() {
-        super("Block Break Simulator 2", ModuleCategory.Dev, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Block Break Simulator 2", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -54,6 +55,6 @@ public class BlockBreakSimulator2 extends Module {
         if (interactionManager == null) return;
 
         interactionManager.continueDestroyBlock(pos, side);
-        mc.player.swing(InteractionHand.MAIN_HAND);
+        PlayerUtil.INSTANCE.swingHand(InteractionHand.MAIN_HAND);
     }
 }

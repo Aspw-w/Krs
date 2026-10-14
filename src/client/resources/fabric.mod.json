@@ -22,9 +22,9 @@
     "krs.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=0.19.3",
+    "fabricloader": ">=0.19.5",
     "fabric-api": "*",
-    "minecraft": "~26.2",
+    "minecraft": "~26.3",
     "java": ">=25"
   },
   "accessWidener": "krs.accesswidener"

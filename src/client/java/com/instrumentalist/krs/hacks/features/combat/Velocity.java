@@ -13,7 +13,7 @@ import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
@@ -38,7 +38,7 @@ public class Velocity extends Module {
     private boolean jumpResetFallDamage = false;
 
     public Velocity() {
-        super("Velocity", ModuleCategory.Combat, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Velocity", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

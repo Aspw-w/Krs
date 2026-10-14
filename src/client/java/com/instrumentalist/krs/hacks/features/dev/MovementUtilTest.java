@@ -10,7 +10,7 @@ import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -64,7 +64,7 @@ public class MovementUtilTest extends Module {
     private int ticks;
 
     public MovementUtilTest() {
-        super("Movement Util Test", ModuleCategory.Dev, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Movement Util Test", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

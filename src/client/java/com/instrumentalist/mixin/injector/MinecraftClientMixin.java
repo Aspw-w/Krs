@@ -1,6 +1,5 @@
 package com.instrumentalist.mixin.injector;
 
-import com.instrumentalist.krs.hacks.features.level.ItemDropChanger;
 import com.instrumentalist.krs.hacks.features.player.AirPlace;
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.Client;
@@ -12,7 +11,6 @@ import com.instrumentalist.krs.hacks.features.render.ViewModel;
 import com.instrumentalist.krs.screen.CustomTitleScreen;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
-import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.mojang.blaze3d.platform.Window;
 import org.nvgu.NVGU;
 import org.jetbrains.annotations.Nullable;
@@ -62,7 +60,7 @@ public abstract class MinecraftClientMixin implements IMinecraft {
     @Unique
     private HitResult krs$airPlaceOriginalHitResult;
 
-    @Inject(method = "<init>", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/RenderSystem;initRenderer(Lcom/mojang/blaze3d/systems/GpuDevice;)V", shift = At.Shift.AFTER))
+    @Inject(method = "<init>", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/RenderSystem;initRenderer(Lcom/mojang/renderpearl/api/device/GpuDevice;)V", shift = At.Shift.AFTER))
     private void initNanoVG(CallbackInfo ci) {
         GraphicsApiCompatibility.initialize();
         GraphicsApiCompatibility.runWithOpenGlContext(NVGU.INSTANCE::create);
@@ -109,7 +107,7 @@ public abstract class MinecraftClientMixin implements IMinecraft {
                 if (this.level != null && !this.level.getBlockState(blockPos).isAir()) {
                     if (ModuleManager.getModuleState(ViewModel.class) && ViewModel.punchingABlockWhileDoingStuff.get() && this.player.isUsingItem() && mc.player.getUseItem().getUseAnimation() != ItemUseAnimation.NONE) {
                         ci.cancel();
-                        this.level.addBreakingBlockEffect(blockPos, blockHitResult.getDirection());
+                        this.level.addBreakingBlockEffects(blockPos, blockHitResult.getDirection(), false);
                         PlayerUtil.INSTANCE.swingHandWithoutPacket(InteractionHand.MAIN_HAND);
                     }
                 }
@@ -132,11 +130,6 @@ public abstract class MinecraftClientMixin implements IMinecraft {
             this.hitResult = this.krs$airPlaceOriginalHitResult;
             this.krs$airPlaceOriginalHitResult = null;
         }
-    }
-
-    @WrapWithCondition(method = "handleKeybinds", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;swing(Lnet/minecraft/world/InteractionHand;)V"))
-    private boolean dropItemHook(LocalPlayer instance, InteractionHand hand) {
-        return ItemDropChanger.hookDropItemSwing(hand);
     }
 
     @Inject(method = "setLevel", at = @At("HEAD"), cancellable = true)

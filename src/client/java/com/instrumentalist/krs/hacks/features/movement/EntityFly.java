@@ -19,12 +19,12 @@ import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class EntityFly extends Module {
 
     public EntityFly() {
-        super("Entity Fly", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Entity Fly", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting
@@ -72,7 +72,7 @@ public class EntityFly extends Module {
         var player = mc.player;
         if (player == null) return;
 
-        if (player.isPassenger() && InputConstants.isKeyDown(mc.getWindow(), GLFW.GLFW_KEY_LEFT_ALT)) {
+        if (player.isPassenger() && InputConstants.isKeyDown(Keys.KEY_LEFT_ALT)) {
             player.stopRiding();
             PacketUtil.sendPacket(new ServerboundPlayerInputPacket(new Input(false, false, false, false, false, true, false)));
             Client.notificationManager.addNotification("Success", "Dismounted");
@@ -86,10 +86,10 @@ public class EntityFly extends Module {
         boolean boostMode = twoBjpBoost.get();
         float booster = boostMode ? 3f : vSpeed.get();
 
-        if (InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyJump.saveString()).getValue()))
+        if (InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyJump.saveString()).getValue()))
             yMotion += booster;
 
-        if (InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyShift.saveString()).getValue()))
+        if (InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyShift.saveString()).getValue()))
             yMotion -= booster;
 
         double yaw = Math.toRadians(MovementUtil.getPlayerDirection());

@@ -12,7 +12,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.MouseHandler;
-import org.lwjgl.glfw.GLFW;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -117,12 +117,15 @@ public abstract class MouseMixin {
         this.accumulatedDX = 0.0;
         this.accumulatedDY = 0.0;
         this.ignoreFirstMove = true;
-        InputConstants.grabOrReleaseMouse(
-                window,
-                shouldLock ? GLFW.GLFW_CURSOR_DISABLED : GLFW.GLFW_CURSOR_NORMAL,
-                centerX,
-                centerY
-        );
+        if (shouldLock)
+            InputConstants.grabMouse(window, centerX, centerY);
+        else
+            InputConstants.releaseMouse(window, centerX, centerY);
+    }
+
+    @Redirect(method = "onMove", at = @At(value = "FIELD", target = "Lnet/minecraft/client/MouseHandler;mouseGrabbed:Z", opcode = Opcodes.GETFIELD))
+    private boolean useRelativeMotionWhileChestStealerLocksMouse(MouseHandler mouseHandler) {
+        return mouseHandler.isMouseGrabbed() || krs$chestStealerMouseLocked;
     }
 
     @Redirect(method = "handleAccumulatedMovement", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/MouseHandler;isMouseGrabbed()Z"))
@@ -140,17 +143,26 @@ public abstract class MouseMixin {
         captureCursorPosition(GuiInputBlocker.shouldPreserveCursorOnMouseRelease());
     }
 
-    @Redirect(
-            method = {"grabMouse", "releaseMouse"},
-            at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/InputConstants;grabOrReleaseMouse(Lcom/mojang/blaze3d/platform/Window;IDD)V")
-    )
-    private void keepCursorPositionDuringImguiTransitions(Window window, int cursorMode, double x, double y) {
+    @Redirect(method = "grabMouse", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/InputConstants;grabMouse(Lcom/mojang/blaze3d/platform/Window;DD)V"))
+    private void keepCursorPositionDuringImguiGrab(Window window, double x, double y) {
         if (!krs$preserveCursorPosition) {
-            InputConstants.grabOrReleaseMouse(window, cursorMode, x, y);
+            InputConstants.grabMouse(window, x, y);
             return;
         }
 
-        InputConstants.grabOrReleaseMouse(window, cursorMode, krs$preservedCursorX, krs$preservedCursorY);
+        InputConstants.grabMouse(window, krs$preservedCursorX, krs$preservedCursorY);
+        this.xpos = krs$preservedCursorX;
+        this.ypos = krs$preservedCursorY;
+    }
+
+    @Redirect(method = "releaseMouse", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/InputConstants;releaseMouse(Lcom/mojang/blaze3d/platform/Window;DD)V"))
+    private void keepCursorPositionDuringImguiRelease(Window window, double x, double y) {
+        if (!krs$preserveCursorPosition) {
+            InputConstants.releaseMouse(window, x, y);
+            return;
+        }
+
+        InputConstants.releaseMouse(window, krs$preservedCursorX, krs$preservedCursorY);
         this.xpos = krs$preservedCursorX;
         this.ypos = krs$preservedCursorY;
     }

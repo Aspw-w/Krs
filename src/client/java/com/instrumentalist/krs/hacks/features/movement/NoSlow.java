@@ -21,7 +21,7 @@ import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUseAnimation;
 import net.minecraft.world.item.Items;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -37,7 +37,7 @@ public class NoSlow extends Module {
     private boolean waitingPacket = false;
 
     public NoSlow() {
-        super("No Slow", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("No Slow", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

@@ -13,7 +13,7 @@ import com.instrumentalist.krs.utils.render.NanoVGTheme;
 import com.mojang.blaze3d.platform.cursor.CursorType;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import com.mojang.realmsclient.RealmsMainScreen;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 import org.nvgu.NVGU;
 import org.nvgu.util.Alignment;
 import org.nvgu.util.NVGFont;
@@ -434,7 +434,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         float centerX = (NanoVGManager.getScaledScreenWidth() / 2f) - 100f;
         float centerY = (NanoVGManager.getScaledScreenHeight() / 2f) - 34f;
 
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+        if (button == Keys.MOUSE_BUTTON_LEFT) {
             if (isMusicSliderHovered(mouseX, mouseY)) {
                 musicVolumeSliderDragging = true;
                 updateMainMenuMusicVolumeFromMouse(mouseX, true);
@@ -470,7 +470,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
                             return true;
 
                         case "Options":
-                            mc.gui.setScreen(new OptionsScreen(this, mc.options, false));
+                            mc.gui.setScreen(new OptionsScreen(this, mc.options));
                             return true;
 
                         case "Update Here":
@@ -490,7 +490,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
-        if (musicVolumeSliderDragging && event.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+        if (musicVolumeSliderDragging && event.button() == Keys.MOUSE_BUTTON_LEFT) {
             updateMainMenuMusicVolumeFromMouse(event.x(), false);
             return true;
         }
@@ -500,7 +500,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (musicVolumeSliderDragging && event.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+        if (musicVolumeSliderDragging && event.button() == Keys.MOUSE_BUTTON_LEFT) {
             updateMainMenuMusicVolumeFromMouse(event.x(), true);
             musicVolumeSliderDragging = false;
             musicVolumeDirty = false;

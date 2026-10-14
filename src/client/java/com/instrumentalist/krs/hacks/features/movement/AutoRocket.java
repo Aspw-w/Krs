@@ -11,10 +11,9 @@ import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
-import net.minecraft.network.protocol.game.ServerboundSwingPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Items;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -31,7 +30,7 @@ public class AutoRocket extends Module {
     private final MSTimer rocketTimer = new MSTimer();
 
     public AutoRocket() {
-        super("Auto Rocket", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Auto Rocket", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -65,8 +64,8 @@ public class AutoRocket extends Module {
             PacketUtil.sendPacket(new ServerboundSetCarriedItemPacket(slot));
         }
 
-        if (gameMode.useItem(player, InteractionHand.MAIN_HAND).consumesAction())
-            PacketUtil.sendPacket(new ServerboundSwingPacket(InteractionHand.MAIN_HAND));
+        // The server broadcasts the swing for successful item use on its own since 26.3.
+        gameMode.useItem(player, InteractionHand.MAIN_HAND);
 
         if (slot != oldSlot) {
             player.getInventory().setSelectedSlot(oldSlot);

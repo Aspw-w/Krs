@@ -9,12 +9,12 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PlayerRideable;
 import net.minecraft.world.entity.animal.happyghast.HappyGhast;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class EntityControl extends Module {
 
     public EntityControl() {
-        super("Entity Control", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Entity Control", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     public static LivingEntity hookControllingPassenger(LivingEntity original, Entity entity) {

@@ -1,4 +1,4 @@
-# Krs Client (26.2)
+# Krs Client (26.3)
 
 ### [Join the client discord server](https://discord.gg/nMTEzHcwSW)
 

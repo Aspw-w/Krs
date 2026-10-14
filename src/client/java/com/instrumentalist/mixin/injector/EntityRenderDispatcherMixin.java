@@ -33,7 +33,7 @@ public abstract class EntityRenderDispatcherMixin {
     }
 
     @Inject(method = "shouldRender", at = @At("HEAD"), cancellable = true)
-    private <E extends Entity> void krs$skipNullEntity(E entity, Frustum culler, double camX, double camY, double camZ, CallbackInfoReturnable<Boolean> cir) {
+    private <E extends Entity> void krs$skipNullEntity(E entity, Frustum culler, double camX, double camY, double camZ, float partialTicks, CallbackInfoReturnable<Boolean> cir) {
         if (entity == null) {
             cir.setReturnValue(false);
         }

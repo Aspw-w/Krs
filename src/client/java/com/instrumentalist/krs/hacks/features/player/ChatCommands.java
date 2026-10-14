@@ -3,7 +3,7 @@ package com.instrumentalist.krs.hacks.features.player;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.value.TextValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class ChatCommands extends Module {
 
@@ -11,7 +11,7 @@ public class ChatCommands extends Module {
     public static final TextValue prefix = new TextValue("Prefix", ".");
 
     public ChatCommands() {
-        super("Chat Commands", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, true, false);
+        super("Chat Commands", ModuleCategory.Player, Keys.KEY_UNKNOWN, true, false);
     }
 
     @Override

@@ -28,7 +28,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.HashSet;
 import java.util.Locale;
@@ -67,7 +67,7 @@ public class Breaker extends Module {
     private static long autoWhitelistLastScanTime = 0L;
 
     public Breaker() {
-        super("Breaker", ModuleCategory.Level, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Breaker", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -94,7 +94,7 @@ public class Breaker extends Module {
 
     @Override
     public void onKey(KeyboardEvent event) {
-        if (event.action == GLFW.GLFW_PRESS && event.key == GLFW.GLFW_KEY_RIGHT_CONTROL && resetAutoWhitelist(true))
+        if (event.action == Keys.PRESS && event.key == Keys.KEY_RIGHT_CONTROL && resetAutoWhitelist(true))
             Client.notificationManager.addNotification("Auto Whitelist", "Reset bed whitelist");
     }
 
@@ -355,7 +355,7 @@ public class Breaker extends Module {
                         }
                         case "place" -> {
                             if (gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hitResult).consumesAction())
-                                player.swing(InteractionHand.MAIN_HAND);
+                                PlayerUtil.INSTANCE.swingInteractHand(InteractionHand.MAIN_HAND);
                         }
                     }
                 }
@@ -447,7 +447,7 @@ public class Breaker extends Module {
                         Client.rotationManager.faceBlock(bedPos, 180f);
                         BlockHitResult hitResult = hitResult(bedPos);
                         if (gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hitResult).consumesAction())
-                            player.swing(InteractionHand.MAIN_HAND);
+                            PlayerUtil.INSTANCE.swingInteractHand(InteractionHand.MAIN_HAND);
                     }
                 }
             }

@@ -11,7 +11,7 @@ import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import com.instrumentalist.krs.utils.value.TextValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 import xyz.breadloaf.imguimc.customwindow.ModuleRenderable;
 
 public class Spammer extends Module {
@@ -36,7 +36,7 @@ public class Spammer extends Module {
     private final MSTimer delayTimer = new MSTimer();
 
     public Spammer() {
-        super("Spammer", ModuleCategory.Level, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Spammer", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

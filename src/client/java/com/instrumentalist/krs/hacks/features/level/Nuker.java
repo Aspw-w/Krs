@@ -20,7 +20,7 @@ import net.minecraft.world.level.block.NoteBlock;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -58,7 +58,7 @@ public class Nuker extends Module {
     private int originalSlot = -1;
 
     public Nuker() {
-        super("Nuker", ModuleCategory.Level, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Nuker", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -190,7 +190,7 @@ public class Nuker extends Module {
                 handledBlock = true;
             } else if (placing) {
                 if (gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hitResult).consumesAction()) {
-                    player.swing(InteractionHand.MAIN_HAND);
+                    PlayerUtil.INSTANCE.swingInteractHand(InteractionHand.MAIN_HAND);
                     handledBlock = true;
                 }
             }
@@ -284,7 +284,7 @@ public class Nuker extends Module {
             }
         } else if (placing) {
             if (gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hitResult).consumesAction()) {
-                player.swing(InteractionHand.MAIN_HAND);
+                PlayerUtil.INSTANCE.swingInteractHand(InteractionHand.MAIN_HAND);
                 currentBlock = null;
                 breakStartTime = 0L;
             }

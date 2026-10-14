@@ -47,7 +47,7 @@ public abstract class EntityMixin implements IMinecraft {
 
     @Shadow public abstract void addDeltaMovement(Vec3 velocity);
 
-    @Shadow public boolean hurtMarked;
+    @Shadow public boolean needsSync;
 
     @Shadow public abstract void setDeltaMovement(double x, double y, double z);
 

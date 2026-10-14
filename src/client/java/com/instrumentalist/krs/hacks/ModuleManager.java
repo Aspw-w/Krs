@@ -32,7 +32,7 @@ import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 import xyz.breadloaf.imguimc.config.WindowConfigManager;
 import xyz.breadloaf.imguimc.customwindow.ModuleRenderable;
 import xyz.breadloaf.imguimc.screen.EmptyScreen;
@@ -304,7 +304,7 @@ public class ModuleManager implements EventListener {
         if (GuiInputBlocker.shouldBlockMinecraftKeyEvent(event.key) && (event.key != ImGui.getOpenGuiKey() || event.key != ClickGui.getOpenGuiKey()))
             return;
 
-        if (event.key == ClickGui.getOpenGuiKey() && event.action == GLFW.GLFW_PRESS) {
+        if (event.key == ClickGui.getOpenGuiKey() && event.action == Keys.PRESS) {
             if (mc.gui.screen() instanceof NanoVGClickGuiScreen screen) {
                 screen.onClose();
             } else {
@@ -314,7 +314,7 @@ public class ModuleManager implements EventListener {
             }
         }
 
-        if ((event.key == ImGui.getOpenGuiKey() || event.key == GLFW.GLFW_KEY_ESCAPE) && event.action == GLFW.GLFW_PRESS) {
+        if ((event.key == ImGui.getOpenGuiKey() || event.key == Keys.KEY_ESCAPE) && event.action == Keys.PRESS) {
             if (!isDebugRendering) {
                 if (event.key != ImGui.getOpenGuiKey()) return;
                 Initializer.pushRenderable(new ModuleRenderable());
@@ -322,7 +322,7 @@ public class ModuleManager implements EventListener {
                 GuiInputBlocker.releaseMovementKeys();
                 mc.mouseHandler.releaseMouse();
                 shouldOpenEmptyScreen = mc.gui.screen() == null;
-            } else if (event.key == GLFW.GLFW_KEY_ESCAPE && !(mc.gui.screen() instanceof EmptyScreen) || event.key == ImGui.getOpenGuiKey())
+            } else if (event.key == Keys.KEY_ESCAPE && !(mc.gui.screen() instanceof EmptyScreen) || event.key == ImGui.getOpenGuiKey())
                 pullDebugScreen();
         }
 
@@ -332,7 +332,7 @@ public class ModuleManager implements EventListener {
 
         if (mc.gui.screen() == null) {
             for (Module m : allModules) {
-                if (event.key == m.key && event.action == GLFW.GLFW_PRESS)
+                if (event.key == m.key && event.action == Keys.PRESS)
                     m.toggle();
             }
         }

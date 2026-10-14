@@ -12,12 +12,12 @@ import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUseAnimation;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class FastBow extends Module {
 
     public FastBow() {
-        super("Fast Bow", ModuleCategory.Combat, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Fast Bow", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting

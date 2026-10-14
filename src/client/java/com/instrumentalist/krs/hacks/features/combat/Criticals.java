@@ -14,7 +14,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.world.item.MaceItem;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class Criticals extends Module {
     @Setting
@@ -27,7 +27,7 @@ public class Criticals extends Module {
     private final double[] lessPacketValues = new double[]{0.0625D, 0.0D};
 
     public Criticals() {
-        super("Criticals", ModuleCategory.Combat, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Criticals", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

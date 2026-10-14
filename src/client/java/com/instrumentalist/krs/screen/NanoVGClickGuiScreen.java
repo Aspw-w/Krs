@@ -29,7 +29,7 @@ import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 import org.nvgu.NVGU;
 import org.nvgu.util.Alignment;
 import org.nvgu.util.Border;
@@ -239,18 +239,18 @@ public class NanoVGClickGuiScreen extends Screen {
         float mouseY = NanoVGManager.toScaledMouseY(event.y());
         int button = event.button();
 
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && closeRect.contains(mouseX, mouseY)) {
+        if (button == Keys.MOUSE_BUTTON_LEFT && closeRect.contains(mouseX, mouseY)) {
             onClose();
             return true;
         }
 
         if (isSettingsDockOpen()) {
-            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && settingsPanelCloseRect.contains(mouseX, mouseY)) {
+            if (button == Keys.MOUSE_BUTTON_LEFT && settingsPanelCloseRect.contains(mouseX, mouseY)) {
                 closeSettingsPanel();
                 return true;
             }
 
-            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && maxSettingsPanelScroll > 0f
+            if (button == Keys.MOUSE_BUTTON_LEFT && maxSettingsPanelScroll > 0f
                     && settingsPanelScrollbarTrackRect.contains(mouseX, mouseY)) {
                 closeListDropdown();
                 clearTextFocus();
@@ -263,9 +263,9 @@ public class NanoVGClickGuiScreen extends Screen {
             }
 
             if (settingsPanelRect.contains(mouseX, mouseY)
-                    && (button == GLFW.GLFW_MOUSE_BUTTON_LEFT
-                    || button == GLFW.GLFW_MOUSE_BUTTON_RIGHT
-                    || button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE)) {
+                    && (button == Keys.MOUSE_BUTTON_LEFT
+                    || button == Keys.MOUSE_BUTTON_RIGHT
+                    || button == Keys.MOUSE_BUTTON_MIDDLE)) {
                 for (int i = settingsPanelControlStartIndex; i < controls.size(); i++) {
                     ControlBounds control = controls.get(i);
                     if (control.rect.contains(mouseX, mouseY) && handleControlClick(control, mouseX, button, doubleClick))
@@ -278,12 +278,12 @@ public class NanoVGClickGuiScreen extends Screen {
             }
         }
 
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && !searchQuery.isBlank() && searchClearRect.contains(mouseX, mouseY)) {
+        if (button == Keys.MOUSE_BUTTON_LEFT && !searchQuery.isBlank() && searchClearRect.contains(mouseX, mouseY)) {
             clearSearch();
             return true;
         }
 
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && maxListScroll > 0f && scrollbarTrackRect.contains(mouseX, mouseY)) {
+        if (button == Keys.MOUSE_BUTTON_LEFT && maxListScroll > 0f && scrollbarTrackRect.contains(mouseX, mouseY)) {
             closeListDropdown();
             clearTextFocus();
             float offsetY = scrollbarThumbRect.contains(mouseX, mouseY) ? mouseY - scrollbarThumbRect.y : scrollbarThumbRect.height / 2f;
@@ -292,22 +292,22 @@ public class NanoVGClickGuiScreen extends Screen {
             return true;
         }
 
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT
-                || button == GLFW.GLFW_MOUSE_BUTTON_RIGHT
-                || button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
+        if (button == Keys.MOUSE_BUTTON_LEFT
+                || button == Keys.MOUSE_BUTTON_RIGHT
+                || button == Keys.MOUSE_BUTTON_MIDDLE) {
             for (ControlBounds control : controls) {
                 if (control.rect.contains(mouseX, mouseY) && handleControlClick(control, mouseX, button, doubleClick))
                     return true;
             }
         }
 
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && searchRect.contains(mouseX, mouseY)) {
+        if (button == Keys.MOUSE_BUTTON_LEFT && searchRect.contains(mouseX, mouseY)) {
             focusSearch();
             beginTextSelectionOrSelectAll(mouseX, doubleClick);
             return true;
         }
 
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+        if (button == Keys.MOUSE_BUTTON_LEFT) {
             for (TabBounds tab : tabBounds) {
                 if (tab.rect.contains(mouseX, mouseY)) {
                     storeCurrentCategoryScroll();
@@ -331,26 +331,26 @@ public class NanoVGClickGuiScreen extends Screen {
         for (ModuleRowBounds row : moduleRows) {
             if (!row.rect.contains(mouseX, mouseY)) continue;
 
-            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+            if (button == Keys.MOUSE_BUTTON_LEFT) {
                 closeListDropdown();
                 pressedModule = row.module;
                 row.module.toggle();
                 return true;
             }
 
-            if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+            if (button == Keys.MOUSE_BUTTON_RIGHT) {
                 closeListDropdown();
                 toggleSettingsPanel(row.module);
                 return true;
             }
         }
 
-        if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && openedListValue != null) {
+        if (button == Keys.MOUSE_BUTTON_RIGHT && openedListValue != null) {
             closeListDropdown();
             return true;
         }
 
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+        if (button == Keys.MOUSE_BUTTON_LEFT) {
             clearTextFocus();
             closeListDropdown();
         }
@@ -437,27 +437,27 @@ public class NanoVGClickGuiScreen extends Screen {
         int key = event.key();
 
         if (bindingModule != null) {
-            if (key != GLFW.GLFW_KEY_ESCAPE)
+            if (key != Keys.KEY_ESCAPE)
                 bindingModule.key = normalizeKey(key);
             bindingModule = null;
             return true;
         }
 
         if (bindingValue != null) {
-            if (key != GLFW.GLFW_KEY_ESCAPE)
+            if (key != Keys.KEY_ESCAPE)
                 bindingValue.set(normalizeKey(key));
             bindingValue = null;
             return true;
         }
 
-        boolean commandModifier = (event.modifiers() & (GLFW.GLFW_MOD_CONTROL | GLFW.GLFW_MOD_SUPER)) != 0;
-        if (key == GLFW.GLFW_KEY_F && commandModifier) {
+        boolean commandModifier = (event.modifiers() & (Keys.MOD_CONTROL | Keys.MOD_SUPER)) != 0;
+        if (key == Keys.KEY_F && commandModifier) {
             focusSearch();
             return true;
         }
 
         if (textFocus != TextFocus.NONE) {
-            if (key == GLFW.GLFW_KEY_ESCAPE && (textFocus == TextFocus.NUMBER || textFocus == TextFocus.CONFIG_RENAME)) {
+            if (key == Keys.KEY_ESCAPE && (textFocus == TextFocus.NUMBER || textFocus == TextFocus.CONFIG_RENAME)) {
                 if (textFocus == TextFocus.NUMBER)
                     cancelNumberInput();
                 else
@@ -465,7 +465,7 @@ public class NanoVGClickGuiScreen extends Screen {
                 return true;
             }
 
-            if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+            if (key == Keys.KEY_ENTER || key == Keys.KEY_KP_ENTER) {
                 if (textFocus == TextFocus.CONFIG_NAME)
                     createConfigFromInput();
                 else if (textFocus == TextFocus.CONFIG_RENAME) {
@@ -480,49 +480,49 @@ public class NanoVGClickGuiScreen extends Screen {
                 return true;
             }
 
-            if (key == GLFW.GLFW_KEY_A && commandModifier) {
+            if (key == Keys.KEY_A && commandModifier) {
                 selectAllFocusedText();
                 return true;
             }
 
-            if (key == GLFW.GLFW_KEY_C && commandModifier) {
+            if (key == Keys.KEY_C && commandModifier) {
                 copyFocusedTextToClipboard();
                 return true;
             }
 
-            if (key == GLFW.GLFW_KEY_V && commandModifier) {
+            if (key == Keys.KEY_V && commandModifier) {
                 pasteClipboardIntoFocusedText();
                 return true;
             }
 
-            if (key == GLFW.GLFW_KEY_BACKSPACE) {
+            if (key == Keys.KEY_BACKSPACE) {
                 removeLastFocusedCharacter();
                 return true;
             }
 
-            if (key == GLFW.GLFW_KEY_DELETE) {
+            if (key == Keys.KEY_DELETE) {
                 deleteForwardFocusedCharacter();
                 return true;
             }
 
-            boolean shift = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
-            if (key == GLFW.GLFW_KEY_LEFT) {
+            boolean shift = (event.modifiers() & Keys.MOD_SHIFT) != 0;
+            if (key == Keys.KEY_LEFT) {
                 moveFocusedCaret(-1, shift);
                 return true;
             }
-            if (key == GLFW.GLFW_KEY_RIGHT) {
+            if (key == Keys.KEY_RIGHT) {
                 moveFocusedCaret(1, shift);
                 return true;
             }
         }
 
-        if (key == GLFW.GLFW_KEY_UP || key == GLFW.GLFW_KEY_DOWN) {
-            cycleCategory(key == GLFW.GLFW_KEY_DOWN ? 1 : -1);
+        if (key == Keys.KEY_UP || key == Keys.KEY_DOWN) {
+            cycleCategory(key == Keys.KEY_DOWN ? 1 : -1);
             return true;
         }
 
-        if (key == GLFW.GLFW_KEY_PAGE_UP || key == GLFW.GLFW_KEY_PAGE_DOWN
-                || key == GLFW.GLFW_KEY_HOME || key == GLFW.GLFW_KEY_END) {
+        if (key == Keys.KEY_PAGE_UP || key == Keys.KEY_PAGE_DOWN
+                || key == Keys.KEY_HOME || key == Keys.KEY_END) {
             scrollWithKeyboard(key);
             return true;
         }
@@ -1494,7 +1494,7 @@ public class NanoVGClickGuiScreen extends Screen {
         Rect switchRect = new Rect(row.x + u(14f), row.y + u(7f), SWITCH_WIDTH, SWITCH_HEIGHT);
         float nameX = switchRect.x + switchRect.width + u(8f);
 
-        String bindLabel = module.key != GLFW.GLFW_KEY_UNKNOWN ? keyName(module.key) : "";
+        String bindLabel = module.key != Keys.KEY_UNKNOWN ? keyName(module.key) : "";
         float nameRight = row.x + row.width - u(8f);
         if (!bindLabel.isBlank()) {
             float bindFont = font(10f);
@@ -1915,12 +1915,12 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private boolean handleControlClick(ControlBounds control, float mouseX, int button, boolean doubleClick) {
         if (control.type == ControlType.FLOAT_INPUT || control.type == ControlType.INT_INPUT) {
-            if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
+            if (button == Keys.MOUSE_BUTTON_MIDDLE) {
                 focusNumberInput((SettingValue<?>) control.target);
                 return true;
             }
 
-            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT
+            if (button == Keys.MOUSE_BUTTON_LEFT
                     && textFocus == TextFocus.NUMBER
                     && focusedNumberValue == control.target) {
                 beginTextSelectionOrSelectAll(mouseX, doubleClick);
@@ -1932,17 +1932,17 @@ public class NanoVGClickGuiScreen extends Screen {
 
         if (control.type == ControlType.CONFIG_LOAD || control.type == ControlType.CONFIG_RENAME) {
             ConfigEntry entry = (ConfigEntry) control.target;
-            if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE)
+            if (button == Keys.MOUSE_BUTTON_MIDDLE)
                 return beginConfigRename(entry);
 
-            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT
+            if (button == Keys.MOUSE_BUTTON_LEFT
                     && textFocus == TextFocus.CONFIG_RENAME
                     && isSameConfig(renamingConfig, entry)) {
                 beginTextSelectionOrSelectAll(mouseX, doubleClick);
                 return true;
             }
 
-            if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT
+            if (button == Keys.MOUSE_BUTTON_RIGHT
                     && textFocus == TextFocus.CONFIG_RENAME
                     && isSameConfig(renamingConfig, entry)) {
                 cancelConfigRename();
@@ -1951,14 +1951,14 @@ public class NanoVGClickGuiScreen extends Screen {
             }
         }
 
-        if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE)
+        if (button == Keys.MOUSE_BUTTON_MIDDLE)
             return false;
 
         clearTextFocus();
         if (control.type != ControlType.MODULE_KEY) bindingModule = null;
         if (control.type != ControlType.KEY_VALUE) bindingValue = null;
 
-        if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+        if (button == Keys.MOUSE_BUTTON_RIGHT) {
             if (control.type == ControlType.CONFIG_LOAD || control.type == ControlType.CONFIG_RENAME) {
                 toggleConfigPanel((ConfigEntry) control.target);
                 return true;
@@ -1971,13 +1971,13 @@ public class NanoVGClickGuiScreen extends Screen {
             }
 
             if (control.type == ControlType.MODULE_KEY) {
-                ((Module) control.target).key = GLFW.GLFW_KEY_UNKNOWN;
+                ((Module) control.target).key = Keys.KEY_UNKNOWN;
                 bindingModule = null;
                 return true;
             }
 
             if (control.type == ControlType.KEY_VALUE) {
-                ((KeyBindValue) control.target).set(GLFW.GLFW_KEY_UNKNOWN);
+                ((KeyBindValue) control.target).set(Keys.KEY_UNKNOWN);
                 bindingValue = null;
                 return true;
             }
@@ -3047,11 +3047,11 @@ public class NanoVGClickGuiScreen extends Screen {
                 && settingsPanelRect.contains(scaledMouseX, scaledMouseY);
         if (settingsFocused) {
             float page = Math.max(u(48f), settingsPanelViewport.height * 0.85f);
-            if (key == GLFW.GLFW_KEY_HOME)
+            if (key == Keys.KEY_HOME)
                 targetSettingsPanelScroll = 0f;
-            else if (key == GLFW.GLFW_KEY_END)
+            else if (key == Keys.KEY_END)
                 targetSettingsPanelScroll = maxSettingsPanelScroll;
-            else if (key == GLFW.GLFW_KEY_PAGE_UP)
+            else if (key == Keys.KEY_PAGE_UP)
                 targetSettingsPanelScroll = Math.max(0f, targetSettingsPanelScroll - page);
             else
                 targetSettingsPanelScroll = Math.min(maxSettingsPanelScroll, targetSettingsPanelScroll + page);
@@ -3059,11 +3059,11 @@ public class NanoVGClickGuiScreen extends Screen {
         }
 
         float page = Math.max(u(48f), listViewport.height * 0.85f);
-        if (key == GLFW.GLFW_KEY_HOME)
+        if (key == Keys.KEY_HOME)
             targetListScroll = 0f;
-        else if (key == GLFW.GLFW_KEY_END)
+        else if (key == Keys.KEY_END)
             targetListScroll = maxListScroll;
-        else if (key == GLFW.GLFW_KEY_PAGE_UP)
+        else if (key == Keys.KEY_PAGE_UP)
             targetListScroll = Math.max(0f, targetListScroll - page);
         else
             targetListScroll = Math.min(maxListScroll, targetListScroll + page);
@@ -3732,53 +3732,53 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private static int normalizeKey(int key) {
-        return key == GLFW.GLFW_KEY_ESCAPE || key == GLFW.GLFW_KEY_BACKSPACE || key == GLFW.GLFW_KEY_DELETE
-                ? GLFW.GLFW_KEY_UNKNOWN
+        return key == Keys.KEY_ESCAPE || key == Keys.KEY_BACKSPACE || key == Keys.KEY_DELETE
+                ? Keys.KEY_UNKNOWN
                 : key;
     }
 
     private static String keyName(int key) {
-        if (key == GLFW.GLFW_KEY_UNKNOWN)
+        if (key == Keys.KEY_UNKNOWN)
             return "NONE";
 
-        String name = GLFW.glfwGetKeyName(key, GLFW.glfwGetKeyScancode(key));
+        String name = Keys.printableKeyName(key);
         if (name != null)
             return name.toUpperCase(Locale.ROOT);
 
         return switch (key) {
-            case GLFW.GLFW_KEY_SPACE -> "SPACE";
-            case GLFW.GLFW_KEY_ESCAPE -> "ESCAPE";
-            case GLFW.GLFW_KEY_ENTER -> "ENTER";
-            case GLFW.GLFW_KEY_TAB -> "TAB";
-            case GLFW.GLFW_KEY_BACKSPACE -> "BACKSPACE";
-            case GLFW.GLFW_KEY_INSERT -> "INSERT";
-            case GLFW.GLFW_KEY_DELETE -> "DELETE";
-            case GLFW.GLFW_KEY_RIGHT -> "RIGHT";
-            case GLFW.GLFW_KEY_LEFT -> "LEFT";
-            case GLFW.GLFW_KEY_DOWN -> "DOWN";
-            case GLFW.GLFW_KEY_UP -> "UP";
-            case GLFW.GLFW_KEY_PAGE_UP -> "PAGE UP";
-            case GLFW.GLFW_KEY_PAGE_DOWN -> "PAGE DOWN";
-            case GLFW.GLFW_KEY_HOME -> "HOME";
-            case GLFW.GLFW_KEY_END -> "END";
-            case GLFW.GLFW_KEY_LEFT_SHIFT -> "LEFT SHIFT";
-            case GLFW.GLFW_KEY_LEFT_CONTROL -> "LEFT CTRL";
-            case GLFW.GLFW_KEY_LEFT_ALT -> "LEFT ALT";
-            case GLFW.GLFW_KEY_RIGHT_SHIFT -> "RIGHT SHIFT";
-            case GLFW.GLFW_KEY_RIGHT_CONTROL -> "RIGHT CTRL";
-            case GLFW.GLFW_KEY_RIGHT_ALT -> "RIGHT ALT";
-            case GLFW.GLFW_KEY_F1 -> "F1";
-            case GLFW.GLFW_KEY_F2 -> "F2";
-            case GLFW.GLFW_KEY_F3 -> "F3";
-            case GLFW.GLFW_KEY_F4 -> "F4";
-            case GLFW.GLFW_KEY_F5 -> "F5";
-            case GLFW.GLFW_KEY_F6 -> "F6";
-            case GLFW.GLFW_KEY_F7 -> "F7";
-            case GLFW.GLFW_KEY_F8 -> "F8";
-            case GLFW.GLFW_KEY_F9 -> "F9";
-            case GLFW.GLFW_KEY_F10 -> "F10";
-            case GLFW.GLFW_KEY_F11 -> "F11";
-            case GLFW.GLFW_KEY_F12 -> "F12";
+            case Keys.KEY_SPACE -> "SPACE";
+            case Keys.KEY_ESCAPE -> "ESCAPE";
+            case Keys.KEY_ENTER -> "ENTER";
+            case Keys.KEY_TAB -> "TAB";
+            case Keys.KEY_BACKSPACE -> "BACKSPACE";
+            case Keys.KEY_INSERT -> "INSERT";
+            case Keys.KEY_DELETE -> "DELETE";
+            case Keys.KEY_RIGHT -> "RIGHT";
+            case Keys.KEY_LEFT -> "LEFT";
+            case Keys.KEY_DOWN -> "DOWN";
+            case Keys.KEY_UP -> "UP";
+            case Keys.KEY_PAGE_UP -> "PAGE UP";
+            case Keys.KEY_PAGE_DOWN -> "PAGE DOWN";
+            case Keys.KEY_HOME -> "HOME";
+            case Keys.KEY_END -> "END";
+            case Keys.KEY_LEFT_SHIFT -> "LEFT SHIFT";
+            case Keys.KEY_LEFT_CONTROL -> "LEFT CTRL";
+            case Keys.KEY_LEFT_ALT -> "LEFT ALT";
+            case Keys.KEY_RIGHT_SHIFT -> "RIGHT SHIFT";
+            case Keys.KEY_RIGHT_CONTROL -> "RIGHT CTRL";
+            case Keys.KEY_RIGHT_ALT -> "RIGHT ALT";
+            case Keys.KEY_F1 -> "F1";
+            case Keys.KEY_F2 -> "F2";
+            case Keys.KEY_F3 -> "F3";
+            case Keys.KEY_F4 -> "F4";
+            case Keys.KEY_F5 -> "F5";
+            case Keys.KEY_F6 -> "F6";
+            case Keys.KEY_F7 -> "F7";
+            case Keys.KEY_F8 -> "F8";
+            case Keys.KEY_F9 -> "F9";
+            case Keys.KEY_F10 -> "F10";
+            case Keys.KEY_F11 -> "F11";
+            case Keys.KEY_F12 -> "F12";
             default -> String.valueOf(key);
         };
     }

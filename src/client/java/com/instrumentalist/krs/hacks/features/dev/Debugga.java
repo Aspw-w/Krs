@@ -6,12 +6,12 @@ import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.ChatUtil;
 import net.minecraft.world.entity.Entity;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class Debugga extends Module {
 
     public Debugga() {
-        super("Debugga", ModuleCategory.Dev, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Debugga", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

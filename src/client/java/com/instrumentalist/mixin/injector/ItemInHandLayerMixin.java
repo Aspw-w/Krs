@@ -15,7 +15,6 @@ import net.minecraft.client.renderer.entity.state.ArmedEntityRenderState;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemStack;
-import org.joml.Quaternionfc;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -74,9 +73,9 @@ public abstract class ItemInHandLayerMixin {
 
     @WrapWithCondition(
             method = "submitArmWithItem",
-            at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;mulPose(Lorg/joml/Quaternionfc;)V")
+            at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;rotateDegrees(Lcom/mojang/math/Axis;F)V")
     )
-    private boolean krs$skipModernThirdPersonRotation(PoseStack poseStack, Quaternionfc rotation) {
+    private boolean krs$skipModernThirdPersonRotation(PoseStack poseStack, Axis axis, float degrees) {
         return !krs$legacyVanillaSwordTransform;
     }
 
@@ -92,30 +91,30 @@ public abstract class ItemInHandLayerMixin {
 
         // Minecraft 1.7 RenderPlayer's blocking transform, before its full-3D item transform.
         poseStack.translate(direction * 0.05F, 0.0F, -0.1F);
-        poseStack.mulPose(Axis.YP.rotationDegrees(direction * -50.0F));
-        poseStack.mulPose(Axis.XP.rotationDegrees(-10.0F));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(direction * -60.0F));
+        poseStack.rotate(Axis.YP.rotationDegrees(direction * -50.0F));
+        poseStack.rotate(Axis.XP.rotationDegrees(-10.0F));
+        poseStack.rotate(Axis.ZP.rotationDegrees(direction * -60.0F));
 
         poseStack.translate(direction * -0.0625F, 0.1875F, 0.0F);
         poseStack.scale(0.625F, 0.625F, 0.625F);
-        poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
-        poseStack.mulPose(Axis.XP.rotationDegrees(100.0F));
-        poseStack.mulPose(Axis.YP.rotationDegrees(direction * -145.0F));
+        poseStack.rotate(Axis.XP.rotationDegrees(180.0F));
+        poseStack.rotate(Axis.XP.rotationDegrees(100.0F));
+        poseStack.rotate(Axis.YP.rotationDegrees(direction * -145.0F));
         poseStack.translate(-0.011765625F, 0.0F, 0.002125F);
 
         // Convert the old icon-space transform, then cancel the baked modern handheld transform.
         poseStack.translate(0.0F, -0.3F, 0.0F);
         poseStack.scale(1.5F, 1.5F, 1.5F);
-        poseStack.mulPose(Axis.YP.rotationDegrees(direction * 50.0F));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(direction * 335.0F));
+        poseStack.rotate(Axis.YP.rotationDegrees(direction * 50.0F));
+        poseStack.rotate(Axis.ZP.rotationDegrees(direction * 335.0F));
         poseStack.translate(direction * -0.9375F, -0.0625F, 0.0F);
-        poseStack.mulPose(Axis.YP.rotationDegrees(direction * 180.0F));
+        poseStack.rotate(Axis.YP.rotationDegrees(direction * 180.0F));
         poseStack.translate(direction * -0.5F, 0.5F, 0.03125F);
 
         float inverseHandheldScale = 1.0F / 0.85F;
         poseStack.scale(inverseHandheldScale, inverseHandheldScale, inverseHandheldScale);
-        poseStack.mulPose(Axis.ZP.rotationDegrees(direction * -55.0F));
-        poseStack.mulPose(Axis.YP.rotationDegrees(direction * 90.0F));
+        poseStack.rotate(Axis.ZP.rotationDegrees(direction * -55.0F));
+        poseStack.rotate(Axis.YP.rotationDegrees(direction * 90.0F));
         poseStack.translate(0.0F, -0.25F, -0.03125F);
     }
 }

@@ -18,7 +18,7 @@ import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class LongJump extends Module {
 
@@ -39,7 +39,7 @@ public class LongJump extends Module {
     private int grimTicks;
 
     public LongJump() {
-        super("Long Jump", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Long Jump", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -208,15 +208,14 @@ public class LongJump extends Module {
                 );
                 Vec3 position = absolute.position();
 
-                PacketUtil.sendPacketAsSilent(new ServerboundAcceptTeleportationPacket(id));
-                PacketUtil.sendPacketAsSilent(new ServerboundMovePlayerPacket.PosRot(
+                // Since 26.3 the teleport acknowledgement carries the confirmed position itself.
+                PacketUtil.sendPacketAsSilent(new ServerboundAcceptTeleportationPacket(
+                        id,
                         position.x,
                         position.y,
                         position.z,
                         mc.player.getYRot(),
-                        mc.player.getXRot(),
-                        false,
-                        mc.player.horizontalCollision
+                        mc.player.getXRot()
                 ));
 
                 mc.player.setPos(position);

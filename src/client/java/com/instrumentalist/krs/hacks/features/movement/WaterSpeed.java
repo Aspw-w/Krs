@@ -7,7 +7,7 @@ import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.ListValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class WaterSpeed extends Module {
     @Setting
@@ -23,7 +23,7 @@ public class WaterSpeed extends Module {
     private final BooleanValue lava = new BooleanValue("Lava", false);
 
     public WaterSpeed() {
-        super("Water Speed", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Water Speed", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

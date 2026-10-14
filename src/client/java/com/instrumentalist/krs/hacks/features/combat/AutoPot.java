@@ -14,7 +14,6 @@ import com.instrumentalist.krs.utils.packet.PacketUtil;
 import net.minecraft.client.gui.screens.inventory.ContainerScreen;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.network.protocol.game.ServerboundSwingPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffect;
@@ -24,7 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.SplashPotionItem;
 import net.minecraft.world.item.alchemy.PotionContents;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,7 +51,7 @@ public class AutoPot extends Module {
     private final ArrayList<Holder<MobEffect>> needPots = new ArrayList<>(potions.size());
 
     public AutoPot() {
-        super("Auto Pot", ModuleCategory.Combat, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Auto Pot", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -175,7 +174,6 @@ public class AutoPot extends Module {
                 Client.rotationManager.getRotationYaw(),
                 Client.rotationManager.getRotationPitch()
         ));
-        PacketUtil.sendPacket(new ServerboundSwingPacket(InteractionHand.MAIN_HAND));
 
         potTimer.reset();
         potted = true;

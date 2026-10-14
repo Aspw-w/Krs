@@ -5,12 +5,12 @@ package com.instrumentalist.krs.hacks.features.movement;
 import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class NoJumpCooldown extends Module {
 
     public NoJumpCooldown() {
-        super("No Jump Cooldown", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("No Jump Cooldown", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

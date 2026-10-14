@@ -9,7 +9,7 @@ import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.client.gui.screens.DeathScreen;
 import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -27,7 +27,7 @@ public class AutoRespawn extends Module {
     private boolean requested = false;
 
     public AutoRespawn() {
-        super("Auto Respawn", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Auto Respawn", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

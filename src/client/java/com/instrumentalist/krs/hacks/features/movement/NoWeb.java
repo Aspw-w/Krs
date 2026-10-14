@@ -12,7 +12,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.Shapes;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -24,7 +24,7 @@ public class NoWeb extends Module {
     private final BooleanValue vertical = new BooleanValue("Vertical", true);
 
     public NoWeb() {
-        super("No Web", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("No Web", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

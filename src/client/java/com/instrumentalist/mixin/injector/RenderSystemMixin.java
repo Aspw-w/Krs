@@ -21,7 +21,7 @@ public abstract class RenderSystemMixin implements IMinecraft {
             method = "renderFrame",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/blaze3d/systems/GpuSurface;blitFromTexture(Lcom/mojang/blaze3d/systems/CommandEncoder;Lcom/mojang/blaze3d/textures/GpuTextureView;)V"
+                    target = "Lcom/mojang/renderpearl/api/device/GpuSurface;blitFromTexture(Lcom/mojang/renderpearl/api/commands/CommandEncoder;Lcom/mojang/renderpearl/api/textures/GpuTextureView;)V"
             )
     )
     private void krs$renderCompatibilityOverlaysBeforeSurfaceBlit(boolean renderLevel, CallbackInfo ci) {
@@ -33,7 +33,7 @@ public abstract class RenderSystemMixin implements IMinecraft {
             method = "renderFrame",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/blaze3d/systems/GpuSurface;present()V"
+                    target = "Lcom/mojang/renderpearl/api/device/GpuSurface;present()V"
             )
     )
     private void krs$renderOpenGlOverlaysBeforePresent(boolean renderLevel, CallbackInfo ci) {

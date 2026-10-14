@@ -10,13 +10,13 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class AutoTotem extends Module {
     private final MSTimer swapTimer = new MSTimer();
 
     public AutoTotem() {
-        super("Auto Totem", ModuleCategory.Combat, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Auto Totem", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

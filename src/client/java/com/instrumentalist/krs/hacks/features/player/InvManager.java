@@ -8,6 +8,7 @@ import com.instrumentalist.krs.utils.math.RandomUtil;
 import com.instrumentalist.krs.utils.math.ToolUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.IntValue;
+import net.minecraft.util.Prediction;
 import net.minecraft.client.gui.screens.inventory.ContainerScreen;
 import net.minecraft.client.gui.screens.inventory.FurnaceScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -23,7 +24,7 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.GameType;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -132,7 +133,7 @@ public class InvManager extends Module {
     );
 
     public InvManager() {
-        super("Inv Manager", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Inv Manager", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -483,7 +484,7 @@ public class InvManager extends Module {
         ItemStack droppedStack = inventorySlot.remove(amount);
         if (droppedStack.isEmpty()) return;
 
-        player.drop(droppedStack, true);
+        player.drop(droppedStack, true, Prediction.PREDICTED);
         gameMode.handleCreativeModeItemDrop(droppedStack);
         gameMode.handleCreativeModeItemAdd(inventorySlot.getItem(), inventorySlot.index);
     }

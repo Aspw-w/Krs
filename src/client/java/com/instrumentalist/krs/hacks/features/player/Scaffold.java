@@ -25,7 +25,6 @@ import com.instrumentalist.krs.utils.value.ListValue;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.network.protocol.game.ServerboundSwingPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
@@ -43,7 +42,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.client.player.ClientInput;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -216,7 +215,7 @@ public class Scaffold extends Module {
     }
 
     public Scaffold() {
-        super("Scaffold", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Scaffold", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -2346,7 +2345,7 @@ public class Scaffold extends Module {
                 clearMathPlacementTarget();
                 if (isSnapRotationActive())
                     snapRotationResetPending = true;
-                PacketUtil.sendPacket(new ServerboundSwingPacket(hand));
+                // The server broadcasts the placement swing on its own since 26.3.
             }
 
             return placed;
@@ -3117,7 +3116,7 @@ public class Scaffold extends Module {
     }
 
     private static boolean isPhysicalKeyDown(String keyName) {
-        return InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(keyName).getValue());
+        return InputConstants.isKeyDown(InputConstants.getKey(keyName).getValue());
     }
 
     public static boolean shouldSuppressTellyNormalJumpSprintHook() {

@@ -11,9 +11,8 @@ import com.instrumentalist.krs.utils.math.MSTimer;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.ListValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
-import net.minecraft.network.protocol.game.ServerboundSwingPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
@@ -21,7 +20,7 @@ import net.minecraft.world.phys.Vec3;
 public class AutoFish extends Module {
 
     public AutoFish() {
-        super("Auto Fish", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Auto Fish", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting
@@ -64,8 +63,8 @@ public class AutoFish extends Module {
                 return;
 
             Client.notificationManager.addNotification(hook == null ? "Wait" : "Success", hook == null ? "Started fishing... (" + mode + ")" : "Fished (" + mode + ")");
-            if (gameMode.useItem(player, hand).consumesAction())
-                PacketUtil.sendPacket(new ServerboundSwingPacket(hand));
+            // The server broadcasts the swing for successful item use on its own since 26.3.
+            gameMode.useItem(player, hand);
             fishTimer.reset();
         }
     }

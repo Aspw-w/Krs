@@ -4,7 +4,7 @@ import com.instrumentalist.krs.events.features.ReceivedPacketEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.ChatUtil;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
@@ -12,7 +12,7 @@ import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 public class ChatExcepChecker extends Module {
 
     public ChatExcepChecker() {
-        super("Chat Excep Checker", ModuleCategory.Dev, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Chat Excep Checker", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

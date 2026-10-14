@@ -8,12 +8,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class AirPlace extends Module {
 
     public AirPlace() {
-        super("Air Place", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Air Place", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     public static HitResult createPlacementHit(HitResult original, LocalPlayer player) {

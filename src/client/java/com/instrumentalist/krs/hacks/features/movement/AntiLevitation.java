@@ -7,12 +7,12 @@ import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import net.minecraft.network.protocol.game.ClientboundUpdateMobEffectPacket;
 import net.minecraft.world.effect.MobEffects;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class AntiLevitation extends Module {
 
     public AntiLevitation() {
-        super("Anti Levitation", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Anti Levitation", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

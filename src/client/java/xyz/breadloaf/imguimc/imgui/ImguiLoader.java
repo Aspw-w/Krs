@@ -6,29 +6,24 @@ import com.mojang.logging.LogUtils;
 import imgui.*;
 import imgui.flag.*;
 import imgui.gl3.ImGuiImplGl3;
-import imgui.glfw.ImGuiImplGlfw;
-import org.lwjgl.glfw.GLFW;
+import org.lwjgl.sdl.SDLVideo;
+import org.lwjgl.sdl.SDL_Event;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL33;
-import org.lwjgl.system.MemoryStack;
 import org.slf4j.Logger;
 import xyz.breadloaf.imguimc.font.FontExtractor;
 import xyz.breadloaf.imguimc.interfaces.Renderable;
 import xyz.breadloaf.imguimc.interfaces.Theme;
 import java.io.IOException;
-import java.nio.FloatBuffer;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.lwjgl.glfw.GLFW.glfwGetCurrentContext;
-import static org.lwjgl.glfw.GLFW.glfwMakeContextCurrent;
 
 public class ImguiLoader {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final long CONTENT_SCALE_REFRESH_INTERVAL_NANOS = 250_000_000L;
 
-    private static ImGuiImplGlfw imGuiGlfw = null;
+    private static ImGuiImplSdl imGuiSdl = null;
     private static ImGuiImplGl3 imGuiGl3 = null;
 
     private static long windowHandle;
@@ -45,7 +40,7 @@ public class ImguiLoader {
     private static boolean customFontAvailable = false;
     private static boolean renderedComponentsLastFrame = false;
 
-    public static void onGlfwInit(long handle) {
+    public static void onWindowInit(long handle) {
         if (initialized)
             return;
 
@@ -74,8 +69,8 @@ public class ImguiLoader {
         windowHandle = handle;
         try {
             initializeImGui();
-            imGuiGlfw = new ImGuiImplGlfw();
-            imGuiGlfw.init(handle,true);
+            imGuiSdl = new ImGuiImplSdl();
+            imGuiSdl.init(handle);
             imGuiGl3 = new ImGuiImplGl3();
             imGuiGl3.init();
             applyDisplayScale();
@@ -150,7 +145,7 @@ public class ImguiLoader {
         boolean frameStarted = false;
         try {
             applyDisplayScale();
-            imGuiGlfw.newFrame();
+            imGuiSdl.newFrame();
             ImGui.newFrame();
             frameStarted = true;
 
@@ -248,10 +243,6 @@ public class ImguiLoader {
         io.setIniFilename(null);                               // We don't want to save .ini file
         io.addConfigFlags(ImGuiConfigFlags.NavEnableKeyboard); // Enable KeyboardHandler Controls
         io.addConfigFlags(ImGuiConfigFlags.DockingEnable);     // Enable Docking
-        if (!GraphicsApiCompatibility.usesCompatibilityRenderer()) {
-            io.addConfigFlags(ImGuiConfigFlags.ViewportsEnable); // Platform windows require Minecraft's OpenGL context
-            io.setConfigViewportsNoTaskBarIcon(true);
-        }
 
         final ImFontAtlas fontAtlas = io.getFonts();
         fontAtlas.addFontDefault();
@@ -286,11 +277,8 @@ public class ImguiLoader {
 
         float scale = 1.0f;
 
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            FloatBuffer xScale = stack.mallocFloat(1);
-            FloatBuffer yScale = stack.mallocFloat(1);
-            GLFW.glfwGetWindowContentScale(windowHandle, xScale, yScale);
-            scale = Math.max(xScale.get(0), yScale.get(0));
+        try {
+            scale = SDLVideo.SDL_GetWindowDisplayScale(windowHandle);
         } catch (Throwable ignored) {
             scale = 1.0f;
         }
@@ -316,17 +304,6 @@ public class ImguiLoader {
         try {
             prepareImGuiGlState();
             imGuiGl3.renderDrawData(ImGui.getDrawData());
-
-            if (ImGui.getIO().hasConfigFlags(ImGuiConfigFlags.ViewportsEnable)) {
-                final long backupWindowPtr = glfwGetCurrentContext();
-                try {
-                    ImGui.updatePlatformWindows();
-                    prepareImGuiGlState();
-                    ImGui.renderPlatformWindowsDefault();
-                } finally {
-                    glfwMakeContextCurrent(backupWindowPtr);
-                }
-            }
         } finally {
             restoreCapability(GL11.GL_SCISSOR_TEST, scissorTest);
             GL13.glActiveTexture(GL13.GL_TEXTURE0);
@@ -334,9 +311,6 @@ public class ImguiLoader {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureBinding);
             GL13.glActiveTexture(activeTexture);
         }
-
-        //glfwSwapBuffers(windowPtr);
-        //glfwPollEvents();
     }
 
     private static void prepareImGuiGlState() {
@@ -350,6 +324,17 @@ public class ImguiLoader {
             GL11.glEnable(capability);
         } else {
             GL11.glDisable(capability);
+        }
+    }
+
+    public static void onSdlEvent(SDL_Event event) {
+        if (!initialized || imGuiSdl == null)
+            return;
+
+        try {
+            imGuiSdl.processEvent(event);
+        } catch (RuntimeException exception) {
+            logFrameFailure(exception);
         }
     }
 
@@ -398,13 +383,13 @@ public class ImguiLoader {
             }
         }
 
-        if (imGuiGlfw != null) {
+        if (imGuiSdl != null) {
             try {
-                imGuiGlfw.dispose();
+                imGuiSdl.dispose();
             } catch (Throwable exception) {
-                LOGGER.warn("Failed to dispose the ImGui GLFW backend", exception);
+                LOGGER.warn("Failed to dispose the ImGui SDL backend", exception);
             } finally {
-                imGuiGlfw = null;
+                imGuiSdl = null;
             }
         }
 

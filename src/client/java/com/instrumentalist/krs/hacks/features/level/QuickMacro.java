@@ -7,16 +7,16 @@ import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.value.KeyBindValue;
 import com.instrumentalist.krs.utils.value.TextValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class QuickMacro extends Module {
 
     public QuickMacro() {
-        super("Quick Macro", ModuleCategory.Level, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Quick Macro", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting
-    private final KeyBindValue macroKey = new KeyBindValue("Macro Key", GLFW.GLFW_KEY_X);
+    private final KeyBindValue macroKey = new KeyBindValue("Macro Key", Keys.KEY_X);
 
     @Setting
     private final TextValue messageOrCommand = new TextValue("Message / Command", "");
@@ -33,7 +33,7 @@ public class QuickMacro extends Module {
     public void onKey(KeyboardEvent event) {
         if (mc.player == null) return;
 
-        if (event.action == GLFW.GLFW_PRESS && event.key == macroKey.get()) {
+        if (event.action == Keys.PRESS && event.key == macroKey.get()) {
             boolean commandMode = messageOrCommand.get().startsWith("/");
             if (commandMode) {
                 mc.player.connection.sendCommand(messageOrCommand.get().substring(1));

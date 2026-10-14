@@ -5,17 +5,17 @@ import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.utils.value.ListValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class ImGui extends Module {
 
     public ImGui() {
-        super("Im Gui", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, true, false);
+        super("Im Gui", ModuleCategory.Render, Keys.KEY_UNKNOWN, true, false);
     }
 
     public static int getOpenGuiKey() {
         ImGui imGui = ModuleManager.getModule(ImGui.class);
-        return imGui != null ? imGui.key : GLFW.GLFW_KEY_UNKNOWN;
+        return imGui != null ? imGui.key : Keys.KEY_UNKNOWN;
     }
 
     @Setting

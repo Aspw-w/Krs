@@ -2,13 +2,13 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.features.level.CaveFinder;
 import com.llamalad7.mixinextras.sugar.Local;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.renderpearl.backend.api.BackendRenderPipeline;
 import org.lwjgl.vulkan.VK10;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 
-@Mixin(targets = "com.mojang.blaze3d.vulkan.VulkanRenderPipeline")
+@Mixin(targets = "com.mojang.renderpearl.backend.vulkan.VulkanRenderPipeline")
 public abstract class VulkanRenderPipelineMixin {
 
     @ModifyArg(
@@ -19,7 +19,7 @@ public abstract class VulkanRenderPipelineMixin {
             ),
             index = 0
     )
-    private static int krs$caveFinderCullMode(int original, @Local(argsOnly = true) RenderPipeline pipeline) {
-        return CaveFinder.shouldCullFront(pipeline) ? VK10.VK_CULL_MODE_FRONT_BIT : original;
+    private static int krs$caveFinderCullMode(int original, @Local(argsOnly = true) BackendRenderPipeline.CreateInfo createInfo) {
+        return CaveFinder.shouldCullFront(createInfo.name()) ? VK10.VK_CULL_MODE_FRONT_BIT : original;
     }
 }

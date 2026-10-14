@@ -2,12 +2,12 @@ package com.instrumentalist.krs.hacks.features.movement;
 
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class NoPush extends Module {
 
     public NoPush() {
-        super("No Push", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("No Push", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

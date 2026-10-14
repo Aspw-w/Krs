@@ -3,7 +3,7 @@ package com.instrumentalist.krs.hacks.features.render;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.value.BooleanValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class AntiBlind extends Module {
 
@@ -20,7 +20,7 @@ public class AntiBlind extends Module {
     public static final BooleanValue effects = new BooleanValue("Effects", true);
 
     public AntiBlind() {
-        super("Anti Blind", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, false, false);
+        super("Anti Blind", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, false);
     }
 
     @Override

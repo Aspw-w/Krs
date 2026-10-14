@@ -19,7 +19,7 @@ public class JetpackFly implements FlyEvent {
     public void onUpdate(UpdateEvent event) {
         if (mc.player == null) return;
 
-        if (InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyJump.saveString()).getValue()) && InventoryMove.canMoveFreely()) {
+        if (InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyJump.saveString()).getValue()) && InventoryMove.canMoveFreely()) {
             MovementUtil.setVelocityY(mc.player.getDeltaMovement().y + 0.14);
         }
     }

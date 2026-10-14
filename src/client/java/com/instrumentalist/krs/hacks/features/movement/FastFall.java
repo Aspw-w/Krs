@@ -6,7 +6,7 @@ import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.ListValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class FastFall extends Module {
     @Setting
@@ -16,7 +16,7 @@ public class FastFall extends Module {
     private final FloatValue motion = new FloatValue("Motion", 0.8f, 0.1f, 4.0f);
 
     public FastFall() {
-        super("Fast Fall", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Fast Fall", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

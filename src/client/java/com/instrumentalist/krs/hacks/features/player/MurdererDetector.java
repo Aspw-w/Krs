@@ -9,7 +9,7 @@ import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -27,7 +27,7 @@ public class MurdererDetector extends Module {
     private static final BooleanValue chatAbuse = new BooleanValue("Chat Abuse", false);
 
     public MurdererDetector() {
-        super("Murderer Detector", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Murderer Detector", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     public static ArrayList<Player> murderers = new ArrayList<>();

@@ -286,15 +286,14 @@ public class MatrixFly implements FlyEvent {
         );
         Vec3 position = absolute.position();
 
-        PacketUtil.sendPacketAsSilent(new ServerboundAcceptTeleportationPacket(id));
-        PacketUtil.sendPacketAsSilent(new ServerboundMovePlayerPacket.PosRot(
+        // Since 26.3 the teleport acknowledgement carries the confirmed position itself.
+        PacketUtil.sendPacketAsSilent(new ServerboundAcceptTeleportationPacket(
+                id,
                 position.x,
                 position.y,
                 position.z,
                 player.getYRot(),
-                player.getXRot(),
-                false,
-                player.horizontalCollision
+                player.getXRot()
         ));
 
         player.setPos(position);

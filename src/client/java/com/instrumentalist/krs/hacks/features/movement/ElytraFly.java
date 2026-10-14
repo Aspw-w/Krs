@@ -10,7 +10,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class ElytraFly extends Module {
 
@@ -21,7 +21,7 @@ public class ElytraFly extends Module {
     private final FloatValue verticalSpeed = new FloatValue("Vertical Speed", 1.2f, 0.1f, 4f);
 
     public ElytraFly() {
-        super("Elytra Fly", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Elytra Fly", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     public static Vec3 hookFallFlyingMovement(Vec3 original, LivingEntity entity) {
@@ -78,9 +78,7 @@ public class ElytraFly extends Module {
     }
 
     private boolean isKeyDown(KeyMapping key) {
-        return InputConstants.isKeyDown(
-                mc.getWindow(),
-                InputConstants.getKey(key.saveString()).getValue()
+        return InputConstants.isKeyDown(InputConstants.getKey(key.saveString()).getValue()
         );
     }
 }

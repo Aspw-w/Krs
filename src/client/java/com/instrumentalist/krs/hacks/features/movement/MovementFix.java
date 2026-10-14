@@ -11,7 +11,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class MovementFix extends Module {
     private static Input rawInput = Input.EMPTY;
@@ -21,7 +21,7 @@ public class MovementFix extends Module {
     private static boolean sprintConditionOverridden = false;
 
     public MovementFix() {
-        super("Movement Fix", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Movement Fix", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     public static boolean shouldFixMovement() {

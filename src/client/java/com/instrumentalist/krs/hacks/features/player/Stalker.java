@@ -10,7 +10,7 @@ import com.instrumentalist.krs.utils.entity.EntityExtension;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.pathfinder.MainPathFinder;
 import com.instrumentalist.krs.utils.render.RenderUtil;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -27,7 +27,7 @@ import net.minecraft.world.phys.Vec3;
 public class Stalker extends Module {
 
     public Stalker() {
-        super("Stalker", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Stalker", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     private int targetIndex = 0;
@@ -136,8 +136,8 @@ public class Stalker extends Module {
 
     @Override
     public void onKey(KeyboardEvent event) {
-        if (mc.player == null || mc.level == null || event.action != GLFW.GLFW_PRESS) return;
-        if (event.key != GLFW.GLFW_KEY_LEFT && event.key != GLFW.GLFW_KEY_RIGHT) return;
+        if (mc.player == null || mc.level == null || event.action != Keys.PRESS) return;
+        if (event.key != Keys.KEY_LEFT && event.key != Keys.KEY_RIGHT) return;
 
         updatePlayerList();
         if (players.isEmpty()) return;
@@ -147,9 +147,9 @@ public class Stalker extends Module {
             return;
         }
 
-        if (event.key == GLFW.GLFW_KEY_LEFT) {
+        if (event.key == Keys.KEY_LEFT) {
             selectPreviousTarget();
-        } else if (event.key == GLFW.GLFW_KEY_RIGHT) {
+        } else if (event.key == Keys.KEY_RIGHT) {
             selectNextTarget();
         }
     }

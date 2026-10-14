@@ -1,5 +1,6 @@
 package com.instrumentalist.krs.hacks.features.player;
 
+import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.events.features.WorldEvent;
@@ -10,7 +11,7 @@ import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -39,7 +40,7 @@ public class AntiAFK extends Module {
     private boolean rotateRight;
 
     public AntiAFK() {
-        super("Anti AFK", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Anti AFK", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -129,7 +130,7 @@ public class AntiAFK extends Module {
 
     private void swing() {
         if (mc.player != null)
-            mc.player.swing(InteractionHand.MAIN_HAND);
+            PlayerUtil.INSTANCE.swingHand(InteractionHand.MAIN_HAND);
     }
 
     private void rotate() {

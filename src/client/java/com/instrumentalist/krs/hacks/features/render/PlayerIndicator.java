@@ -24,7 +24,7 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 import org.nvgu.NVGU;
 import org.nvgu.util.Alignment;
 
@@ -115,7 +115,7 @@ public class PlayerIndicator extends Module {
     private long playerHeadTextureGeneration;
 
     public PlayerIndicator() {
-        super("Player Indicator", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Player Indicator", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

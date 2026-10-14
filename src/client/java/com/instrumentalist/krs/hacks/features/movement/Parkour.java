@@ -8,7 +8,7 @@ import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.IntValue;
 import net.minecraft.core.BlockPos;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class Parkour extends Module {
     @Setting
@@ -20,7 +20,7 @@ public class Parkour extends Module {
     private final MSTimer jumpTimer = new MSTimer();
 
     public Parkour() {
-        super("Parkour", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Parkour", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

@@ -16,7 +16,7 @@ import net.minecraft.client.player.KeyboardInput;
 import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.entity.player.Player;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class Sprint extends Module {
 
@@ -38,7 +38,7 @@ public class Sprint extends Module {
     private boolean swimming = false;
 
     public Sprint() {
-        super("Sprint", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Sprint", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

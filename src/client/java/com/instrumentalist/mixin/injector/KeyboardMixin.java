@@ -11,8 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import xyz.breadloaf.imguimc.imgui.ImguiLoader;
 
-import java.io.IOException;
-import com.mojang.blaze3d.platform.Window;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -21,9 +20,9 @@ import net.minecraft.client.input.PreeditEvent;
 @Mixin(KeyboardHandler.class)
 public abstract class KeyboardMixin {
 
-    @Inject(method = "setup", at = @At("TAIL"))
-    public void setup(Window window, CallbackInfo ci) throws IOException {
-        ImguiLoader.onGlfwInit(window.handle());
+    @Inject(method = "<init>", at = @At("TAIL"))
+    public void setup(Minecraft minecraft, CallbackInfo ci) {
+        ImguiLoader.onWindowInit(minecraft.getWindow().handle());
     }
 
     @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
@@ -34,7 +33,7 @@ public abstract class KeyboardMixin {
             return;
         }
 
-        if (Client.eventManager != null && keyEvent.key() != -1 && Client.eventManager.hasListeners(KeyboardEvent.class)) {
+        if (Client.eventManager != null && keyEvent.key() > 0 && Client.eventManager.hasListeners(KeyboardEvent.class)) {
             final KeyboardEvent event = new KeyboardEvent(keyEvent.key(), action);
             Client.eventManager.call(event);
         }
@@ -47,7 +46,7 @@ public abstract class KeyboardMixin {
         }
     }
 
-    @Inject(method = "preeditCallback", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "textEditing", at = @At("HEAD"), cancellable = true)
     public void onPreedit(long window, PreeditEvent preeditEvent, CallbackInfo ci) {
         if (GuiInputBlocker.shouldBlockMinecraftKeyboard()) {
             ci.cancel();

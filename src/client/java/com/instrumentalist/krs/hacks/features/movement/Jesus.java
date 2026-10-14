@@ -17,7 +17,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -30,7 +30,7 @@ public class Jesus extends Module {
     private final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "Verus", "Bouncy", "Mini Jump"}, "Vanilla");
 
     public Jesus() {
-        super("Jesus", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Jesus", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -153,7 +153,7 @@ public class Jesus extends Module {
 
     private static boolean isSneakInputDown() {
         var player = mc.player;
-        return player != null && (InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyShift.saveString()).getValue())
+        return player != null && (InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyShift.saveString()).getValue())
                 || mc.options.keyShift.isDown());
     }
 

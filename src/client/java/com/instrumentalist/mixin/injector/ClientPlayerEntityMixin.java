@@ -117,6 +117,29 @@ public abstract class ClientPlayerEntityMixin extends Player {
         krs$restoreFreecamInput();
     }
 
+    // Since 26.3 input and movement packets are sent from sendChanges() instead of tick(), so hide the real
+    // input there as well. The real input was already ticked by the tick() swap, so it is not ticked again.
+    @Unique
+    private ClientInput krs$sendChangesRealInput;
+
+    @Inject(method = "sendChanges", at = @At("HEAD"))
+    private void freecamSendChangesInputHead(CallbackInfo ci) {
+        if (!ModuleManager.getModuleState(Freecam.class) || !Freecam.getCanFly() || krs$freecamInputSwapDepth > 0)
+            return;
+
+        krs$sendChangesRealInput = this.input;
+        this.input = new ClientInput();
+    }
+
+    @Inject(method = "sendChanges", at = @At("RETURN"))
+    private void freecamSendChangesInputReturn(CallbackInfo ci) {
+        if (krs$sendChangesRealInput == null)
+            return;
+
+        this.input = krs$sendChangesRealInput;
+        krs$sendChangesRealInput = null;
+    }
+
     @Inject(method = "rideTick", at = @At("HEAD"))
     private void freecamRideTickInputHead(CallbackInfo ci) {
         krs$swapFreecamInput();
@@ -196,9 +219,10 @@ public abstract class ClientPlayerEntityMixin extends Player {
         return original && !NoSlow.shouldNoSlowSneak();
     }
 
-    @WrapOperation(method = "getViewYRot(F)F", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/AbstractClientPlayer;getViewYRot(F)F"))
+    // Since 26.3 getViewYRot always interpolates through getYRot(F); 26.2 only did so (via super) while riding.
+    @WrapOperation(method = "getViewYRot(F)F", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;getYRot(F)F"))
     private float entityHorizontalFixYawHook(LocalPlayer instance, float delta, Operation<Float> original) {
-        if (ModuleManager.getModuleState(EntityYawFix.class))
+        if (ModuleManager.getModuleState(EntityYawFix.class) && instance.isPassenger())
             return delta == 1.0F ? this.yRotO : Mth.lerp(delta, this.yRotO, this.getYRot());
 
         return original.call(instance, delta);

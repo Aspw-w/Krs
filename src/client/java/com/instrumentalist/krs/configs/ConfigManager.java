@@ -7,6 +7,7 @@ import com.google.gson.JsonObject;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.Interface;
+import com.instrumentalist.krs.utils.input.Keys;
 import com.instrumentalist.krs.utils.network.FileUtil;
 
 import java.io.*;
@@ -28,6 +29,12 @@ public class ConfigManager implements IMinecraft {
     private final Gson gson = new Gson();
     private static final String ONLINE_CONFIG_SUFFIX = "-online";
     private static final String UPDATED_AT_KEY = "_updated";
+    /**
+     * Marks configs whose key binds are SDL scancodes (Minecraft 26.3+). Configs without it were written by GLFW based
+     * client versions and have their key binds converted when loaded.
+     */
+    private static final String KEY_FORMAT_KEY = "_keyFormat";
+    private static final String KEY_FORMAT_SDL = "sdl";
     private static final float DEFAULT_MAIN_MENU_MUSIC_VOLUME = 0f;
     private static final long MAX_LOCAL_CONFIG_BYTES = 4L * 1024L * 1024L;
     public static final int MAX_CONFIG_NAME_LENGTH = 96;
@@ -53,6 +60,7 @@ public class ConfigManager implements IMinecraft {
             this.saveClientJS();
 
         final JsonObject configObject = new JsonObject();
+        configObject.addProperty(KEY_FORMAT_KEY, KEY_FORMAT_SDL);
         ModuleManager.modules.forEach(m -> {
             if (m.configObject != null && m.moduleCategory != null)
                 configObject.add(m.moduleName, m.configObject.save().getFirst());
@@ -73,6 +81,7 @@ public class ConfigManager implements IMinecraft {
             this.saveClientJS();
 
         final JsonObject bindObject = new JsonObject();
+        bindObject.addProperty(KEY_FORMAT_KEY, KEY_FORMAT_SDL);
         ModuleManager.modules.forEach(m -> {
             if (m.configObject != null && m.moduleCategory != null)
                 bindObject.add(m.moduleName, m.configObject.save().getSecond());
@@ -152,6 +161,7 @@ public class ConfigManager implements IMinecraft {
         try {
             final JsonObject bindData = readJsonObject(bindFile);
             if (bindData == null) return;
+            final boolean legacyKeys = usesLegacyKeyCodes(bindData);
             bindData.entrySet().forEach(entry -> {
                 if (isConfigMetadataKey(entry.getKey()) || !entry.getValue().isJsonObject()) return;
 
@@ -162,7 +172,8 @@ public class ConfigManager implements IMinecraft {
 
                 if (moduleData.has("bind")) {
                     try {
-                        module.key = moduleData.get("bind").getAsInt();
+                        int bind = moduleData.get("bind").getAsInt();
+                        module.key = legacyKeys ? Keys.fromLegacyGlfw(bind) : bind;
                     } catch (RuntimeException ignored) {
                     }
                 }
@@ -173,7 +184,7 @@ public class ConfigManager implements IMinecraft {
                     }
                 }
                 if (module.configObject != null)
-                    module.configObject.loadBind(moduleData);
+                    module.configObject.loadBind(moduleData, legacyKeys);
             });
             Interface.reloadSortedModules();
         } catch (Exception e) {
@@ -459,13 +470,26 @@ public class ConfigManager implements IMinecraft {
     }
 
     private void loadModuleConfigObject(JsonObject configObject) {
+        final boolean legacyKeys = usesLegacyKeyCodes(configObject);
         configObject.entrySet().forEach(entry -> {
             if (isConfigMetadataKey(entry.getKey()) || !entry.getValue().isJsonObject()) return;
 
             com.instrumentalist.krs.hacks.Module module = ModuleManager.getModuleByName(entry.getKey());
             if (module != null && module.configObject != null)
-                module.configObject.load(entry.getValue().getAsJsonObject());
+                module.configObject.load(entry.getValue().getAsJsonObject(), legacyKeys);
         });
+    }
+
+    private static boolean usesLegacyKeyCodes(JsonObject config) {
+        JsonElement format = config.get(KEY_FORMAT_KEY);
+        if (format == null || !format.isJsonPrimitive())
+            return true;
+
+        try {
+            return !KEY_FORMAT_SDL.equals(format.getAsString());
+        } catch (RuntimeException ignored) {
+            return true;
+        }
     }
 
     private JsonObject readJsonObject(File file) throws IOException {
@@ -589,7 +613,7 @@ public class ConfigManager implements IMinecraft {
     }
 
     private static boolean isConfigMetadataKey(String key) {
-        return UPDATED_AT_KEY.equals(key);
+        return UPDATED_AT_KEY.equals(key) || KEY_FORMAT_KEY.equals(key);
     }
 
     private void writeJson(File file, JsonObject jsonObject, String label) {

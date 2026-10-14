@@ -14,7 +14,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -26,7 +26,7 @@ public class ThunderDetector extends Module {
     private static final Map<BlockPos, Long> excludedLightnings = new LinkedHashMap<>();
 
     public ThunderDetector() {
-        super("Thunder Detector", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, false, false);
+        super("Thunder Detector", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, false);
     }
 
     public static synchronized void excludeLightningAt(Vec3 position) {

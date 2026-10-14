@@ -18,7 +18,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -60,7 +60,7 @@ public class HatenaPiano extends Module {
     private boolean releaseRotation = false;
 
     public HatenaPiano() {
-        super("Hatena Piano", ModuleCategory.Dev, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Hatena Piano", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     private static final PianoKey[] WHITE_KEYS = new PianoKey[]{

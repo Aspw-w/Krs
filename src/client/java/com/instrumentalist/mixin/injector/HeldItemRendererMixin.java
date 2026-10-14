@@ -7,7 +7,6 @@ import com.instrumentalist.krs.hacks.features.render.ViewModel;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -17,46 +16,27 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Locale;
 import org.joml.Quaternionf;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.ItemInHandRenderer;
+import net.minecraft.client.renderer.FirstPersonHandsAndItemsRenderer;
+import net.minecraft.client.renderer.item.ItemStackRenderState;
+import net.minecraft.client.renderer.state.level.FirstPersonHandsAndItemsRenderState;
+import net.minecraft.client.renderer.state.level.PlayerRenderState;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import com.instrumentalist.krs.utils.render.FirstPersonItemOverrides;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
-import net.minecraft.client.renderer.entity.player.AvatarRenderer;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.PlayerModelPart;
 import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUseAnimation;
 
-@Mixin(ItemInHandRenderer.class)
+@Mixin(FirstPersonHandsAndItemsRenderer.class)
 public abstract class HeldItemRendererMixin implements IMinecraft {
 
-    @Shadow public abstract void renderItem(LivingEntity entity, ItemStack stack, ItemDisplayContext renderMode, PoseStack matrices, SubmitNodeCollector submitter, int light);
-
-    @Shadow private float mainHandHeight;
-
-    @Shadow private ItemStack mainHandItem;
-
-    @Shadow private float oMainHandHeight;
-
-    @Shadow @Final private Minecraft minecraft;
-
-    @Shadow @Final private EntityRenderDispatcher entityRenderDispatcher;
-
-    @Shadow private float offHandHeight;
-
-    @Shadow private ItemStack offHandItem;
-
-    @Shadow protected abstract boolean shouldInstantlyReplaceVisibleItem(ItemStack from, ItemStack to);
-
-    @Shadow private float oOffHandHeight;
+    @Shadow
+    protected abstract void renderPlayerHand(PoseStack poseStack, SubmitNodeCollector submitNodeCollector, int lightCoords, HumanoidArm arm, PlayerRenderState playerState);
 
     @Unique
     private void applyFirstPersonItem(PoseStack matrices, HumanoidArm arm, float equipProgress, float swingProgress) {
@@ -73,12 +53,12 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
         if (sizeModifier != 1.0F)
             matrices.scale(sizeModifier, sizeModifier, sizeModifier);
         matrices.translate(direction * -0.1F, 0.08F, 0.0F);
-        matrices.mulPose(Axis.YP.rotationDegrees(direction * 45.0F));
+        matrices.rotate(Axis.YP.rotationDegrees(direction * 45.0F));
         float swingYaw = Mth.sin(swingProgress * swingProgress * (float) Math.PI);
         float swing = Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
-        matrices.mulPose(Axis.YP.rotationDegrees(direction * swingYaw * -20.0F));
-        matrices.mulPose(Axis.ZP.rotationDegrees(direction * swing * -20.0F));
-        matrices.mulPose(Axis.XP.rotationDegrees(swing * -80.0F));
+        matrices.rotate(Axis.YP.rotationDegrees(direction * swingYaw * -20.0F));
+        matrices.rotate(Axis.ZP.rotationDegrees(direction * swing * -20.0F));
+        matrices.rotate(Axis.XP.rotationDegrees(swing * -80.0F));
         matrices.scale(0.4F, 0.4F, 0.4F);
     }
 
@@ -86,18 +66,18 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
     private void applyVanillaBlockTransformation(PoseStack matrices, HumanoidArm arm) {
         int direction = arm == HumanoidArm.RIGHT ? 1 : -1;
         matrices.translate(direction * -0.15F, 0.16F, 0.15F);
-        matrices.mulPose(Axis.YP.rotationDegrees(direction * -18.0F));
-        matrices.mulPose(Axis.ZP.rotationDegrees(direction * 82.0F));
-        matrices.mulPose(Axis.YP.rotationDegrees(direction * 112.0F));
+        matrices.rotate(Axis.YP.rotationDegrees(direction * -18.0F));
+        matrices.rotate(Axis.ZP.rotationDegrees(direction * 82.0F));
+        matrices.rotate(Axis.YP.rotationDegrees(direction * 112.0F));
     }
 
     @Unique
     private void applyBlockTransformation(PoseStack matrices, HumanoidArm arm) {
         int direction = arm == HumanoidArm.RIGHT ? 1 : -1;
         matrices.translate(direction * -0.5F, 0.2F, 0.0F);
-        matrices.mulPose(Axis.YP.rotationDegrees(direction * 30.0F));
-        matrices.mulPose(Axis.XP.rotationDegrees(-80.0F));
-        matrices.mulPose(Axis.YP.rotationDegrees(direction * 60.0F));
+        matrices.rotate(Axis.YP.rotationDegrees(direction * 30.0F));
+        matrices.rotate(Axis.XP.rotationDegrees(-80.0F));
+        matrices.rotate(Axis.YP.rotationDegrees(direction * 60.0F));
     }
 
     @Unique
@@ -126,17 +106,17 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
         if (length == 0.0F)
             return;
 
-        matrices.mulPose(new Quaternionf().rotationAxis((float) Math.toRadians(degrees), x / length, y / length, z / length));
+        matrices.rotate(new Quaternionf().rotationAxis((float) Math.toRadians(degrees), x / length, y / length, z / length));
     }
 
     @Unique
     private void applyFirstPersonDisplayTransform(PoseStack matrices, HumanoidArm arm) {
         int direction = arm == HumanoidArm.RIGHT ? 1 : -1;
         matrices.translate(0.0F, 4.0F / 16.0F, 2.0F / 16.0F);
-        matrices.mulPose(Axis.YP.rotationDegrees(direction * -135.0F));
-        matrices.mulPose(Axis.ZP.rotationDegrees(direction * 25.0F));
+        matrices.rotate(Axis.YP.rotationDegrees(direction * -135.0F));
+        matrices.rotate(Axis.ZP.rotationDegrees(direction * 25.0F));
         matrices.scale(2.2F, 2.2F, 2.2F);
-        matrices.mulPose(new Quaternionf().rotationXYZ(
+        matrices.rotate(new Quaternionf().rotationXYZ(
                 0.0F,
                 (float) Math.toRadians(direction * -90.0F),
                 (float) Math.toRadians(direction * 25.0F)
@@ -151,11 +131,11 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
 
         int i = arm == HumanoidArm.RIGHT ? 1 : -1;
         float f = Mth.sin(swingProgress * swingProgress * (float) Math.PI);
-        matrices.mulPose(Axis.YP.rotationDegrees((float) i * (45.0F + f * -20.0F)));
+        matrices.rotate(Axis.YP.rotationDegrees((float) i * (45.0F + f * -20.0F)));
         float g = Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
-        matrices.mulPose(Axis.ZP.rotationDegrees((float) i * g * -20.0F));
-        matrices.mulPose(Axis.XP.rotationDegrees(g * -80.0F));
-        matrices.mulPose(Axis.YP.rotationDegrees((float) i * -45.0F));
+        matrices.rotate(Axis.ZP.rotationDegrees((float) i * g * -20.0F));
+        matrices.rotate(Axis.XP.rotationDegrees(g * -80.0F));
+        matrices.rotate(Axis.YP.rotationDegrees((float) i * -45.0F));
     }
 
     @Unique
@@ -202,12 +182,13 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
     }
 
     @Inject(method = "submitArmWithItem", at = {
-            @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;applyItemArmTransform(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/world/entity/HumanoidArm;F)V", ordinal = 0, shift = At.Shift.AFTER),
-            @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;applyItemArmTransform(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/world/entity/HumanoidArm;F)V", ordinal = 1, shift = At.Shift.AFTER),
-            @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;applyItemArmTransform(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/world/entity/HumanoidArm;F)V", ordinal = 2, shift = At.Shift.AFTER)
+            @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/FirstPersonHandsAndItemsRenderer;applyItemArmTransform(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/world/entity/HumanoidArm;F)V", ordinal = 0, shift = At.Shift.AFTER),
+            @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/FirstPersonHandsAndItemsRenderer;applyItemArmTransform(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/world/entity/HumanoidArm;F)V", ordinal = 1, shift = At.Shift.AFTER),
+            @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/FirstPersonHandsAndItemsRenderer;applyItemArmTransform(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/world/entity/HumanoidArm;F)V", ordinal = 2, shift = At.Shift.AFTER)
     })
-    private void applyOldEatSwingAfterArmTransform(AbstractClientPlayer player, float tickDelta, float pitch, InteractionHand hand, float swingProgress, ItemStack item, float equipProgress, PoseStack matrices, SubmitNodeCollector submitter, int light, CallbackInfo ci) {
-        this.customApplySwingOffset(player, hand, item, swingProgress, matrices);
+    private void applyOldEatSwingAfterArmTransform(PlayerRenderState playerState, FirstPersonHandsAndItemsRenderState state, float tickDelta, float pitch, InteractionHand hand, float swingProgress, ItemStack item, float equipProgress, PoseStack matrices, SubmitNodeCollector submitter, int light, CallbackInfo ci) {
+        if (mc.player != null)
+            this.customApplySwingOffset(mc.player, hand, item, swingProgress, matrices);
     }
 
     @Inject(method = "applyItemArmTransform", at = @At("HEAD"), cancellable = true)
@@ -217,9 +198,9 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
     }
 
     @Inject(method = "renderPlayerArm", at = @At("HEAD"), cancellable = true)
-    private void armModifierHook(PoseStack matrices, SubmitNodeCollector submitter, int light, float equipProgress, float swingProgress, HumanoidArm arm, CallbackInfo ci) {
+    private void armModifierHook(PoseStack matrices, SubmitNodeCollector submitter, int light, float equipProgress, float swingProgress, HumanoidArm arm, PlayerRenderState playerState, CallbackInfo ci) {
         if (this.shouldUseCustomEquipOffset())
-            this.customRenderArmHoldingItem(matrices, submitter, light, equipProgress, swingProgress, arm, ci);
+            this.customRenderArmHoldingItem(matrices, submitter, light, equipProgress, swingProgress, arm, playerState, ci);
     }
 
     @Inject(method = "swingArm", at = @At("HEAD"), cancellable = true)
@@ -286,7 +267,7 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
     }
 
     @Unique
-    private void customRenderArmHoldingItem(PoseStack matrices, SubmitNodeCollector submitter, int light, float equipProgress, float swingProgress, HumanoidArm arm, CallbackInfo ci) {
+    private void customRenderArmHoldingItem(PoseStack matrices, SubmitNodeCollector submitter, int light, float equipProgress, float swingProgress, HumanoidArm arm, PlayerRenderState playerState, CallbackInfo ci) {
         if (ci != null)
             ci.cancel();
 
@@ -302,24 +283,17 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
         float i = 0.4F * Mth.sin(g * ((float)Math.PI * 2F));
         float j = -0.4F * Mth.sin(swingProgress * (float)Math.PI);
         matrices.translate(f * (h + 0.64000005F), i + -0.6F + realEquipProgress * -0.6F, j + -0.71999997F);
-        matrices.mulPose(Axis.YP.rotationDegrees(f * 45.0F));
+        matrices.rotate(Axis.YP.rotationDegrees(f * 45.0F));
         float k = Mth.sin(swingProgress * swingProgress * (float)Math.PI);
         float l = Mth.sin(g * (float)Math.PI);
-        matrices.mulPose(Axis.YP.rotationDegrees(f * l * 70.0F));
-        matrices.mulPose(Axis.ZP.rotationDegrees(f * k * -20.0F));
-        AbstractClientPlayer abstractClientPlayerEntity = this.minecraft.player;
+        matrices.rotate(Axis.YP.rotationDegrees(f * l * 70.0F));
+        matrices.rotate(Axis.ZP.rotationDegrees(f * k * -20.0F));
         matrices.translate(f * -1.0F, 3.6F, 3.5F);
-        matrices.mulPose(Axis.ZP.rotationDegrees(f * 120.0F));
-        matrices.mulPose(Axis.XP.rotationDegrees(200.0F));
-        matrices.mulPose(Axis.YP.rotationDegrees(f * -135.0F));
+        matrices.rotate(Axis.ZP.rotationDegrees(f * 120.0F));
+        matrices.rotate(Axis.XP.rotationDegrees(200.0F));
+        matrices.rotate(Axis.YP.rotationDegrees(f * -135.0F));
         matrices.translate(f * 5.6F, 0.0F, 0.0F);
-        AvatarRenderer playerEntityRenderer = (AvatarRenderer)this.entityRenderDispatcher.getRenderer(abstractClientPlayerEntity);
-        Identifier identifier = abstractClientPlayerEntity.getSkin().body().texturePath();
-        if (bl) {
-            playerEntityRenderer.renderRightHand(matrices, submitter, light, identifier, abstractClientPlayerEntity.isModelPartShown(PlayerModelPart.RIGHT_SLEEVE));
-        } else {
-            playerEntityRenderer.renderLeftHand(matrices, submitter, light, identifier, abstractClientPlayerEntity.isModelPartShown(PlayerModelPart.LEFT_SLEEVE));
-        }
+        this.renderPlayerHand(matrices, submitter, light, arm, playerState);
 
     }
 
@@ -342,15 +316,6 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
     }
 
     @Unique
-    private boolean shouldKeepOldEatSwingItemVisible(LocalPlayer player) {
-        return player != null
-                && ModuleManager.getModuleState(ViewModel.class)
-                && ViewModel.oldEatSwing.get()
-                && player.isUsingItem()
-                && isOldEatSwingUseAnimation(player.getUseItem().getUseAnimation());
-    }
-
-    @Unique
     private boolean isOldEatSwingUseAnimation(ItemUseAnimation animation) {
         return animation != ItemUseAnimation.NONE;
     }
@@ -364,17 +329,22 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
             final float scale = 0.7585F / 0.86F;
             matrices.scale(scale, scale, scale);
             matrices.translate(direction * -0.084F, 0.059F, 0.08F);
-            matrices.mulPose(Axis.YP.rotationDegrees(direction * 5.0F));
+            matrices.rotate(Axis.YP.rotationDegrees(direction * 5.0F));
         }
     }
 
-    @Inject(method = "submitArmWithItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;renderItem(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemDisplayContext;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V", ordinal = 1))
-    private void hookSlightlyTiltItemPosition(AbstractClientPlayer player, float tickDelta, float pitch, InteractionHand hand, float swingProgress, ItemStack stack, float equipProgress, PoseStack matrices, SubmitNodeCollector submitter, int light, CallbackInfo ci) {
-        this.slightlyTiltItemPosition(player, hand, stack, matrices, true);
+    @Inject(method = "submitArmWithItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/item/ItemStackRenderState;submit(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;III)V", ordinal = 1))
+    private void hookSlightlyTiltItemPosition(PlayerRenderState playerState, FirstPersonHandsAndItemsRenderState state, float tickDelta, float pitch, InteractionHand hand, float swingProgress, ItemStack stack, float equipProgress, PoseStack matrices, SubmitNodeCollector submitter, int light, CallbackInfo ci) {
+        if (mc.player != null)
+            this.slightlyTiltItemPosition(mc.player, hand, stack, matrices, true);
     }
 
     @Inject(method = "submitArmWithItem", at = @At("HEAD"), cancellable = true)
-    private void itemRendererHook(AbstractClientPlayer player, float tickDelta, float pitch, InteractionHand hand, float swingProgress, ItemStack item, float equipProgress, PoseStack matrices, SubmitNodeCollector submitter, int light, CallbackInfo ci) {
+    private void itemRendererHook(PlayerRenderState playerState, FirstPersonHandsAndItemsRenderState state, float tickDelta, float pitch, InteractionHand hand, float swingProgress, ItemStack item, float equipProgress, PoseStack matrices, SubmitNodeCollector submitter, int light, CallbackInfo ci) {
+        LocalPlayer player = mc.player;
+        if (player == null)
+            return;
+
         boolean bl = hand == InteractionHand.MAIN_HAND;
         boolean animationBlocking = OldHitting.shouldBlock();
         boolean substituteMainHand = animationBlocking && shouldSubstituteBlockingMainHand(player, hand);
@@ -395,7 +365,7 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
                 try {
                     ItemStack renderedItem = substituteMainHand ? player.getMainHandItem() : item;
                     float renderedEquipProgress = substituteMainHand
-                            ? 1.0F - Mth.lerp(tickDelta, this.oMainHandHeight, this.mainHandHeight)
+                            ? state.mainHandSwapScale * (1.0F - Mth.lerp(tickDelta, state.oldMainHandHeight, state.mainHandHeight))
                             : equipProgress;
                     float renderedSwingProgress = substituteMainHand ? 0.0F : swingProgress;
 
@@ -407,34 +377,35 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
                         this.applyVanillaBlockTransformation(matrices, arm);
                     } else {
                         matrices.translate(0.0F, 0.0F, -0.02F);
-                        matrices.mulPose(Axis.ZP.rotationDegrees(direction * -1.0F));
+                        matrices.rotate(Axis.ZP.rotationDegrees(direction * -1.0F));
                         this.applySwordAnimation(matrices, arm, renderedEquipProgress, renderedSwingProgress);
                         this.applyFirstPersonDisplayTransform(matrices, arm);
                     }
 
-                    this.renderItem(player, renderedItem, arm == HumanoidArm.RIGHT ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND, matrices, submitter, light);
+                    state.mainHandRenderState.submit(matrices, submitter, light, OverlayTexture.NO_OVERLAY, 0);
                 } finally {
                     matrices.popPose();
                 }
             }
-        } else if (PlayerUtil.INSTANCE.getSpoofSlot() != null && mc.player != null) {
+        } else if (PlayerUtil.INSTANCE.getSpoofSlot() != null) {
             if (hand == InteractionHand.MAIN_HAND) {
-                ItemStack spoofedStack = this.getFirstPersonSpoofStack(mc.player);
-                if (!this.shouldRenderFirstPersonSpoof(mc.player, spoofedStack))
+                ItemStack spoofedStack = this.getFirstPersonSpoofStack(player);
+                if (!this.shouldRenderFirstPersonSpoof(player, spoofedStack))
                     return;
 
                 ci.cancel();
 
                 matrices.pushPose();
 
-                if (spoofedStack != null && !spoofedStack.isEmpty()) {
+                ItemStackRenderState spoofedRenderState = FirstPersonItemOverrides.spoofRenderState(spoofedStack);
+                if (spoofedStack != null && !spoofedStack.isEmpty() && spoofedRenderState != null) {
                     this.customSwingArm(swingProgress, equipProgress, matrices, direction, arm, ci);
 
                     this.slightlyTiltItemPosition(player, hand, item, matrices, true);
 
-                    this.renderItem(player, spoofedStack, arm == HumanoidArm.RIGHT ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND, matrices, submitter, light);
+                    spoofedRenderState.submit(matrices, submitter, light, OverlayTexture.NO_OVERLAY, 0);
                 } else if (!player.isInvisible()) {
-                    this.customRenderArmHoldingItem(matrices, submitter, light, equipProgress, swingProgress, arm, null);
+                    this.customRenderArmHoldingItem(matrices, submitter, light, equipProgress, swingProgress, arm, playerState, null);
                 }
 
                 matrices.popPose();
@@ -498,87 +469,5 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
         return ViewModel.itemPositionX.get() != 0.0F
                 || ViewModel.itemPositionY.get() != 0.0F
                 || ViewModel.itemPositionZ.get() != 0.0F;
-    }
-
-    @Unique
-    private void updateOffhandHeldItems() {
-        this.oOffHandHeight = this.offHandHeight;
-        LocalPlayer clientPlayerEntity = this.minecraft.player;
-        ItemStack itemStack2 = clientPlayerEntity.getOffhandItem();
-
-        if (this.shouldInstantlyReplaceVisibleItem(this.offHandItem, itemStack2)) {
-            this.offHandItem = itemStack2;
-        }
-
-        float h = this.offHandItem != itemStack2 ? 0.0F : 1.0F;
-        this.offHandHeight += Mth.clamp(h - this.offHandHeight, -0.4F, 0.4F);
-
-        if (this.offHandHeight < 0.1F) {
-            this.offHandItem = itemStack2;
-        }
-    }
-
-    @Unique
-    private void updateSpoofedHeldItems(LocalPlayer player, ItemStack mainHandTarget, boolean forceNoCooldown) {
-        updateOffhandHeldItems();
-
-        this.oMainHandHeight = this.mainHandHeight;
-        if (player == null || mainHandTarget == null)
-            return;
-
-        if (forceNoCooldown) {
-            this.mainHandItem = mainHandTarget;
-            this.oMainHandHeight = 1.0F;
-            this.mainHandHeight = 1.0F;
-            return;
-        }
-
-        if (this.shouldInstantlyReplaceVisibleItem(this.mainHandItem, mainHandTarget))
-            this.mainHandItem = mainHandTarget;
-
-        if (player.isHandsBusy()) {
-            this.mainHandHeight = Mth.clamp(this.mainHandHeight - 0.4F, 0.0F, 1.0F);
-        } else {
-            float targetHeight = this.mainHandItem != mainHandTarget ? 0.0F : 1.0F;
-            this.mainHandHeight += Mth.clamp(targetHeight - this.mainHandHeight, -0.4F, 0.4F);
-        }
-
-        if (this.mainHandHeight < 0.1F)
-            this.mainHandItem = mainHandTarget;
-    }
-
-    @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
-    public void firstPersonItemSpoofHook(CallbackInfo ci) {
-        PlayerUtil.INSTANCE.tickSpoofRelease();
-
-        LocalPlayer currentPlayer = mc.player;
-
-        if (OldHitting.shouldBlock() || shouldKeepOldEatSwingItemVisible(currentPlayer)) {
-            ci.cancel();
-
-            updateOffhandHeldItems();
-
-            this.oMainHandHeight = this.mainHandHeight;
-            LocalPlayer clientPlayerEntity = this.minecraft.player;
-            if (clientPlayerEntity == null) return;
-            ItemStack itemStack = clientPlayerEntity.getMainHandItem();
-
-            if (ItemStack.matches(this.mainHandItem, itemStack))
-                this.mainHandItem = itemStack;
-
-            this.mainHandHeight += Mth.clamp((this.mainHandItem == itemStack ? 1f : 0.0F) - this.mainHandHeight, -0.4F, 0.4F);
-
-            if (this.mainHandHeight < 0.1F)
-                this.mainHandItem = itemStack;
-        } else if (PlayerUtil.INSTANCE.getSpoofSlot() != null && mc.player != null) {
-            ci.cancel();
-
-            LocalPlayer clientPlayerEntity = this.minecraft.player;
-            if (clientPlayerEntity == null) return;
-            ItemStack spoofedStack = getFirstPersonSpoofStack(clientPlayerEntity);
-            ItemStack itemStack = PlayerUtil.INSTANCE.getSpoofing() && spoofedStack != null ? spoofedStack : clientPlayerEntity.getMainHandItem();
-            boolean spoofStateActive = PlayerUtil.INSTANCE.getSpoofSlot() != null;
-            updateSpoofedHeldItems(clientPlayerEntity, itemStack, spoofStateActive);
-        }
     }
 }

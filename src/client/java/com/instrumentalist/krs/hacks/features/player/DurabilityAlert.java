@@ -11,7 +11,7 @@ import com.instrumentalist.krs.utils.value.IntValue;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.EnumMap;
 
@@ -43,7 +43,7 @@ public class DurabilityAlert extends Module {
     private int checkTicks;
 
     public DurabilityAlert() {
-        super("Durability Alert", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Durability Alert", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

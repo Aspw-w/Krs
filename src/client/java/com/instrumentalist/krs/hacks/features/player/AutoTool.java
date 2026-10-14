@@ -11,7 +11,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class AutoTool extends Module {
     private BlockPos breakingPos = null;
@@ -21,7 +21,7 @@ public class AutoTool extends Module {
     private int restoreDelayTicks = 0;
 
     public AutoTool() {
-        super("Auto Tool", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Auto Tool", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

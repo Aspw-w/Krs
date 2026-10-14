@@ -16,7 +16,7 @@ import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -41,7 +41,7 @@ public class NoFall extends Module {
     private double grimLastY = Double.NaN;
 
     public NoFall() {
-        super("No Fall", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("No Fall", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -282,7 +282,7 @@ public class NoFall extends Module {
     }
 
     private void restoreGrimJumpKey() {
-        mc.options.keyJump.setDown(InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyJump.saveString()).getValue()));
+        mc.options.keyJump.setDown(InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyJump.saveString()).getValue()));
     }
 
     private double getDistanceToGround() {

@@ -10,11 +10,12 @@ import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
 import com.instrumentalist.krs.utils.render.Shader2DRenderer;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
-import com.mojang.blaze3d.opengl.GlDevice;
-import com.mojang.blaze3d.opengl.GlTextureView;
+import com.mojang.renderpearl.backend.opengl.GlDevice;
+import com.mojang.renderpearl.backend.opengl.GlTextureView;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.systems.GpuDeviceBackend;
+import com.mojang.renderpearl.backend.api.GpuDeviceBackend;
+import com.mojang.renderpearl.frontend.FrontendGpuDevice;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -41,7 +42,7 @@ import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.joml.Vector4f;
 import org.jspecify.annotations.NonNull;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 import org.lwjgl.BufferUtils;
 
 import java.awt.*;
@@ -88,7 +89,7 @@ public class ESP extends Module {
     private static boolean itemCaptureArmor = false;
 
     public ESP() {
-        super("ESP", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("ESP", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -545,7 +546,9 @@ public class ESP extends Module {
         if (target == null || target.width <= 0 || target.height <= 0)
             return null;
 
-        GpuDeviceBackend backend = RenderSystem.getDevice().backend;
+        GpuDeviceBackend backend = RenderSystem.getDevice() instanceof FrontendGpuDevice frontendDevice
+                ? frontendDevice.backend
+                : null;
         if (!(backend instanceof GlDevice glDevice)
                 || !(target.getColorTextureView() instanceof GlTextureView colorView)
                 || !(target.getDepthTextureView() instanceof GlTextureView depthView))
@@ -948,6 +951,11 @@ public class ESP extends Module {
 
         @Override
         public @NonNull VertexConsumer setUv2(int u, int v) {
+            return this;
+        }
+
+        @Override
+        public @NonNull VertexConsumer setUv3(float u, float v) {
             return this;
         }
 

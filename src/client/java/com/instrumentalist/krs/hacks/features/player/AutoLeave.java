@@ -9,7 +9,7 @@ import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Items;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class AutoLeave extends Module {
     @Setting
@@ -24,7 +24,7 @@ public class AutoLeave extends Module {
     private boolean left = false;
 
     public AutoLeave() {
-        super("Auto Leave", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Auto Leave", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

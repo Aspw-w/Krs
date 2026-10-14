@@ -15,7 +15,7 @@ import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -29,7 +29,7 @@ public class KillEffect extends Module {
     private final Map<Integer, UUID> trackedEntityIds = new HashMap<>();
 
     public KillEffect() {
-        super("Kill Effect", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, false, false);
+        super("Kill Effect", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, false);
     }
 
     @Override
@@ -83,7 +83,7 @@ public class KillEffect extends Module {
             if (trackedTarget != null)
                 spawnLightning(trackedTarget.currentPosition());
         } else if (packet instanceof ClientboundRemoveEntitiesPacket removeEntitiesPacket) {
-            for (int entityId : removeEntitiesPacket.getEntityIds()) {
+            for (int entityId : removeEntitiesPacket.entityIds()) {
                 TrackedTarget trackedTarget = removeTrackedTarget(entityId);
                 if (trackedTarget == null) continue;
 

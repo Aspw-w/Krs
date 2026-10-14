@@ -17,7 +17,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,7 +41,7 @@ public class AntiBot extends Module {
     private final HashSet<UUID> listedPlayerProfiles = new HashSet<>();
 
     public AntiBot() {
-        super("Anti Bot", ModuleCategory.Combat, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Anti Bot", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

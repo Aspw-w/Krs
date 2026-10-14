@@ -5,12 +5,12 @@ import com.instrumentalist.krs.events.features.ReceivedPacketEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.ChatUtil;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class Sex extends Module {
 
     public Sex() {
-        super("Sex", ModuleCategory.Dev, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Sex", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

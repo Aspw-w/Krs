@@ -9,14 +9,14 @@ import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.nulling.PluginsDetector;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.List;
 
 public class AntiCheatDetector extends Module {
 
     public AntiCheatDetector() {
-        super("Anti Cheat Detector", ModuleCategory.Level, GLFW.GLFW_KEY_UNKNOWN, false, false);
+        super("Anti Cheat Detector", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, false);
     }
 
     public static boolean shouldNotify = false;

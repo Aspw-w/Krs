@@ -9,7 +9,7 @@ import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.math.MSTimer;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.network.WebAccessUtil;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 import org.nvgu.util.Alignment;
 
 import java.awt.*;
@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class FukumaiPlayerTracker extends Module {
 
     public FukumaiPlayerTracker() {
-        super("Fukumai Player Tracker", ModuleCategory.Dev, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Fukumai Player Tracker", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     private static volatile List<WebAccessUtil.PlayerInfo> playerInfoList = null;

@@ -10,10 +10,9 @@ import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.protocol.game.ServerboundSwingPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -56,7 +55,7 @@ public class ViewModel extends Module {
     private static final IntValue setSwingSpeed = new IntValue("Set Swing Speed", 5, -5, 20, slowSwing::get);
 
     public ViewModel() {
-        super("View Model", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, true, false);
+        super("View Model", ModuleCategory.Render, Keys.KEY_UNKNOWN, true, false);
     }
 
     @Override

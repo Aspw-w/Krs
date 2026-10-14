@@ -2,7 +2,7 @@ package com.instrumentalist.mixin.injector;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.GuiRenderer;
@@ -37,7 +37,7 @@ public abstract class GuiRendererMixin {
             method = "executeDraw",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/blaze3d/systems/RenderPass;drawIndexed(IIIII)V"
+                    target = "Lcom/mojang/renderpearl/api/commands/RenderPass;drawIndexed(IIIII)V"
             )
     )
     private void krs$skipDrawOutsideScissor(RenderPass pass, int indexCount, int instanceCount, int firstIndex, int baseVertex, int baseInstance, Operation<Void> original) {

@@ -14,7 +14,7 @@ import com.instrumentalist.krs.utils.value.FloatValue;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class TargetStrafe extends Module {
 
@@ -33,7 +33,7 @@ public class TargetStrafe extends Module {
     private static float steeringOffset;
 
     public TargetStrafe() {
-        super("Target Strafe", ModuleCategory.Combat, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Target Strafe", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting
@@ -60,7 +60,7 @@ public class TargetStrafe extends Module {
             return false;
         }
 
-        return (ModuleManager.getModuleState(FlyModule.class) || ModuleManager.getModuleState(SpeedModule.class)) && (!jumpOnly.get() || InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyJump.saveString()).getValue())) && !InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyLeft.saveString()).getValue()) && !InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyRight.saveString()).getValue()) && !InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyDown.saveString()).getValue());
+        return (ModuleManager.getModuleState(FlyModule.class) || ModuleManager.getModuleState(SpeedModule.class)) && (!jumpOnly.get() || InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyJump.saveString()).getValue())) && !InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyLeft.saveString()).getValue()) && !InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyRight.saveString()).getValue()) && !InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyDown.saveString()).getValue());
     }
 
     public static float getDesiredMovementYaw(float targetYaw, double targetDistance) {

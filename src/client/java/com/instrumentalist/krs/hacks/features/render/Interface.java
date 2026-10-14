@@ -56,7 +56,7 @@ import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.BufferUtils;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 import org.lwjgl.nanovg.NanoVG;
 import org.nvgu.NVGU;
 import org.nvgu.util.Alignment;
@@ -87,7 +87,7 @@ public class Interface extends Module {
     private static String cachedTimeText = "00:00:00";
 
     public Interface() {
-        super("Interface", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, true, false);
+        super("Interface", ModuleCategory.Render, Keys.KEY_UNKNOWN, true, false);
     }
 
     private static Color alphaColor(int red, int green, int blue, int alpha) {
@@ -2182,15 +2182,15 @@ public class Interface extends Module {
                 && tabGui.get()
                 && !ModuleManager.getModuleState(Stalker.class)
                 && mc.gui.screen() == null
-                && (action == GLFW.GLFW_PRESS || action == GLFW.GLFW_REPEAT)
+                && (action == Keys.PRESS || action == Keys.REPEAT)
                 && isTabGuiArrowKey(key);
     }
 
     private static boolean isTabGuiArrowKey(int key) {
-        return key == GLFW.GLFW_KEY_UP
-                || key == GLFW.GLFW_KEY_DOWN
-                || key == GLFW.GLFW_KEY_LEFT
-                || key == GLFW.GLFW_KEY_RIGHT;
+        return key == Keys.KEY_UP
+                || key == Keys.KEY_DOWN
+                || key == Keys.KEY_LEFT
+                || key == Keys.KEY_RIGHT;
     }
 
     private void updateTabGuiAnimations(float deltaSpeed, List<ModuleCategory> categories, List<Module> modules) {
@@ -2739,7 +2739,7 @@ public class Interface extends Module {
         List<Module> modules = prepareTabGuiModules(selectedCategory);
 
         switch (event.key) {
-            case GLFW.GLFW_KEY_UP -> {
+            case Keys.KEY_UP -> {
                 if (tabGuiExpanded && !modules.isEmpty()) {
                     tabGuiModuleIndex = moveTabGuiIndex(tabGuiModuleIndex, -1, modules.size());
                 } else {
@@ -2747,7 +2747,7 @@ public class Interface extends Module {
                     tabGuiModuleIndex = 0;
                 }
             }
-            case GLFW.GLFW_KEY_DOWN -> {
+            case Keys.KEY_DOWN -> {
                 if (tabGuiExpanded && !modules.isEmpty()) {
                     tabGuiModuleIndex = moveTabGuiIndex(tabGuiModuleIndex, 1, modules.size());
                 } else {
@@ -2755,15 +2755,15 @@ public class Interface extends Module {
                     tabGuiModuleIndex = 0;
                 }
             }
-            case GLFW.GLFW_KEY_RIGHT -> {
+            case Keys.KEY_RIGHT -> {
                 if (!tabGuiExpanded) {
                     tabGuiExpanded = true;
                     tabGuiModuleIndex = clampTabGuiIndex(tabGuiModuleIndex, modules.size());
-                } else if (event.action == GLFW.GLFW_PRESS && !modules.isEmpty()) {
+                } else if (event.action == Keys.PRESS && !modules.isEmpty()) {
                     modules.get(tabGuiModuleIndex).toggle();
                 }
             }
-            case GLFW.GLFW_KEY_LEFT -> {
+            case Keys.KEY_LEFT -> {
                 if (tabGuiExpanded)
                     tabGuiExpanded = false;
             }

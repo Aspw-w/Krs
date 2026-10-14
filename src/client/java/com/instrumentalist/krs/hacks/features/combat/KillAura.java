@@ -41,7 +41,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.*;
 
@@ -62,7 +62,7 @@ public class KillAura extends Module {
     };
 
     public KillAura() {
-        super("Kill Aura", ModuleCategory.Combat, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Kill Aura", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting
@@ -1879,13 +1879,13 @@ public class KillAura extends Module {
     private void performAttack(Entity target, String currentSwingMode) {
         switch (currentSwingMode) {
             case "1.8":
-                mc.player.swing(InteractionHand.MAIN_HAND);
+                PlayerUtil.INSTANCE.swingHand(InteractionHand.MAIN_HAND);
                 mc.gameMode.attack(mc.player, target);
                 break;
 
             case "1.9.x":
                 mc.gameMode.attack(mc.player, target);
-                mc.player.swing(InteractionHand.MAIN_HAND);
+                PlayerUtil.INSTANCE.swingHand(InteractionHand.MAIN_HAND);
                 break;
 
             case "no order":

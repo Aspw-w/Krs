@@ -9,7 +9,7 @@ import com.instrumentalist.krs.utils.value.BooleanValue;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class Stasis extends Module {
     @Setting
@@ -28,7 +28,7 @@ public class Stasis extends Module {
     private Vec3 storedMovement = Vec3.ZERO;
 
     public Stasis() {
-        super("Stasis", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Stasis", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

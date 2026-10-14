@@ -14,7 +14,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.*;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,7 +44,7 @@ public class ChestStealer extends Module {
     private final ArrayList<Integer> slotIndices = new ArrayList<>(27);
 
     public ChestStealer() {
-        super("Chest Stealer", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Chest Stealer", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     public static boolean shouldMoveCamera() {

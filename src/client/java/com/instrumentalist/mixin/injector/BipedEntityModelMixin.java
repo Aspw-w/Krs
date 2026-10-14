@@ -169,9 +169,11 @@ public abstract class BipedEntityModelMixin<T extends HumanoidRenderState> exten
 
             if (f > 0.0F) {
                 float i = g % 26.0F;
-                HumanoidArm arm = bipedEntityRenderState.attackArm;
-                float j = arm == HumanoidArm.RIGHT && bipedEntityRenderState.attackTime > 0.0F ? 0.0F : f;
-                float k = arm == HumanoidArm.LEFT && bipedEntityRenderState.attackTime > 0.0F ? 0.0F : f;
+                HumanoidArm arm = bipedEntityRenderState.currentSwing != null
+                        ? bipedEntityRenderState.currentSwing.hand().asArm(bipedEntityRenderState.mainArm)
+                        : null;
+                float j = arm == HumanoidArm.RIGHT && bipedEntityRenderState.swingAnimation > 0.0F ? 0.0F : f;
+                float k = arm == HumanoidArm.LEFT && bipedEntityRenderState.swingAnimation > 0.0F ? 0.0F : f;
                 float l;
                 if (!bipedEntityRenderState.isUsingItem) {
                     if (i < 14.0F) {

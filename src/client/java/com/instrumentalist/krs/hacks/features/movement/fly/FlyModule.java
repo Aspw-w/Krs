@@ -10,14 +10,14 @@ import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import net.minecraft.world.phys.Vec3;
 
 public class FlyModule extends Module {
 
     public FlyModule() {
-        super("Fly", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Fly", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting

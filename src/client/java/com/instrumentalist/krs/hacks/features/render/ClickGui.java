@@ -4,17 +4,17 @@ import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class ClickGui extends Module {
 
     public ClickGui() {
-        super("Click Gui", ModuleCategory.Render, GLFW.GLFW_KEY_RIGHT_SHIFT, true, false);
+        super("Click Gui", ModuleCategory.Render, Keys.KEY_RIGHT_SHIFT, true, false);
     }
 
     public static int getOpenGuiKey() {
         ClickGui clickGui = ModuleManager.getModule(ClickGui.class);
-        return clickGui != null ? clickGui.key : GLFW.GLFW_KEY_UNKNOWN;
+        return clickGui != null ? clickGui.key : Keys.KEY_UNKNOWN;
     }
 
     @Override

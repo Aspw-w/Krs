@@ -7,7 +7,7 @@ import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,7 +42,7 @@ public class HackerDetector extends Module {
     }
 
     public HackerDetector() {
-        super("Hacker Detector", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Hacker Detector", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     private void reset() {

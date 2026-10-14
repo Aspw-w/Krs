@@ -10,17 +10,18 @@ import com.instrumentalist.krs.hacks.features.level.AlwaysRiptide;
 import com.instrumentalist.krs.hacks.features.movement.Sprint;
 import com.instrumentalist.krs.hacks.features.movement.Step;
 import com.instrumentalist.krs.hacks.features.render.ViewModel;
-import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.render.OldHittingRenderGuard;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
-import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -32,12 +33,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class LivingEntityMixin extends EntityMixin {
 
     @Shadow protected abstract float getJumpPower();
-
-    @Shadow public boolean swinging;
-
-    @Shadow public int swingTime;
-
-    @Shadow public float attackAnim;
 
     @Inject(method = "jumpFromGround", at = @At("HEAD"), cancellable = true)
     public void jumpEvent(CallbackInfo ci) {
@@ -62,7 +57,7 @@ public abstract class LivingEntityMixin extends EntityMixin {
                     this.addDeltaMovement(new Vec3((double) (-Mth.sin(g)) * 0.2, (double) 0.0F, (double) Mth.cos(g) * 0.2));
                 }
 
-                this.hurtMarked = true;
+                this.needsSync = true;
             }
         }
     }
@@ -88,7 +83,8 @@ public abstract class LivingEntityMixin extends EntityMixin {
         return ElytraFly.hookFallFlyingMovement(original, (LivingEntity) (Object) this);
     }
 
-    @ModifyReturnValue(method = "getCurrentSwingDuration", at = @At("RETURN"))
+    // Since 26.3 the swing duration is computed once when a swing starts, so this also drives the swing ticking.
+    @ModifyReturnValue(method = "getModifiedSwingDuration", at = @At("RETURN"))
     private int swingSpeedModifier1(int original) {
         return ViewModel.hookSwingSpeed(original, (LivingEntity) (Object) this);
     }
@@ -124,29 +120,12 @@ public abstract class LivingEntityMixin extends EntityMixin {
         return original;
     }
 
-    @WrapWithCondition(method = "drop(Lnet/minecraft/world/item/ItemStack;ZZ)Lnet/minecraft/world/entity/item/ItemEntity;", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;swing(Lnet/minecraft/world/InteractionHand;)V"))
-    private boolean dropItemHook(LivingEntity instance, InteractionHand hand) {
-        return !(instance instanceof LocalPlayer) || ItemDropChanger.hookDropItemSwing(hand);
-    }
+    @WrapOperation(method = "drop(Lnet/minecraft/world/item/ItemStack;ZLnet/minecraft/util/Prediction;)Lnet/minecraft/world/entity/item/ItemEntity;", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;swing(Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/item/component/SwingAnimation;Z)Z"))
+    private boolean dropItemHook(LivingEntity instance, InteractionHand hand, SwingAnimation animation, boolean sendToSwingingEntity, Operation<Boolean> original) {
+        if (!(instance instanceof LocalPlayer) || ItemDropChanger.hookDropItemSwing(hand))
+            return original.call(instance, hand, animation, sendToSwingingEntity);
 
-    @Inject(method = "updateSwingTime", at = @At("HEAD"), cancellable = true)
-    protected void swingSpeedModifier2(CallbackInfo ci) {
-        if ((Object) this instanceof LocalPlayer) {
-            ci.cancel();
-
-            int i = PlayerUtil.INSTANCE.getSnglSwingHandDuration();
-            if (this.swinging) {
-                ++this.swingTime;
-                if (this.swingTime >= i) {
-                    this.swingTime = 0;
-                    this.swinging = false;
-                }
-            } else {
-                this.swingTime = 0;
-            }
-
-            this.attackAnim = (float) this.swingTime / (float) i;
-        }
+        return false;
     }
 
     @ModifyReturnValue(method = "maxUpStep", at = @At("RETURN"))

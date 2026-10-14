@@ -21,12 +21,11 @@ import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
-import net.minecraft.network.protocol.game.ServerboundSwingPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class CivBreak extends Module {
 
@@ -51,7 +50,7 @@ public class CivBreak extends Module {
     private int stage = 0;
 
     public CivBreak() {
-        super("Civ Break", ModuleCategory.Level, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Civ Break", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -157,7 +156,7 @@ public class CivBreak extends Module {
             case 0 -> PlayerUtil.INSTANCE.destroyBlock(targetPos);
             case 1 -> {
                 if (rotateTimer.hasTimePassed(1000L / (fastSpeed.get() + 2))) {
-                    PacketUtil.sendPacket(new ServerboundSwingPacket(InteractionHand.MAIN_HAND));
+                    PlayerUtil.INSTANCE.sendSwingPacket(InteractionHand.MAIN_HAND);
                     ServerboundPlayerActionPacket.Action action = mc.player.isCreative() ? ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK : ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK;
                     for (int i = 0; i < 2; i++) {
                         PacketUtil.sendPacket(new ServerboundPlayerActionPacket(

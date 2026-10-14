@@ -5,12 +5,12 @@ import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.value.FloatValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class FastBreak extends Module {
 
     public FastBreak() {
-        super("Fast Break", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Fast Break", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting

@@ -18,7 +18,7 @@ public class VerusJetpackFly implements FlyEvent {
 
     @Override
     public void onUpdate(UpdateEvent event) {
-        if (mc.player == null || FlyModule.verusJetpackJumpKeyOnly.get() && !InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyJump.saveString()).getValue())) return;
+        if (mc.player == null || FlyModule.verusJetpackJumpKeyOnly.get() && !InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyJump.saveString()).getValue())) return;
 
         if (mc.player.isSprinting()) {
             mc.player.setDeltaMovement(mc.player.getDeltaMovement().x * 0.4, mc.player.getDeltaMovement().y, mc.player.getDeltaMovement().z * 0.4);

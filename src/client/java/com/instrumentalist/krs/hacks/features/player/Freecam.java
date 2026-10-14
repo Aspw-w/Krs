@@ -9,7 +9,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class Freecam extends Module {
 
@@ -26,7 +26,7 @@ public class Freecam extends Module {
     private static float camPitch = 0f;
 
     public Freecam() {
-        super("Freecam", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Freecam", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -103,9 +103,7 @@ public class Freecam extends Module {
     }
 
     private boolean isKeyDown(KeyMapping key) {
-        return InputConstants.isKeyDown(
-                mc.getWindow(),
-                InputConstants.getKey(key.saveString()).getValue()
+        return InputConstants.isKeyDown(InputConstants.getKey(key.saveString()).getValue()
         );
     }
 

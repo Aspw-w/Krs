@@ -1,5 +1,6 @@
 package com.instrumentalist.krs.hacks.features.level;
 
+import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
@@ -16,13 +17,13 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class AlwaysRiptide extends Module {
     private AABB lastBox = null;
 
     public AlwaysRiptide() {
-        super("Always Riptide", ModuleCategory.Level, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Always Riptide", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -179,7 +180,7 @@ public class AlwaysRiptide extends Module {
 
             prepareAutoSpinAttack(player);
             mc.gameMode.attack(player, entity);
-            player.swing(InteractionHand.MAIN_HAND);
+            PlayerUtil.INSTANCE.swingHand(InteractionHand.MAIN_HAND);
             attacked = true;
         }
 

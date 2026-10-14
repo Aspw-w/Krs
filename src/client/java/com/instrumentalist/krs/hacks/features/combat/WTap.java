@@ -12,7 +12,7 @@ import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.KeyboardInput;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Input;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class WTap extends Module {
     @Setting
@@ -28,7 +28,7 @@ public class WTap extends Module {
     private long durationTicks = 0L;
 
     public WTap() {
-        super("WTap", ModuleCategory.Combat, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("WTap", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

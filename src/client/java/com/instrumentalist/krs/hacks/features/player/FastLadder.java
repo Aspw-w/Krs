@@ -8,7 +8,7 @@ import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.ListValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -28,7 +28,7 @@ public class FastLadder extends Module {
     private boolean wasClimbing = false;
 
     public FastLadder() {
-        super("Fast Ladder", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Fast Ladder", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

@@ -58,7 +58,7 @@ dependencies {
     library "javazoom:jlayer:1.0.1"
 
     // NanoVG dependencies
-    def lwjglVersion = "3.4.1"
+    def lwjglVersion = "3.4.3"
     implementation platform("org.lwjgl:lwjgl-bom:${lwjglVersion}")
     implementation 'org.lwjgl:lwjgl-nanovg'
     runtimeOnly 'org.lwjgl:lwjgl-nanovg::natives-windows'

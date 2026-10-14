@@ -10,6 +10,9 @@ public interface LivingEntityAccessor {
     @Accessor("autoSpinAttackTicks")
     void krs$setAutoSpinAttackTicks(int ticks);
 
+    @Accessor("swingState")
+    LivingEntity.SwingState krs$getSwingState();
+
     @Invoker("setLivingEntityFlag")
     void krs$invokeSetLivingEntityFlag(int flag, boolean value);
 }

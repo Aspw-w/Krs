@@ -52,8 +52,7 @@ public class TwoBTwoTJPControlFastFly implements FlyEvent {
 
         if (!phasing && blockAboveHead
                 && mc.player.verticalCollision
-                && InputConstants.isKeyDown(mc.getWindow(),
-                InputConstants.getKey(mc.options.keyJump.saveString()).getValue())) {
+                && InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyJump.saveString()).getValue())) {
 
             switch (tick) {
                 case 0:
@@ -73,7 +72,7 @@ public class TwoBTwoTJPControlFastFly implements FlyEvent {
             }
         }
 
-        if (InputConstants.isKeyDown(mc.getWindow(), InputConstants.KEY_LCONTROL) && MovementUtil.isMoving()) {
+        if (InputConstants.isKeyDown(InputConstants.KEY_LCONTROL) && MovementUtil.isMoving()) {
             if (boostSpeed != 1.5f) {
                 Client.notificationManager.addNotification("Tesla bypass", "Boosted speed to MAX");
                 boostSpeed = 1.5f;
@@ -86,10 +85,10 @@ public class TwoBTwoTJPControlFastFly implements FlyEvent {
         float yMotion = 0f;
         float gain = boostSpeed > 1f ? 0.05f : 1f;
 
-        if (InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyJump.saveString()).getValue()) && InventoryMove.canMoveFreely())
+        if (InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyJump.saveString()).getValue()) && InventoryMove.canMoveFreely())
             yMotion += gain;
 
-        if (InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyShift.saveString()).getValue()) && InventoryMove.canMoveFreely())
+        if (InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyShift.saveString()).getValue()) && InventoryMove.canMoveFreely())
             yMotion -= gain;
 
         MovementUtil.setVelocityY((double) yMotion);

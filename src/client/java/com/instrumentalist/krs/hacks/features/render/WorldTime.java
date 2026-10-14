@@ -7,14 +7,14 @@ import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.ListValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
 public class WorldTime extends Module {
 
     public WorldTime() {
-        super("World Time", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, false, false);
+        super("World Time", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, false);
     }
 
     @Setting

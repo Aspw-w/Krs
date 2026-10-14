@@ -13,7 +13,7 @@ import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -28,7 +28,7 @@ public class OldHitting extends Module {
     private static boolean canBlock = false;
 
     public OldHitting() {
-        super("Old Hitting", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Old Hitting", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, true);
     }
 
     private boolean noBlockOnSelectedBlock() {
@@ -79,11 +79,11 @@ public class OldHitting extends Module {
     public void onMouseClick(MouseClickEvent event) {
         if (mc.player == null || mc.level == null) return;
 
-        if (event.button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
-            if (event.action == GLFW.GLFW_PRESS && noBlockOnSelectedBlock())
+        if (event.button == Keys.MOUSE_BUTTON_RIGHT) {
+            if (event.action == Keys.PRESS && noBlockOnSelectedBlock())
                 canBlock = true;
 
-            if (event.action == GLFW.GLFW_RELEASE)
+            if (event.action == Keys.RELEASE)
                 canBlock = false;
         }
     }

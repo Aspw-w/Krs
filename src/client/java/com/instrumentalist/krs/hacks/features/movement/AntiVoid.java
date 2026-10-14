@@ -12,7 +12,7 @@ import com.instrumentalist.krs.utils.packet.BlinkUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.IntValue;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class AntiVoid extends Module {
     @Setting
@@ -25,7 +25,7 @@ public class AntiVoid extends Module {
     private Integer unSafeY = null;
 
     public AntiVoid() {
-        super("Anti Void", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Anti Void", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

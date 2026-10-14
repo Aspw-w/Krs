@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.CapeLayer;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.entity.player.PlayerSkin;
@@ -54,10 +55,11 @@ public abstract class CapeFeatureRendererMixin extends RenderLayer<AvatarRenderS
                             matrixStack.translate(0.0F, -0.053125F, 0.06875F);
                         }
 
-                        if (ClientCape.enchantmentGlint.get())
-                            submitter.submitModel(this.model, playerEntityRenderState, matrixStack, RenderTypes.entityGlint(), i, OverlayTexture.NO_OVERLAY, playerEntityRenderState.outlineColor, null);
-
-                        submitter.submitModel(this.model, playerEntityRenderState, matrixStack, RenderTypes.entitySolid(skinTextures.cape().texturePath()), i, OverlayTexture.NO_OVERLAY, playerEntityRenderState.outlineColor, null);
+                        // Since 26.3 the glint is drawn by the glint variant of the solid render type in the same pass.
+                        RenderType capeRenderType = ClientCape.enchantmentGlint.get()
+                                ? RenderTypes.entitySolidGlint(skinTextures.cape().texturePath())
+                                : RenderTypes.entitySolid(skinTextures.cape().texturePath());
+                        submitter.submitModel(this.model, playerEntityRenderState, matrixStack, capeRenderType, i, OverlayTexture.NO_OVERLAY, playerEntityRenderState.outlineColor);
                         matrixStack.popPose();
                     }
                 }

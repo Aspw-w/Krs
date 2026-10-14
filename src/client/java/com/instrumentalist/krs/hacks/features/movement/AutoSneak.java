@@ -6,7 +6,7 @@ import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.core.BlockPos;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -17,7 +17,7 @@ public class AutoSneak extends Module {
     private boolean pressingSneak = false;
 
     public AutoSneak() {
-        super("Auto Sneak", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Auto Sneak", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

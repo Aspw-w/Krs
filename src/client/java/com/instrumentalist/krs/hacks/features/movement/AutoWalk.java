@@ -8,7 +8,7 @@ import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.client.KeyMapping;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -30,7 +30,7 @@ public class AutoWalk extends Module {
     private int randomDirection = 0;
 
     public AutoWalk() {
-        super("Auto Walk", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Auto Walk", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

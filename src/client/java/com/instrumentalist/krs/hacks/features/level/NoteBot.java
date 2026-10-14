@@ -29,7 +29,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 import org.slf4j.Logger;
 
 import java.nio.file.Files;
@@ -109,7 +109,7 @@ public class NoteBot extends Module {
     private boolean controllingRotation;
 
     public NoteBot() {
-        super("Note Bot", ModuleCategory.Level, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Note Bot", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -460,7 +460,7 @@ public class NoteBot extends Module {
         }
 
         if (tunedThisTick > 0 && swingArm.get())
-            mc.player.swing(InteractionHand.MAIN_HAND);
+            PlayerUtil.INSTANCE.swingInteractHand(InteractionHand.MAIN_HAND);
     }
 
     private void waitToVerifyTuning() {
@@ -516,7 +516,7 @@ public class NoteBot extends Module {
                 if (autoRotate.get())
                     rotateTo(playablePositions.getFirst());
                 if (swingArm.get())
-                    mc.player.swing(InteractionHand.MAIN_HAND);
+                    PlayerUtil.INSTANCE.swingHand(InteractionHand.MAIN_HAND);
 
                 for (int i = 0; i < noteLimit; i++) {
                     BlockPos pos = playablePositions.get(i);

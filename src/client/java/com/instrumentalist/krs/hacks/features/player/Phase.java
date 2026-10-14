@@ -23,7 +23,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -49,7 +49,7 @@ public class Phase extends Module {
     private int vanillaCorrectionCooldown = 0;
 
     public Phase() {
-        super("Phase", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Phase", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

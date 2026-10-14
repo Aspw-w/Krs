@@ -1,5 +1,8 @@
 package com.instrumentalist.krs.utils.rotation;
 
+import com.instrumentalist.mixin.injector.LivingEntityAccessor;
+import com.instrumentalist.mixin.injector.SwingStateAccessor;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -642,14 +645,14 @@ public class RotationManager {
 
         if (packet instanceof ServerboundUseItemPacket useItemPacket) {
             float[] fixedRotation = normalizeRotation(
-                    useItemPacket.getYRot(),
-                    useItemPacket.getXRot(),
+                    useItemPacket.yRot(),
+                    useItemPacket.xRot(),
                     serverYaw,
                     serverPitch
             );
             return new ServerboundUseItemPacket(
-                    useItemPacket.getHand(),
-                    useItemPacket.getSequence(),
+                    useItemPacket.hand(),
+                    useItemPacket.sequence(),
                     fixedRotation[0],
                     fixedRotation[1]
             );
@@ -666,7 +669,7 @@ public class RotationManager {
         }
 
         if (packet instanceof ServerboundUseItemPacket useItemPacket) {
-            recordServerRotation(useItemPacket.getYRot(), useItemPacket.getXRot());
+            recordServerRotation(useItemPacket.yRot(), useItemPacket.xRot());
         }
     }
 
@@ -732,7 +735,7 @@ public class RotationManager {
                 bodyTarget -= 180.0F;
         }
 
-        if (mc.player.attackAnim > 0.0F)
+        if (((SwingStateAccessor) ((LivingEntityAccessor) mc.player).krs$getSwingState()).krs$getAnimation() > 0.0F)
             bodyTarget = headYaw;
 
         renderBodyYaw += Mth.wrapDegrees(bodyTarget - renderBodyYaw) * 0.3F;

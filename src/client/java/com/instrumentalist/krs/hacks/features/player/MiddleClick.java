@@ -9,11 +9,10 @@ import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
-import net.minecraft.network.protocol.game.ServerboundSwingPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
@@ -27,7 +26,7 @@ public class MiddleClick extends Module {
     private final MSTimer useTimer = new MSTimer();
 
     public MiddleClick() {
-        super("Middle Click", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Middle Click", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -48,7 +47,7 @@ public class MiddleClick extends Module {
     public void onMouseClick(MouseClickEvent event) {
         var player = mc.player;
         var gameMode = mc.gameMode;
-        if (player == null || gameMode == null || mc.gui.screen() != null || event.button != GLFW.GLFW_MOUSE_BUTTON_MIDDLE || event.action != GLFW.GLFW_PRESS || !useTimer.hasTimePassed(delay.get()))
+        if (player == null || gameMode == null || mc.gui.screen() != null || event.button != Keys.MOUSE_BUTTON_MIDDLE || event.action != Keys.PRESS || !useTimer.hasTimePassed(delay.get()))
             return;
 
         int slot = findItemSlot(targetItem());
@@ -61,8 +60,8 @@ public class MiddleClick extends Module {
             PacketUtil.sendPacket(new ServerboundSetCarriedItemPacket(slot));
         }
 
-        if (gameMode.useItem(player, InteractionHand.MAIN_HAND).consumesAction())
-            PacketUtil.sendPacket(new ServerboundSwingPacket(InteractionHand.MAIN_HAND));
+        // The server broadcasts the swing for successful item use on its own since 26.3.
+        gameMode.useItem(player, InteractionHand.MAIN_HAND);
 
         if (slot != oldSlot) {
             player.getInventory().setSelectedSlot(oldSlot);

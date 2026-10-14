@@ -1,15 +1,12 @@
 package com.instrumentalist.krs.utils.entity;
 
 import com.instrumentalist.krs.utils.IMinecraft;
-import com.instrumentalist.krs.hacks.features.render.ViewModel;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
-import net.minecraft.network.protocol.game.ServerboundSwingPacket;
+import net.minecraft.network.protocol.game.ServerboundPunchPacket;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.effect.MobEffectUtil;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
@@ -67,7 +64,7 @@ public final class PlayerUtil implements IMinecraft {
                 blockPos,
                 direction
         ));
-        PacketUtil.sendPacket(new ServerboundSwingPacket(InteractionHand.MAIN_HAND));
+        sendSwingPacket(InteractionHand.MAIN_HAND);
         PacketUtil.sendPacket(new ServerboundPlayerActionPacket(
                 ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK,
                 blockPos,
@@ -87,10 +84,8 @@ public final class PlayerUtil implements IMinecraft {
 
         var direction = rayTraceResult.getDirection();
         var blockPos = rayTraceResult.getBlockPos();
-        if (gameMode.continueDestroyBlock(blockPos, direction)) {
-            level.addBreakingBlockEffect(blockPos, direction);
-            player.swing(InteractionHand.MAIN_HAND);
-        }
+        if (gameMode.continueDestroyBlock(blockPos, direction))
+            swingHand(InteractionHand.MAIN_HAND);
     }
 
     private Direction getBlockHitDirection(BlockPos pos) {
@@ -115,28 +110,38 @@ public final class PlayerUtil implements IMinecraft {
         return z > 0.0 ? Direction.SOUTH : Direction.NORTH;
     }
 
+    /**
+     * Swings the hand locally and tells the server about it, like a vanilla punch.
+     * Since 26.3 only main hand punches are sent; the server animates every other swing itself.
+     */
+    public void swingHand(InteractionHand hand) {
+        swingHandWithoutPacket(hand);
+        sendSwingPacket(hand);
+    }
+
+    /**
+     * Sends the server-side counterpart of a hand swing. Since 26.3 this is {@link ServerboundPunchPacket}, which only
+     * exists for the main hand.
+     */
+    public void sendSwingPacket(InteractionHand hand) {
+        if (hand == InteractionHand.MAIN_HAND)
+            PacketUtil.sendPacket(ServerboundPunchPacket.INSTANCE);
+    }
+
     public void swingHandWithoutPacket(InteractionHand hand) {
         var player = mc.player;
         if (player == null) return;
-        if (!player.swinging || player.swingTime >= getSnglSwingHandDuration() / 2 || player.swingTime < 0) {
-            player.swingTime = -1;
-            player.swinging = true;
-            player.swingingArm = hand;
-        }
+        player.swing(hand, player.getItemInHand(hand).getAttackAnimation(), false);
     }
 
-    public int getSnglSwingHandDuration() {
+    /**
+     * Plays the local swing that accompanies a successful item use. The server broadcasts the swing for item use
+     * actions on its own since 26.3, so no packet is sent.
+     */
+    public void swingInteractHand(InteractionHand hand) {
         var player = mc.player;
-        if (player == null) return 6;
-
-        int baseSpeed = 6;
-        if (MobEffectUtil.hasDigSpeed(player)) {
-            baseSpeed -= 1 + MobEffectUtil.getDigSpeedAmplification(player);
-        } else if (player.hasEffect(MobEffects.MINING_FATIGUE)) {
-            baseSpeed += (1 + player.getEffect(MobEffects.MINING_FATIGUE).getAmplifier()) * 2;
-        }
-
-        return ViewModel.hookSwingSpeed(baseSpeed, player);
+        if (player == null) return;
+        player.swing(hand, player.getItemInHand(hand).getInteractAnimation(), false);
     }
 
     public void doSpoof(Integer spoofTargetSlot) {

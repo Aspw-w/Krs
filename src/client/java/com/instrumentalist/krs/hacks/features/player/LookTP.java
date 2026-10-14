@@ -14,7 +14,7 @@ import com.instrumentalist.krs.utils.pathfinder.MainPathFinder;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.network.protocol.Packet;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.ArrayList;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
@@ -26,7 +26,7 @@ import net.minecraft.world.phys.Vec3;
 public class LookTP extends Module {
 
     public LookTP() {
-        super("Look TP", ModuleCategory.Player, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Look TP", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting
@@ -114,7 +114,7 @@ public class LookTP extends Module {
             return;
         }
 
-        if (tpTimer.hasTimePassed(200L) && InputConstants.isKeyDown(mc.getWindow(), GLFW.GLFW_KEY_LEFT_ALT) && mc.options.keyUse.isDown()) {
+        if (tpTimer.hasTimePassed(200L) && InputConstants.isKeyDown(Keys.KEY_LEFT_ALT) && mc.options.keyUse.isDown()) {
             Vec3 eyePosition = mc.player.getEyePosition(0.1f);
             Vec3 lookVector = mc.player.getViewVector(0.1f);
             Vec3 targetPosition = eyePosition.add(lookVector.scale(10000.0));

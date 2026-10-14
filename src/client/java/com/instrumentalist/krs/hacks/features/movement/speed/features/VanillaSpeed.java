@@ -39,7 +39,7 @@ public class VanillaSpeed implements SpeedEvent {
             mc.options.keyJump.setDown(false);
             cancelledOnce = true;
         } else if (cancelledOnce && mc.player.onGround()) {
-            mc.options.keyJump.setDown(InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyJump.saveString()).getValue()));
+            mc.options.keyJump.setDown(InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyJump.saveString()).getValue()));
             cancelledOnce = false;
         }
     }

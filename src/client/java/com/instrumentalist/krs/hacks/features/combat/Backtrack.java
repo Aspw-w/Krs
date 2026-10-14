@@ -20,7 +20,7 @@ import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.ArrayDeque;
 import java.util.Iterator;
@@ -47,7 +47,7 @@ public class Backtrack extends Module {
     private volatile boolean needFreeze = false;
 
     public Backtrack() {
-        super("Backtrack", ModuleCategory.Combat, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Backtrack", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
     }
 
     public boolean isBacktracking() {
@@ -203,11 +203,12 @@ public class Backtrack extends Module {
         if (!(entity instanceof Player) || !isTarget(entity))
             return;
 
-        PositionMoveRotation values = packet.values();
-        updateSimulation(values.position(), values.deltaMovement(), values.yRot(), values.xRot());
+        // Position sync packets no longer carry a velocity since 26.3, so keep the simulated one.
+        Vec3 position = packet.position().endPosition();
+        updateSimulation(position, simulatedDeltaMovement, packet.yRot(), packet.xRot());
 
         if (needFreeze) {
-            storePacket(event, packet, entity, values.position());
+            storePacket(event, packet, entity, position);
         }
     }
 
@@ -215,7 +216,7 @@ public class Backtrack extends Module {
         Vec3 position = simulatedPosition != null ? simulatedPosition : entity.position();
 
         if (packet.hasPosition()) {
-            position = simulatedPositionCodec.decode(packet.getXa(), packet.getYa(), packet.getZa());
+            position = packet.getPositionDelta().decode(simulatedPositionCodec).endPosition();
             simulatedPositionCodec.setBase(position);
             simulatedPosition = position;
         }

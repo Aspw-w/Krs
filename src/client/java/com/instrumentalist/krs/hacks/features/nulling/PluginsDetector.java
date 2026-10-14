@@ -9,7 +9,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.math.TickTimer;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 import xyz.breadloaf.imguimc.customwindow.ModuleRenderable;
 
 import java.util.ArrayList;
@@ -24,7 +24,7 @@ import net.minecraft.network.protocol.game.ServerboundCommandSuggestionPacket;
 public class PluginsDetector extends Module {
 
     public PluginsDetector() {
-        super("Plugins Detector", null, GLFW.GLFW_KEY_UNKNOWN, false, false);
+        super("Plugins Detector", null, Keys.KEY_UNKNOWN, false, false);
     }
 
     private final TickTimer timer = new TickTimer();

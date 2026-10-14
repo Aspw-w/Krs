@@ -39,7 +39,7 @@ public class AirwalkFly implements FlyEvent {
 
     @Override
     public void onBlock(BlockEvent event) {
-        if (mc.player == null || InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyShift.saveString()).getValue()) || event.blockPos.getY() != mc.player.blockPosition().below().getY()) return;
+        if (mc.player == null || InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyShift.saveString()).getValue()) || event.blockPos.getY() != mc.player.blockPosition().below().getY()) return;
 
         event.voxelShape = Shapes.block();
     }

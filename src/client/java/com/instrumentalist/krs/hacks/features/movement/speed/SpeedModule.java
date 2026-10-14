@@ -10,12 +10,12 @@ import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import com.mojang.blaze3d.platform.InputConstants;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class SpeedModule extends Module {
 
     public SpeedModule() {
-        super("Speed", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Speed", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting
@@ -80,7 +80,7 @@ public class SpeedModule extends Module {
         }
 
         if (mc.player != null) {
-            mc.options.keyJump.setDown(InputConstants.isKeyDown(mc.getWindow(), InputConstants.getKey(mc.options.keyJump.saveString()).getValue()));
+            mc.options.keyJump.setDown(InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyJump.saveString()).getValue()));
         }
     }
 

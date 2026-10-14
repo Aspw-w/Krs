@@ -22,7 +22,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 import org.nvgu.NVGU;
 import org.nvgu.util.Alignment;
 
@@ -61,7 +61,7 @@ public class NameTags extends Module {
     private final float[] backgroundGeometry = new float[MAX_RENDERED_NAME_TAGS * 8];
 
     public NameTags() {
-        super("Name Tags", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Name Tags", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

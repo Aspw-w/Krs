@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.utils.input.Keys;
 import com.instrumentalist.krs.utils.value.*;
 import com.instrumentalist.krs.utils.math.Tuple;
 
@@ -68,6 +69,13 @@ public class ConfigObject {
     }
 
     public void load(JsonObject jsonObject) {
+        load(jsonObject, false);
+    }
+
+    /**
+     * @param legacyKeys whether key binds in {@code jsonObject} are GLFW key codes written by a pre 26.3 client
+     */
+    public void load(JsonObject jsonObject, boolean legacyKeys) {
         if (jsonObject == null) return;
 
         Boolean requestedState = null;
@@ -84,7 +92,7 @@ public class ConfigObject {
         if (Boolean.FALSE.equals(requestedState))
             applyModuleState(false);
 
-        loadSettings(jsonObject, KeyBindValue.ConfigStorage.MODULE_CONFIG);
+        loadSettings(jsonObject, KeyBindValue.ConfigStorage.MODULE_CONFIG, legacyKeys);
 
         if (Boolean.TRUE.equals(requestedState))
             applyModuleState(true);
@@ -98,12 +106,16 @@ public class ConfigObject {
     }
 
     public void loadBind(JsonObject jsonObject) {
-        if (jsonObject == null) return;
-
-        loadSettings(jsonObject, KeyBindValue.ConfigStorage.BIND_CONFIG);
+        loadBind(jsonObject, false);
     }
 
-    private void loadSettings(JsonObject jsonObject, KeyBindValue.ConfigStorage configStorage) {
+    public void loadBind(JsonObject jsonObject, boolean legacyKeys) {
+        if (jsonObject == null) return;
+
+        loadSettings(jsonObject, KeyBindValue.ConfigStorage.BIND_CONFIG, legacyKeys);
+    }
+
+    private void loadSettings(JsonObject jsonObject, KeyBindValue.ConfigStorage configStorage, boolean legacyKeys) {
         JsonElement settings = jsonObject.get("settings");
         if (settings == null || !settings.isJsonArray()) return;
 
@@ -114,7 +126,7 @@ public class ConfigObject {
             jsonElement.getAsJsonObject().entrySet().forEach(entry -> {
                 SettingValue<?> value = settingByName.get(entry.getKey());
                 if (value != null && isStoredIn(value, configStorage))
-                    loadSettingValue(value, entry.getValue());
+                    loadSettingValue(value, entry.getValue(), legacyKeys);
             });
         });
     }
@@ -144,7 +156,7 @@ public class ConfigObject {
         return settingByName;
     }
 
-    private void loadSettingValue(SettingValue<?> value, JsonElement jsonValue) {
+    private void loadSettingValue(SettingValue<?> value, JsonElement jsonValue, boolean legacyKeys) {
         if (jsonValue == null || jsonValue.isJsonNull()) return;
 
         try {
@@ -154,7 +166,10 @@ public class ConfigObject {
                 case FloatValue floatValue -> floatValue.set(jsonValue.getAsFloat());
                 case IntValue intValue -> intValue.set(jsonValue.getAsInt());
                 case ListValue listValue -> listValue.set(jsonValue.getAsString());
-                case KeyBindValue keyBindValue -> keyBindValue.set(jsonValue.getAsInt());
+                case KeyBindValue keyBindValue -> {
+                    int key = jsonValue.getAsInt();
+                    keyBindValue.set(legacyKeys ? Keys.fromLegacyGlfw(key) : key);
+                }
                 case ColorValue colorValue -> loadColorValue(colorValue, jsonValue);
                 default -> {
                 }

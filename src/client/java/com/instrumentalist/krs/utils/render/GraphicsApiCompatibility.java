@@ -1,22 +1,21 @@
 package com.instrumentalist.krs.utils.render;
 
-import com.mojang.blaze3d.GpuFormat;
-import com.mojang.blaze3d.PrimitiveTopology;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.buffers.GpuFence;
-import com.mojang.blaze3d.opengl.GlDevice;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.ColorTargetState;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.GpuFormat;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.commands.GpuFence;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.systems.CommandEncoder;
-import com.mojang.blaze3d.systems.GpuDevice;
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
+import com.mojang.renderpearl.api.device.GpuDevice;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.renderpearl.api.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BindGroupLayouts;
@@ -29,6 +28,10 @@ import org.lwjgl.opengl.GL21;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.opengl.GL32;
 import org.lwjgl.opengl.GLCapabilities;
+import org.lwjgl.sdl.SDLError;
+import org.lwjgl.sdl.SDLVideo;
+import org.lwjgl.sdl.SDL_DisplayMode;
+import org.lwjgl.system.SharedLibrary;
 import org.lwjgl.system.MemoryUtil;
 import org.slf4j.Logger;
 
@@ -42,23 +45,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 
-import static org.lwjgl.glfw.GLFW.GLFW_CLIENT_API;
-import static org.lwjgl.glfw.GLFW.GLFW_CONTEXT_VERSION_MAJOR;
-import static org.lwjgl.glfw.GLFW.GLFW_CONTEXT_VERSION_MINOR;
-import static org.lwjgl.glfw.GLFW.GLFW_FALSE;
-import static org.lwjgl.glfw.GLFW.GLFW_OPENGL_API;
-import static org.lwjgl.glfw.GLFW.GLFW_OPENGL_CORE_PROFILE;
-import static org.lwjgl.glfw.GLFW.GLFW_OPENGL_FORWARD_COMPAT;
-import static org.lwjgl.glfw.GLFW.GLFW_OPENGL_PROFILE;
-import static org.lwjgl.glfw.GLFW.GLFW_TRUE;
-import static org.lwjgl.glfw.GLFW.GLFW_VISIBLE;
-import static org.lwjgl.glfw.GLFW.glfwCreateWindow;
-import static org.lwjgl.glfw.GLFW.glfwDefaultWindowHints;
-import static org.lwjgl.glfw.GLFW.glfwDestroyWindow;
-import static org.lwjgl.glfw.GLFW.glfwGetCurrentContext;
-import static org.lwjgl.glfw.GLFW.glfwMakeContextCurrent;
-import static org.lwjgl.glfw.GLFW.glfwSwapInterval;
-import static org.lwjgl.glfw.GLFW.glfwWindowHint;
 
 /**
  * Keeps the legacy NanoVG and ImGui OpenGL renderers usable when Minecraft is
@@ -113,6 +99,8 @@ public final class GraphicsApiCompatibility {
     private static int activeLayerHeight;
 
     private static long offscreenWindow;
+    private static long offscreenContext;
+    private static boolean offscreenLibraryLoaded;
     private static GLCapabilities offscreenCapabilities;
     private static final OpenGlFramebuffer SCALED_FRAMEBUFFER = new OpenGlFramebuffer();
     private static final OpenGlFramebuffer NATIVE_FRAMEBUFFER = new OpenGlFramebuffer();
@@ -130,7 +118,7 @@ public final class GraphicsApiCompatibility {
             return;
 
         GpuDevice device = RenderSystem.getDevice();
-        compatibilityRenderer = !(device.backend instanceof GlDevice);
+        compatibilityRenderer = !"OpenGL".equals(device.getDeviceInfo().backendName());
         if (compatibilityRenderer) {
             createOffscreenContext();
             transferExecutor = Executors.newFixedThreadPool(2, task -> {
@@ -168,22 +156,23 @@ public final class GraphicsApiCompatibility {
             action.run();
             return;
         }
-        if (offscreenWindow == 0L || offscreenCapabilities == null)
+        if (offscreenWindow == 0L || offscreenContext == 0L || offscreenCapabilities == null)
             throw new IllegalStateException("The Krs OpenGL compatibility context is not available");
 
-        long previousContext = glfwGetCurrentContext();
-        if (previousContext == offscreenWindow) {
+        long previousContext = SDLVideo.SDL_GL_GetCurrentContext();
+        if (previousContext == offscreenContext) {
             action.run();
             return;
         }
 
+        long previousWindow = SDLVideo.SDL_GL_GetCurrentWindow();
         GLCapabilities previousCapabilities = currentCapabilitiesOrNull();
-        glfwMakeContextCurrent(offscreenWindow);
+        SDLVideo.SDL_GL_MakeCurrent(offscreenWindow, offscreenContext);
         GL.setCapabilities(offscreenCapabilities);
         try {
             action.run();
         } finally {
-            glfwMakeContextCurrent(previousContext);
+            SDLVideo.SDL_GL_MakeCurrent(previousWindow, previousContext);
             GL.setCapabilities(previousCapabilities);
         }
     }
@@ -289,7 +278,7 @@ public final class GraphicsApiCompatibility {
         int refreshRate = 0;
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft != null && minecraft.getWindow() != null)
-            refreshRate = minecraft.getWindow().getRefreshRate();
+            refreshRate = getWindowRefreshRate(minecraft.getWindow().handle());
         if (refreshRate < 30) {
             int frameLimit = minecraft == null ? 0 : minecraft.options.framerateLimit().get();
             refreshRate = frameLimit >= 30 ? frameLimit : FALLBACK_REFRESH_RATE;
@@ -298,6 +287,18 @@ public final class GraphicsApiCompatibility {
         cachedRefreshRate = refreshRate;
         refreshRateCacheExpiresNanos = now + REFRESH_RATE_CACHE_NANOS;
         return refreshRate;
+    }
+
+    private static int getWindowRefreshRate(long windowHandle) {
+        try {
+            int display = SDLVideo.SDL_GetDisplayForWindow(windowHandle);
+            if (display == 0)
+                return 0;
+            SDL_DisplayMode mode = SDLVideo.SDL_GetCurrentDisplayMode(display);
+            return mode == null ? 0 : Math.round(mode.refresh_rate());
+        } catch (Throwable ignored) {
+            return 0;
+        }
     }
 
     private static void scheduleNextRender(LayerCache cache, long now, long intervalNanos) {
@@ -337,40 +338,65 @@ public final class GraphicsApiCompatibility {
     }
 
     private static void createOffscreenContext() {
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+        if (!SDLVideo.SDL_GL_LoadLibrary(((SharedLibrary) GL.getFunctionProvider()).getPath()))
+            throw new IllegalStateException("Could not load OpenGL for the Krs compatibility context: " + SDLError.SDL_GetError());
+        offscreenLibraryLoaded = true;
 
+        SDLVideo.SDL_GL_ResetAttributes();
+        SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+        SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_MINOR_VERSION, 3);
+        SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_PROFILE_MASK, SDLVideo.SDL_GL_CONTEXT_PROFILE_CORE);
+        SDLVideo.SDL_GL_SetAttribute(SDLVideo.SDL_GL_CONTEXT_FLAGS, SDLVideo.SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+
+        long previousWindow = SDLVideo.SDL_GL_GetCurrentWindow();
+        long previousContext = SDLVideo.SDL_GL_GetCurrentContext();
+        GLCapabilities previousCapabilities = currentCapabilitiesOrNull();
         try {
-            offscreenWindow = glfwCreateWindow(1, 1, "Krs OpenGL compatibility renderer", 0L, 0L);
+            offscreenWindow = SDLVideo.SDL_CreateWindow("Krs OpenGL compatibility renderer", 1, 1,
+                    SDLVideo.SDL_WINDOW_OPENGL | SDLVideo.SDL_WINDOW_HIDDEN);
+            if (offscreenWindow == 0L)
+                throw new IllegalStateException("Could not create the Krs OpenGL compatibility window: " + SDLError.SDL_GetError());
+
+            offscreenContext = SDLVideo.SDL_GL_CreateContext(offscreenWindow);
+            if (offscreenContext == 0L)
+                throw new IllegalStateException("Could not create the Krs OpenGL compatibility context: " + SDLError.SDL_GetError());
+        } catch (RuntimeException | Error failure) {
+            destroyOffscreenContext();
+            throw failure;
         } finally {
-            // Window hints are process-global. Do not leak the compatibility
+            // GL attributes are process-global. Do not leak the compatibility
             // context settings into windows created by Minecraft or other mods.
-            glfwDefaultWindowHints();
+            SDLVideo.SDL_GL_ResetAttributes();
         }
 
-        if (offscreenWindow == 0L)
-            throw new IllegalStateException("Could not create the Krs OpenGL compatibility context");
-
-        long previousContext = glfwGetCurrentContext();
-        GLCapabilities previousCapabilities = currentCapabilitiesOrNull();
-        glfwMakeContextCurrent(offscreenWindow);
         try {
+            SDLVideo.SDL_GL_MakeCurrent(offscreenWindow, offscreenContext);
             offscreenCapabilities = GL.createCapabilities();
-            glfwSwapInterval(0);
+            SDLVideo.SDL_GL_SetSwapInterval(0);
         } catch (RuntimeException | Error failure) {
-            glfwMakeContextCurrent(previousContext);
+            SDLVideo.SDL_GL_MakeCurrent(previousWindow, previousContext);
             GL.setCapabilities(previousCapabilities);
-            glfwDestroyWindow(offscreenWindow);
-            offscreenWindow = 0L;
+            destroyOffscreenContext();
             throw failure;
         }
 
-        glfwMakeContextCurrent(previousContext);
+        SDLVideo.SDL_GL_MakeCurrent(previousWindow, previousContext);
         GL.setCapabilities(previousCapabilities);
+    }
+
+    private static void destroyOffscreenContext() {
+        if (offscreenContext != 0L) {
+            SDLVideo.SDL_GL_DestroyContext(offscreenContext);
+            offscreenContext = 0L;
+        }
+        if (offscreenWindow != 0L) {
+            SDLVideo.SDL_DestroyWindow(offscreenWindow);
+            offscreenWindow = 0L;
+        }
+        if (offscreenLibraryLoaded) {
+            SDLVideo.SDL_GL_UnloadLibrary();
+            offscreenLibraryLoaded = false;
+        }
     }
 
     private static GLCapabilities currentCapabilitiesOrNull() {
@@ -769,8 +795,8 @@ public final class GraphicsApiCompatibility {
                 ? encoder.createRenderPass(() -> "Krs legacy UI composite", target.getColorTextureView(), Optional.empty())
                 : encoder.createRenderPass(() -> "Krs legacy UI composite", target.getColorTextureView(), Optional.empty(),
                         depthView, OptionalDouble.empty())) {
-            pass.setPipeline(COMPOSITE_PIPELINE);
-            pass.bindTexture("InSampler", cache.textureViews[textureIndex],
+            pass.setPipeline(RenderSystem.getCompiledPipeline(COMPOSITE_PIPELINE));
+            pass.setUniform("InSampler", cache.textureViews[textureIndex],
                     RenderSystem.getSamplerCache().getClampToEdge(
                             width == target.width && height == target.height ? FilterMode.NEAREST : FilterMode.LINEAR
                     ));
@@ -812,7 +838,7 @@ public final class GraphicsApiCompatibility {
                 destroyOpenGlFramebuffer(SCALED_FRAMEBUFFER);
                 destroyOpenGlFramebuffer(NATIVE_FRAMEBUFFER);
             });
-            glfwDestroyWindow(offscreenWindow);
+            destroyOffscreenContext();
         }
 
         for (LayerCache cache : LAYER_CACHES.values()) {

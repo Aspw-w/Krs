@@ -10,12 +10,12 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundKeepAlivePacket;
 import net.minecraft.network.protocol.common.ServerboundKeepAlivePacket;
 import net.minecraft.network.protocol.common.ServerboundPongPacket;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class TuckMod extends Module {
 
     public TuckMod() {
-        super("Tuck Mod", ModuleCategory.Dev, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Tuck Mod", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     private int tick;

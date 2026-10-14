@@ -12,17 +12,17 @@ import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.utils.math.Interpolation;
 import com.instrumentalist.krs.utils.value.KeyBindValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 import xyz.breadloaf.imguimc.customwindow.ModuleRenderable;
 
 public class Zoom extends Module {
 
     public Zoom() {
-        super("Zoom", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, true, false);
+        super("Zoom", ModuleCategory.Render, Keys.KEY_UNKNOWN, true, false);
     }
 
     @Setting
-    private final KeyBindValue zoomKey = new KeyBindValue("Zoom Key (Bind config)", GLFW.GLFW_KEY_UNKNOWN, KeyBindValue.ConfigStorage.BIND_CONFIG);
+    private final KeyBindValue zoomKey = new KeyBindValue("Zoom Key (Bind config)", Keys.KEY_UNKNOWN, KeyBindValue.ConfigStorage.BIND_CONFIG);
 
     private static boolean zooming = false;
     private static Float prevFov = null;
@@ -87,13 +87,13 @@ public class Zoom extends Module {
     public void onKey(KeyboardEvent event) {
         if (mc.player == null) return;
 
-        if (event.key == zoomKey.get() && event.action == GLFW.GLFW_PRESS && mc.gui.screen() == null) {
+        if (event.key == zoomKey.get() && event.action == Keys.PRESS && mc.gui.screen() == null) {
             zooming = true;
             zoomed = true;
             lastFrameTime = System.nanoTime();
         }
 
-        if (event.key == zoomKey.get() && event.action == GLFW.GLFW_RELEASE) {
+        if (event.key == zoomKey.get() && event.action == Keys.RELEASE) {
             zooming = false;
             zoomInFov = 20f;
             lastFrameTime = System.nanoTime();

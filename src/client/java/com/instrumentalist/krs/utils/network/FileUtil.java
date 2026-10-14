@@ -1,5 +1,7 @@
 package com.instrumentalist.krs.utils.network;
 
+import com.mojang.blaze3d.Blaze3D;
+
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.utils.ChatUtil;
@@ -212,7 +214,11 @@ public final class FileUtil implements IMinecraft {
     }
 
     public void openInBrowser(String url) {
-        Util.getPlatform().openUri(url);
+        try {
+            Blaze3D.openUri(new URI(url));
+        } catch (URISyntaxException | IllegalArgumentException exception) {
+            System.err.println("Couldn't open invalid URL " + url + ": " + exception.getMessage());
+        }
     }
 
     public List<String> getOnlineCfgs() {

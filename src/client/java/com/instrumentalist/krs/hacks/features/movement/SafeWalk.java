@@ -5,7 +5,7 @@ import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 public class SafeWalk extends Module {
     @Setting
@@ -15,7 +15,7 @@ public class SafeWalk extends Module {
     private final BooleanValue ignoreSneak = new BooleanValue("Ignore Sneak", false);
 
     public SafeWalk() {
-        super("Safe Walk", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Safe Walk", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

@@ -14,7 +14,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +29,7 @@ public final class Imposter extends Module {
     private ClientLevel spawnedLevel;
 
     public Imposter() {
-        super("Imposter", ModuleCategory.Render, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Imposter", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -140,7 +140,7 @@ public final class Imposter extends Module {
             setTransformation(transformation);
             setNoGravity(true);
             setSilent(true);
-            setInvulnerable(true);
+            setPermanentlyInvulnerable(true);
 
             followPlayer();
             setOldPosAndRot();

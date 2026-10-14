@@ -10,13 +10,13 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 import xyz.breadloaf.imguimc.screen.EmptyScreen;
 
 public class InventoryMove extends Module {
 
     public InventoryMove() {
-        super("Inventory Move", ModuleCategory.Movement, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("Inventory Move", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting

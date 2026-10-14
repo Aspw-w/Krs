@@ -9,7 +9,7 @@ import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
-import org.lwjgl.glfw.GLFW;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.HashSet;
 import java.util.Locale;
@@ -20,7 +20,7 @@ import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 public class NoMoreAutism extends Module {
 
     public NoMoreAutism() {
-        super("No More Autism", ModuleCategory.Dev, GLFW.GLFW_KEY_UNKNOWN, false, true);
+        super("No More Autism", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     private final Set<String> nWords = new HashSet<>(Set.of(

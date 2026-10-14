@@ -35,7 +35,7 @@ public enum ChunkUtil implements IMinecraft {;
         if (packet instanceof ClientboundSectionBlocksUpdatePacket p)
             return p.sectionPos.chunk();
         if (packet instanceof ClientboundLevelChunkWithLightPacket p)
-            return new ChunkPos(p.getX(), p.getZ());
+            return new ChunkPos(p.x(), p.z());
 
         return null;
     }
