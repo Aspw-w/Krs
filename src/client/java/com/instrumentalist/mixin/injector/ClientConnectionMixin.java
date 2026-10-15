@@ -4,6 +4,7 @@ import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.EventManager;
 import com.instrumentalist.krs.events.features.ModifyPacketEvent;
 import com.instrumentalist.krs.events.features.SendPacketEvent;
+import com.instrumentalist.krs.utils.packet.MovePlayerPacketFixer;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.network.IConnection;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
@@ -50,8 +51,10 @@ public abstract class ClientConnectionMixin implements IConnection {
         if (eventManager == null || packet == null || !eventManager.hasListeners(ModifyPacketEvent.class)) {
             if (packet != null && Client.rotationManager != null)
                 Client.rotationManager.recordOutgoingRotation(packet);
-            if (packet != null)
+            if (packet != null) {
+                MovePlayerPacketFixer.beforeSend(this, packet, extra -> original.call(extra, null));
                 original.call(packet, listener);
+            }
             return;
         }
 
@@ -63,6 +66,7 @@ public abstract class ClientConnectionMixin implements IConnection {
         if (Client.rotationManager != null)
             Client.rotationManager.recordOutgoingRotation(event.packet);
 
+        MovePlayerPacketFixer.beforeSend(this, event.packet, extra -> original.call(extra, null));
         original.call(event.packet, listener);
     }
 
