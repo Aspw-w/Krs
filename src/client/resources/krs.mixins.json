@@ -31,6 +31,7 @@
     "FireworkRocketEntityMixin",
     "FirstPersonHandsAndItemsMixin",
     "GameRendererMixin",
+    "GlBackendMixin",
     "GlRenderPipelineMixin",
     "GuiEntityRendererMixin",
     "GuiRendererMixin",
