@@ -92,12 +92,15 @@ public abstract class PlayerEntityRendererMixin implements IMinecraft {
 
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V", at = @At("RETURN"))
     private void clientSideRotations(Avatar avatar, AvatarRenderState state, float f, CallbackInfo info) {
-        ((IEntityRenderState) state).client$setEntity(avatar);
+        IEntityRenderState ers = (IEntityRenderState) state;
+        ers.client$setEntity(avatar);
+        ers.client$setApplyLocalAnim(false);
 
         if (!(avatar instanceof AbstractClientPlayer player)) return;
         if (player != mc.player) return;
         if (GuiEntityRenderGuard.isActive()) return;
 
+        ers.client$setApplyLocalAnim(true);
         applyEmptyHandSpoofArmPose(state);
         applyOldHittingUseState(state);
 
