@@ -60,6 +60,7 @@ import com.instrumentalist.krs.utils.input.Keys;
 import org.lwjgl.nanovg.NanoVG;
 import org.nvgu.NVGU;
 import org.nvgu.util.Alignment;
+import org.nvgu.util.NVGFont;
 
 import java.awt.Color;
 import java.io.InputStream;
@@ -180,6 +181,15 @@ public class Interface extends Module {
     public static final BooleanValue someInformation = new BooleanValue(
             "Some Information",
             true
+    );
+
+    @Setting
+    public static final FloatValue shadowStrength = new FloatValue(
+            "Shadow Strength",
+            1f,
+            0f,
+            3f,
+            "x"
     );
 
     public static List<Module> sortedModules;
@@ -2265,8 +2275,10 @@ public class Interface extends Module {
         for (int i = 0, n = categories.size(); i < n; i++) {
             ModuleCategory category = categories.get(i);
             float rowY = y + 6f + i * 22f;
-            Color categoryColor = i == tabGuiCategoryIndex ? NanoVGTheme.ACCENT : NanoVGTheme.TEXT;
-            NVGFonts.INTER.drawText(category.name(), x + 12f, rowY + 3f, HUD_FONT_SIZE, categoryColor, Alignment.LEFT_TOP, false);
+            boolean selected = i == tabGuiCategoryIndex;
+            Color categoryColor = selected ? NanoVGTheme.ACCENT : NanoVGTheme.TEXT;
+            NVGFont categoryFont = selected ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
+            categoryFont.drawText(category.name(), x + 12f, rowY + 3f, HUD_FONT_SIZE, categoryColor, Alignment.LEFT_TOP, false);
         }
 
         if (expandProgress > 0.01f && !modules.isEmpty()) {
@@ -2294,8 +2306,8 @@ public class Interface extends Module {
             for (int i = firstModule; i < lastModule; i++) {
                 Module module = modules.get(i);
                 float rowY = y + 6f + (i - firstModule) * 22f;
-                Color moduleColor = module.tempEnabled ? NanoVGTheme.ACCENT : NanoVGTheme.TEXT;
-                NVGFonts.INTER.drawText(module.moduleName, x + 12f, rowY + 3f, HUD_FONT_SIZE, moduleColor, Alignment.LEFT_TOP, false);
+                NVGFont moduleFont = module.tempEnabled ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
+                moduleFont.drawText(module.moduleName, x + 12f, rowY + 3f, HUD_FONT_SIZE, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
             }
 
             if (modules.size() > visibleRows) {
@@ -2316,7 +2328,7 @@ public class Interface extends Module {
     private float getTabGuiCategoryPanelWidth(List<ModuleCategory> categories) {
         float width = 72f;
         for (ModuleCategory category : categories) {
-            width = Math.max(width, NVGFonts.INTER.getWidth(category.name(), HUD_FONT_SIZE) + 24f);
+            width = Math.max(width, NVGFonts.INTER_MEDIUM.getWidth(category.name(), HUD_FONT_SIZE) + 24f);
         }
         return width;
     }
@@ -2324,7 +2336,7 @@ public class Interface extends Module {
     private float getTabGuiModulePanelWidth(List<Module> modules) {
         float width = 72f;
         for (Module module : modules) {
-            width = Math.max(width, NVGFonts.INTER.getWidth(module.moduleName, HUD_FONT_SIZE) + 24f);
+            width = Math.max(width, NVGFonts.INTER_MEDIUM.getWidth(module.moduleName, HUD_FONT_SIZE) + 24f);
         }
         return width;
     }

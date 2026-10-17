@@ -42,6 +42,10 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
     private static final float MUSIC_SLIDER_TRACK_HEIGHT = 7f;
     private static final Color BUTTON_IDLE = NanoVGTheme.base(168);
     private static final Color BUTTON_HOVERED = NanoVGTheme.base(210);
+    private static final Color HOVER_LINE = new Color(255, 215, 0, 220);
+    private static final float STARTUP_LOAD_BAR_FADE_SECONDS = 0.25f;
+    private static float startupLoadBarAlpha;
+    private static long startupLoadBarFadeNanos;
     private static final String RELEASES_URL = "https://github.com/Aspw-w/Krs/releases";
 
     private boolean musicVolumeSliderDragging;
@@ -157,7 +161,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         vg.roundedRectangle(state.x - 110f, state.y - 34f, 220f, 38f, NanoVGTheme.RADIUS_PANEL, baseColor);
 
         if (state.animation > 1f) {
-            Color gradientColor = state.hovered ? new Color(255, 215, 0, 220) : Interface.getFadedColor(0, 1);
+            Color gradientColor = state.hovered ? HOVER_LINE : Interface.getFadedColor(0, 1);
             vg.roundedRectangle(state.x - state.animation, state.y - 2.5f, state.animation * 2f, 3f, 2f, gradientColor);
         }
 
@@ -312,14 +316,41 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
     }
 
     public static void renderStartupLoadBarIfNeeded(NanoVGManager manager) {
-        if (manager == null || !shouldRenderStartupLoadBar())
+        if (manager == null)
             return;
 
-        manager.renderImmediate(CustomTitleScreen::renderStartupLoadBar);
+        float alpha = updateStartupLoadBarFade();
+        if (alpha <= 0.001f)
+            return;
+
+        manager.renderImmediate(vg -> vg.globalAlpha(alpha, () -> renderStartupLoadBar(vg)));
     }
 
     public static boolean shouldRenderStartupLoadBar() {
         return mc.gui.screen() instanceof CustomTitleScreen && mc.gui.overlay() != null;
+    }
+
+    public static boolean isStartupLoadBarVisible() {
+        return shouldRenderStartupLoadBar()
+                || startupLoadBarAlpha > 0.001f && mc.gui.screen() instanceof CustomTitleScreen;
+    }
+
+    private static float updateStartupLoadBarFade() {
+        long now = System.nanoTime();
+        if (!(mc.gui.screen() instanceof CustomTitleScreen)) {
+            startupLoadBarAlpha = 0f;
+            startupLoadBarFadeNanos = now;
+            return 0f;
+        }
+
+        float target = shouldRenderStartupLoadBar() ? 1f : 0f;
+        float seconds = Math.clamp((now - startupLoadBarFadeNanos) / 1_000_000_000f, 0f, 0.05f);
+        startupLoadBarFadeNanos = now;
+        float step = seconds / STARTUP_LOAD_BAR_FADE_SECONDS;
+        startupLoadBarAlpha = target > startupLoadBarAlpha
+                ? Math.min(target, startupLoadBarAlpha + step)
+                : Math.max(target, startupLoadBarAlpha - step);
+        return startupLoadBarAlpha * startupLoadBarAlpha * (3f - 2f * startupLoadBarAlpha);
     }
 
     private static void renderStartupLoadBar(NVGU vg) {
@@ -347,7 +378,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         float markerX = trackX - markerWidth + (trackWidth + markerWidth * 2f) * phase;
 
         vg.scissor(trackX, trackY, trackWidth, trackHeight, () ->
-                vg.roundedRectangle(markerX, trackY, markerWidth, trackHeight, 3f, new Color(255, 255, 255, 230))
+                vg.roundedRectangle(markerX, trackY, markerWidth, trackHeight, 3f, HOVER_LINE)
         );
     }
 

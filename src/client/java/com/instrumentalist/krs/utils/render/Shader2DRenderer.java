@@ -1,5 +1,6 @@
 package com.instrumentalist.krs.utils.render;
 
+import com.instrumentalist.krs.hacks.features.render.Interface;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL13;
@@ -1855,7 +1856,7 @@ public final class Shader2DRenderer {
                         .put(request.saturation)
                         .put(request.tintStrength)
                         .put(request.brightness);
-                glassParams3.put(clamp(request.shadowOpacity, 0f, 1f))
+                glassParams3.put(glassShadowOpacity(request))
                         .put(Math.max(request.shadowSpread, 0f))
                         .put(request.shadowOffsetY)
                         .put(request.bevelMode);
@@ -1941,11 +1942,17 @@ public final class Shader2DRenderer {
             GL20.glUniform4f(connectedGlass0Uniform, request.radius, zRadius, style.refraction, style.chromAberration);
             GL20.glUniform4f(connectedGlass1Uniform, style.edgeHighlight, style.specular, style.fresnel, style.distortion);
             GL20.glUniform4f(connectedGlass2Uniform, clamp(style.alpha, 0f, 1f), style.saturation, style.tintStrength, style.brightness);
-            GL20.glUniform4f(connectedGlass3Uniform, clamp(style.shadowOpacity, 0f, 1f), Math.max(style.shadowSpread, 0f), style.shadowOffsetY, style.bevelMode);
+            GL20.glUniform4f(connectedGlass3Uniform, glassShadowOpacity(style), Math.max(style.shadowSpread, 0f), style.shadowOffsetY, style.bevelMode);
             GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, 1);
         }
 
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
+    }
+
+    private static float glassShadowOpacity(GlassRequest request) {
+        Float strength = Interface.shadowStrength.get();
+        float scale = strength != null && Float.isFinite(strength) ? Math.max(strength, 0f) : 1f;
+        return clamp(request.shadowOpacity * scale, 0f, 1f);
     }
 
     private static boolean isDrawableConnectedGlassRequest(ConnectedGlassRequest request) {

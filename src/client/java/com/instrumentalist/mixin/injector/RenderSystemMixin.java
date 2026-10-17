@@ -47,7 +47,7 @@ public abstract class RenderSystemMixin implements IMinecraft {
         if (GraphicsApiCompatibility.usesCompatibilityRenderer()) {
             if (Client.nanoVgManager != null
                     && (Client.nanoVgManager.hasQueuedRenderers()
-                    || CustomTitleScreen.shouldRenderStartupLoadBar())) {
+                    || CustomTitleScreen.isStartupLoadBarVisible())) {
                 GraphicsApiCompatibility.renderOffscreenLayer(
                         GraphicsApiCompatibility.Layer.NANO_VG,
                         () -> {

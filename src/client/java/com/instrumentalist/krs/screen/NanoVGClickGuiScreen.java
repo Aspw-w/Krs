@@ -560,7 +560,8 @@ public class NanoVGClickGuiScreen extends Screen {
 
     @Override
     public boolean isPauseScreen() {
-        return false;
+        Screen backgroundScreen = getBackgroundScreen();
+        return backgroundScreen != null && backgroundScreen.isPauseScreen();
     }
 
     @Override
@@ -1049,8 +1050,8 @@ public class NanoVGClickGuiScreen extends Screen {
                                 SWITCH_HEIGHT
                         );
                         float headerNameX = enableRect.x + enableRect.width + u(8f);
-                        NVGFonts.INTER.drawText(
-                                fitText(module.moduleName, NVGFonts.INTER, headerFont, Math.max(u(40f), settingsPanelCloseRect.x - u(8f) - headerNameX)),
+                        NVGFonts.INTER_MEDIUM.drawText(
+                                fitText(module.moduleName, NVGFonts.INTER_MEDIUM, headerFont,Math.max(u(40f), settingsPanelCloseRect.x - u(8f) - headerNameX)),
                                 headerNameX,
                                 settingsPanelRect.y + u(14f),
                                 headerFont,
@@ -1259,7 +1260,8 @@ public class NanoVGClickGuiScreen extends Screen {
             if (selected)
                 selectedRect = rect;
 
-            NVGFonts.INTER.drawText(fitText(category.name(), NVGFonts.INTER, tabFont, rect.width - u(20f)), rect.x + u(12f), rect.y + u(4f), tabFont, selected ? NanoVGTheme.ACCENT : NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+            NVGFont categoryFont = selected ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
+            categoryFont.drawText(fitText(category.name(), categoryFont, tabFont, rect.width - u(20f)), rect.x + u(12f), rect.y + u(4f), tabFont, selected ? NanoVGTheme.ACCENT : NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
         }
 
         float dividerY = y + u(5f) + categories.length * (tabHeight + gap) + u(2f);
@@ -1457,8 +1459,10 @@ public class NanoVGClickGuiScreen extends Screen {
         float nameWidth = Math.max(u(28f), nameRight - nameX);
         if (renaming)
             renderConfigRenameField(vg, config, nameX, row.y, nameWidth, row.height);
-        else
-            NVGFonts.INTER.drawText(fitText(config.name, NVGFonts.INTER, font(14f), nameWidth), nameX, row.y + u(7f), font(14f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+        else {
+            NVGFont nameFont = config.current ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
+            nameFont.drawText(fitText(config.name, nameFont, font(14f), nameWidth), nameX, row.y + u(7f), font(14f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+        }
 
         if (delete != null) {
             boolean deleteHovered = deletable && isHovered(delete);
@@ -1517,7 +1521,8 @@ public class NanoVGClickGuiScreen extends Screen {
         }
 
         float nameMaxWidth = Math.max(u(36f), nameRight - nameX);
-        NVGFonts.INTER.drawText(fitText(module.moduleName, NVGFonts.INTER, font(14f), nameMaxWidth), nameX, row.y + u(7f), font(14f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+        NVGFont nameFont = selected ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
+        nameFont.drawText(fitText(module.moduleName, nameFont, font(14f), nameMaxWidth), nameX, row.y + u(7f), font(14f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
 
         drawSwitch(vg, switchRect.x, switchRect.y, switchRect.width, switchRect.height, enabled, "module-list:" + System.identityHashCode(module), pressedModule == module);
     }
