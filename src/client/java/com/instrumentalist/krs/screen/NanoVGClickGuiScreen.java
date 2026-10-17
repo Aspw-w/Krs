@@ -12,6 +12,7 @@ import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.network.FileUtil;
 import com.instrumentalist.krs.utils.render.NanoVGTheme;
+import com.instrumentalist.krs.utils.render.Shader2DRenderer;
 import com.mojang.blaze3d.platform.cursor.CursorType;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import com.instrumentalist.krs.utils.value.BooleanValue;
@@ -738,6 +739,9 @@ public class NanoVGClickGuiScreen extends Screen {
 
         if (staticFallbackBackdrop)
             renderTitleBackdrop(vg, screenWidth, screenHeight);
+        else if (hasBackgroundScreen())
+            // The background screen may have drawn into this NanoVG frame already; re-capture it for the glass.
+            Shader2DRenderer.INSTANCE.beginFrame();
 
         vg.globalAlpha(easeOut(openProgress), () -> {
             renderPanelEffects(vg, panel.x, panel.y, panel.width, panel.height);

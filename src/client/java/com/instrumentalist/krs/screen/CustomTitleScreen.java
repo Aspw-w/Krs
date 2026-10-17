@@ -354,8 +354,9 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
             float centerY = screenHeight / 2f;
 
             if (!isMinecraftMouseBlocked()) {
-                float targetBgOffsetX = NanoVGManager.toScaledMouseX(mouseX);
-                float targetBgOffsetY = NanoVGManager.toScaledMouseY(mouseY);
+                // Screens drawing this one as their background pass a fake mouse position, so read the real cursor.
+                float targetBgOffsetX = NanoVGManager.toScaledMouseX(mc.mouseHandler.getScaledXPos(mc.getWindow()));
+                float targetBgOffsetY = NanoVGManager.toScaledMouseY(mc.mouseHandler.getScaledYPos(mc.getWindow()));
 
                 bgOffsetX = Interpolation.INSTANCE.lerp(bgOffsetX, targetBgOffsetX, 0.03f);
                 bgOffsetY = Interpolation.INSTANCE.lerp(bgOffsetY, targetBgOffsetY, 0.03f);
@@ -417,7 +418,8 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
             Client.notificationManager.renderNotifications(vg);
         };
 
-        if (mc.gui.screen() == this)
+        // ClickGui draws on top of this screen in the same NanoVG pass, so its glass can see the menu behind it.
+        if (mc.gui.screen() == this || mc.gui.screen() instanceof NanoVGClickGuiScreen)
             Client.nanoVgManager.load(renderer);
         else
             Client.nanoVgManager.loadBeforeGui(renderer);
