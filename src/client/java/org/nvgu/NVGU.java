@@ -24,6 +24,17 @@ import java.util.List;
 import java.util.Map;
 
 import static org.lwjgl.nanovg.NanoVG.*;
+import static org.nvgu.util.TrackedNanoVG.nvgBeginFrame;
+import static org.nvgu.util.TrackedNanoVG.nvgBeginPath;
+import static org.nvgu.util.TrackedNanoVG.nvgCircle;
+import static org.nvgu.util.TrackedNanoVG.nvgFill;
+import static org.nvgu.util.TrackedNanoVG.nvgLineTo;
+import static org.nvgu.util.TrackedNanoVG.nvgMoveTo;
+import static org.nvgu.util.TrackedNanoVG.nvgRect;
+import static org.nvgu.util.TrackedNanoVG.nvgRoundedRectVarying;
+import static org.nvgu.util.TrackedNanoVG.nvgStroke;
+import static org.nvgu.util.TrackedNanoVG.nvgStrokeWidth;
+import static org.nvgu.util.TrackedNanoVG.nvgText;
 import static org.lwjgl.nanovg.NanoVGGL3.*;
 import static org.lwjgl.stb.STBTruetype.*;
 

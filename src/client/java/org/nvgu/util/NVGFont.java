@@ -7,6 +7,9 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import static org.lwjgl.nanovg.NanoVG.*;
+import static org.nvgu.util.TrackedNanoVG.nvgBeginPath;
+import static org.nvgu.util.TrackedNanoVG.nvgFontBlur;
+import static org.nvgu.util.TrackedNanoVG.nvgTextBox;
 
 public class NVGFont {
 

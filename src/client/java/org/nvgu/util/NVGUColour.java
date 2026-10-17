@@ -7,6 +7,8 @@ import java.awt.*;
 import java.awt.color.ColorSpace;
 
 import static org.lwjgl.nanovg.NanoVG.*;
+import static org.nvgu.util.TrackedNanoVG.nvgFill;
+import static org.nvgu.util.TrackedNanoVG.nvgStroke;
 
 public class NVGUColour extends Color {
 

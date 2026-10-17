@@ -1071,6 +1071,11 @@ public final class Shader2DRenderer {
                     float thickness = Math.max(0.75f, request.thickness);
                     float glowRadius = Math.max(0f, request.glowRadius);
                     float halfExtent = size * 0.72f + thickness + glowRadius + 2f;
+                    // The quad is rotated, so its reach is at most the half diagonal.
+                    float reach = halfExtent * 1.4143f;
+                    GraphicsApiCompatibility.markLayerRegion(frameWidth, frameHeight,
+                            request.centerX - reach, request.centerY - reach,
+                            request.centerX + reach, request.centerY + reach);
                     indicatorTransforms.put(request.centerX)
                             .put(request.centerY)
                             .put(halfExtent)
@@ -1166,6 +1171,8 @@ public final class Shader2DRenderer {
             int textureWidth = Math.max(1, (int) Math.ceil(viewportWidth / (float) downscale));
             int textureHeight = Math.max(1, (int) Math.ceil(viewportHeight / (float) downscale));
             float textureRadius = clamp(requestedRadius / downscale, 0f, 24);
+            markSilhouetteRegion(frameWidth, frameHeight, vertices, vertexCount, armorVertices, armorVertexCount,
+                    viewportWidth, viewportHeight, downscale, textureRadius, insetPixels);
 
             ensureSilhouetteTextures(viewportWidth, viewportHeight, textureWidth, textureHeight);
             uploadTriangleBuffer(vertices, vertexCount, triangleVertexBuffer);
@@ -1437,6 +1444,67 @@ public final class Shader2DRenderer {
         return Math.max(1, Math.min(4, (int) Math.ceil(blurRadius / 24)));
     }
 
+    private static void markLayerRect(float frameWidth, float frameHeight, float x, float y, float width, float height) {
+        GraphicsApiCompatibility.markLayerRegion(frameWidth, frameHeight, x, y, x + width, y + height);
+    }
+
+    /**
+     * Reports where the silhouette composite can produce pixels: the triangles
+     * grown by the blur kernel, the bilinear footprint of the downscaled blur
+     * and the inset samples of the composite shader.
+     */
+    private static void markSilhouetteRegion(float frameWidth, float frameHeight,
+                                             FloatBuffer vertices, int vertexCount,
+                                             FloatBuffer armorVertices, int armorVertexCount,
+                                             int viewportWidth, int viewportHeight,
+                                             int downscale, float textureRadius, float insetPixels) {
+        if (!GraphicsApiCompatibility.isRegionTrackingActive())
+            return;
+
+        float[] bounds = {Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY};
+        includeTriangleBounds(vertices, vertexCount, bounds);
+        includeTriangleBounds(armorVertices, armorVertexCount, bounds);
+        if (!(bounds[0] <= bounds[2] && bounds[1] <= bounds[3])) {
+            // NaN coordinates: the rasterized extent is unknown.
+            GraphicsApiCompatibility.markWholeLayer();
+            return;
+        }
+
+        float frameUnitsPerPixel = Math.max(frameWidth / viewportWidth, frameHeight / viewportHeight);
+        float blurReach = (textureRadius + 4f) * downscale * frameUnitsPerPixel;
+        float padding = blurReach + Math.max(insetPixels, 0f) + 2f;
+        GraphicsApiCompatibility.markLayerRegion(frameWidth, frameHeight,
+                bounds[0] - padding, bounds[1] - padding, bounds[2] + padding, bounds[3] + padding);
+    }
+
+    private static void includeTriangleBounds(FloatBuffer vertices, int vertexCount, float[] bounds) {
+        if (vertices == null || vertexCount < 3)
+            return;
+
+        int start = vertices.position();
+        float minX = bounds[0];
+        float minY = bounds[1];
+        float maxX = bounds[2];
+        float maxY = bounds[3];
+        for (int i = 0; i < vertexCount; i++) {
+            int index = start + i * 3;
+            float x = vertices.get(index);
+            float y = vertices.get(index + 1);
+            if (Float.isNaN(x) || Float.isNaN(y)) {
+                bounds[0] = Float.NaN;
+                return;
+            }
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+        }
+        bounds[0] = minX;
+        bounds[1] = minY;
+        bounds[2] = maxX;
+        bounds[3] = maxY;
+    }
+
     private static FloatBuffer directFloatBuffer(float[] values) {
         if (values == null)
             return null;
@@ -1486,6 +1554,14 @@ public final class Shader2DRenderer {
                 float padding = blurRadius + spread + 2f;
                 putRect(
                         effectDrawRects,
+                        request.x + request.offsetX - padding,
+                        request.y + request.offsetY - padding,
+                        request.width + padding * 2f,
+                        request.height + padding * 2f
+                );
+                markLayerRect(
+                        frameWidth,
+                        frameHeight,
                         request.x + request.offsetX - padding,
                         request.y + request.offsetY - padding,
                         request.width + padding * 2f,
@@ -1666,6 +1742,14 @@ public final class Shader2DRenderer {
                         request.width + padding * 2f,
                         request.height + padding * 2f
                 );
+                markLayerRect(
+                        frameWidth,
+                        frameHeight,
+                        request.x - padding,
+                        request.y - padding,
+                        request.width + padding * 2f,
+                        request.height + padding * 2f
+                );
                 putRect(effectBoxRects, request.x, request.y, request.width, request.height);
                 float zRadius = request.zRadius > 0f
                         ? request.zRadius
@@ -1746,6 +1830,7 @@ public final class Shader2DRenderer {
             float padding = glassPadding(style);
             clearEffectBuffers();
             putRect(effectDrawRects, request.minX - padding, request.minY - padding, boundWidth + padding * 2f, boundHeight + padding * 2f);
+            markLayerRect(frameWidth, frameHeight, request.minX - padding, request.minY - padding, boundWidth + padding * 2f, boundHeight + padding * 2f);
             effectDrawRects.flip();
             GL20.glUniform4fv(connectedGlassDrawRectsUniform, effectDrawRects);
 
@@ -1811,6 +1896,7 @@ public final class Shader2DRenderer {
 
             putRect(effectDrawRects, request.x, request.y, request.width, request.height);
             putRect(effectBoxRects, request.x, request.y, request.width, request.height);
+            markLayerRect(frameWidth, frameHeight, request.x, request.y, request.width, request.height);
             effectParams.put(request.radius).put(clamp(request.alpha, 0f, 1f)).put(0f).put(0f);
             batchCount++;
             index++;
