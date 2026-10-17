@@ -4,7 +4,7 @@ import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.utils.GuiInputBlocker;
 import com.instrumentalist.krs.utils.audio.Mp3MusicPlayer;
-import com.instrumentalist.krs.utils.math.Interpolation;
+import com.instrumentalist.krs.hacks.features.render.Interface;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.network.FileUtil;
@@ -54,7 +54,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
     private final MenuButton realmsButton = new MenuButton("Realms");
     private final MenuButton friendsButton = new MenuButton("Friends");
     private final MenuButton optionsButton = new MenuButton("Options");
-    private final MenuButton updateAvailableButton = new MenuButton("Update Here");
+    private final MenuButton updateAvailableButton = new MenuButton("Update");
     private final MenuButton exitButton = new MenuButton("Exit");
     private final List<MenuButton> menuButtons = List.of(
             singlePlayerButton,
@@ -76,6 +76,20 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
 
     public static float bgOffsetX = 0;
     public static float bgOffsetY = 0;
+
+    public static void stepBackgroundParallax(float targetX, float targetY, float amount) {
+        if (!Float.isFinite(targetX) || !Float.isFinite(targetY) || !Float.isFinite(amount))
+            return;
+
+        if (!Float.isFinite(bgOffsetX) || !Float.isFinite(bgOffsetY)) {
+            bgOffsetX = targetX;
+            bgOffsetY = targetY;
+            return;
+        }
+
+        bgOffsetX += (targetX - bgOffsetX) * amount;
+        bgOffsetY += (targetY - bgOffsetY) * amount;
+    }
 
     public CustomTitleScreen(Component title) {
         super(title);
@@ -143,11 +157,12 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         vg.roundedRectangle(state.x - 110f, state.y - 34f, 220f, 38f, NanoVGTheme.RADIUS_PANEL, baseColor);
 
         if (state.animation > 1f) {
-            vg.roundedRectangle(state.x - state.animation, state.y - 2.5f, state.animation * 2f, 3f, 2f, new Color(255, 255, 255, state.hovered ? 230 : 170));
+            Color gradientColor = state.hovered ? new Color(255, 215, 0, 220) : Interface.getFadedColor(0, 1);
+            vg.roundedRectangle(state.x - state.animation, state.y - 2.5f, state.animation * 2f, 3f, 2f, gradientColor);
         }
 
         NVGFont font = state.fontSize > 22f ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
-        font.drawText(state.label, state.x, state.y - 15f - (state.fontSize - 21f), state.fontSize, Color.WHITE, Alignment.CENTER_MIDDLE, true);
+        font.drawText(state.label, state.x, state.y - 15f - (state.fontSize - 21f), state.fontSize, state.hovered ? Color.YELLOW : Color.WHITE, Alignment.CENTER_MIDDLE, true);
     }
 
     private void renderMusicVolumeSlider(NVGU vg, float centerX, float mouseX, float mouseY) {
@@ -354,12 +369,10 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
             float centerY = screenHeight / 2f;
 
             if (!isMinecraftMouseBlocked()) {
-                // Screens drawing this one as their background pass a fake mouse position, so read the real cursor.
                 float targetBgOffsetX = NanoVGManager.toScaledMouseX(mc.mouseHandler.getScaledXPos(mc.getWindow()));
                 float targetBgOffsetY = NanoVGManager.toScaledMouseY(mc.mouseHandler.getScaledYPos(mc.getWindow()));
 
-                bgOffsetX = Interpolation.INSTANCE.lerp(bgOffsetX, targetBgOffsetX, 0.03f);
-                bgOffsetY = Interpolation.INSTANCE.lerp(bgOffsetY, targetBgOffsetY, 0.03f);
+                stepBackgroundParallax(targetBgOffsetX, targetBgOffsetY, 0.03f);
             }
 
             if (ensureTexture(vg, "title_screen", "assets/krs/title.png")) {
@@ -418,7 +431,6 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
             Client.notificationManager.renderNotifications(vg);
         };
 
-        // ClickGui draws on top of this screen in the same NanoVG pass, so its glass can see the menu behind it.
         if (mc.gui.screen() == this || mc.gui.screen() instanceof NanoVGClickGuiScreen)
             Client.nanoVgManager.load(renderer);
         else
@@ -475,7 +487,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
                             mc.gui.setScreen(new OptionsScreen(this, mc.options));
                             return true;
 
-                        case "Update Here":
+                        case "Update":
                             FileUtil.INSTANCE.openInBrowser(RELEASES_URL);
                             return true;
 

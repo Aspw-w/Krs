@@ -591,8 +591,6 @@ public class NanoVGClickGuiScreen extends Screen {
 
     @Override
     public void removed() {
-        // Server-driven screen changes bypass onClose(). Persist the current layout
-        // here as well so reopening ClickGui restores the exact same view state.
         rememberUiState();
         activeSlider = null;
         pressedControl = null;
@@ -740,7 +738,6 @@ public class NanoVGClickGuiScreen extends Screen {
         if (staticFallbackBackdrop)
             renderTitleBackdrop(vg, screenWidth, screenHeight);
         else if (hasBackgroundScreen())
-            // The background screen may have drawn into this NanoVG frame already; re-capture it for the glass.
             Shader2DRenderer.INSTANCE.beginFrame();
 
         vg.globalAlpha(easeOut(openProgress), () -> {
@@ -917,8 +914,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private void renderTitleBackdrop(NVGU vg, float width, float height) {
         if (ensureTexture(vg, "title_screen", "assets/krs/title.png")) {
-            CustomTitleScreen.bgOffsetX = approach(CustomTitleScreen.bgOffsetX, screenMouseX, Math.clamp(0.03f * frameDelta, 0f, 1f));
-            CustomTitleScreen.bgOffsetY = approach(CustomTitleScreen.bgOffsetY, screenMouseY, Math.clamp(0.03f * frameDelta, 0f, 1f));
+            CustomTitleScreen.stepBackgroundParallax(screenMouseX, screenMouseY, Math.clamp(0.03f * frameDelta, 0f, 1f));
 
             vg.texturedRectangle(0f, 0f, width * 2f, height * 2f, "title_screen");
             vg.save();
@@ -1259,10 +1255,11 @@ public class NanoVGClickGuiScreen extends Screen {
             Rect rect = new Rect(x, y + u(5f) + i * (tabHeight + gap), width, tabHeight);
             tabBounds.add(new TabBounds(category, null, rect));
 
-            if (!configView && searchQuery.isBlank() && selectedCategory == category)
+            boolean selected = !configView && searchQuery.isBlank() && selectedCategory == category;
+            if (selected)
                 selectedRect = rect;
 
-            NVGFonts.INTER.drawText(fitText(category.name(), NVGFonts.INTER, tabFont, rect.width - u(20f)), rect.x + u(12f), rect.y + u(4f), tabFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+            NVGFonts.INTER.drawText(fitText(category.name(), NVGFonts.INTER, tabFont, rect.width - u(20f)), rect.x + u(12f), rect.y + u(4f), tabFont, selected ? NanoVGTheme.ACCENT : NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
         }
 
         float dividerY = y + u(5f) + categories.length * (tabHeight + gap) + u(2f);

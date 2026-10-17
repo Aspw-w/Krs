@@ -10,11 +10,9 @@ public final class NanoVGTheme {
     public static final Color BASE = new Color(0x16, 0x16, 0x16);
     public static final Color TEXT = new Color(0xF6, 0xF6, 0xF1);
     public static final Color MUTED = new Color(0xC8, 0xC8, 0xC2);
-    // Softer system-style hues; fully saturated neon reads as a sticker on top of the glass.
     public static final Color DANGER = new Color(0xFF, 0x45, 0x3A);
     public static final Color WARNING = new Color(0xFF, 0x9F, 0x0A);
-    public static final Color ACCENT = new Color(0x64, 0xD2, 0xFF);
-    // One radius scale for every surface: labels < HUD/controls < panels < large menus.
+    public static final Color ACCENT = new Color(0x00, 0xFF, 0xFF);
     public static final float RADIUS_LABEL = 6f;
     public static final float RADIUS_HUD = 8f;
     public static final float RADIUS_PANEL = 12f;
@@ -28,8 +26,8 @@ public final class NanoVGTheme {
     private static final Color PANEL_BOTTOM = new Color(0x16, 0x16, 0x16, 92);
 
     public static final Color COMPACT_BACKGROUND = new Color(0x16, 0x16, 0x16, 78);
-    public static final Color SWITCH_ON = new Color(0x30, 0xD1, 0x58);
-    public static final Color SLIDER_FILL = ACCENT;
+    public static final Color SWITCH_ON = ACCENT;
+    public static final Color SLIDER_FILL = new Color(0x64, 0xD2, 0xFF);
     public static final Color INPUT_FOCUS = new Color(0xEE, 0xF2, 0xF7);
     public static final Color SCROLLBAR_THUMB = new Color(0xEE, 0xF2, 0xF7);
     public static final Color CONTROL_TRACK = new Color(255, 255, 255, 190);
@@ -171,8 +169,6 @@ public final class NanoVGTheme {
         output[3] = exposedCornerRadius(next, left, radius);
     }
 
-    // A corner that sticks out past its neighbour by less than the radius can only round off by that
-    // much; a full radius would cut a notch into the seam between the two rows.
     private static float exposedCornerRadius(ConnectedGlassRect neighbor, float cornerX, float radius) {
         if (neighbor == null)
             return radius;

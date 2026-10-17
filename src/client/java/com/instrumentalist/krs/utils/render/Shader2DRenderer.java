@@ -481,10 +481,6 @@ public final class Shader2DRenderer {
 
     private static String glassLightingFunction() {
         return """
-            // Every light here comes from above. The bevel normal is built from pixel-space gradients
-            // where +y runs down the screen, so it is flipped to y-up before any light term uses it.
-            // thinFade dims the edge light on slivers (e.g. a list row mid-animation) so they do not
-            // turn into a solid bright line.
             vec3 applyGlassLighting(vec3 color, vec4 glass1, float sdf, float edge, float depth,
                                     vec3 normal, float topBias, float thinFade) {
                 float edgeHL = max(glass1.x, 0.0) * thinFade;
@@ -571,10 +567,6 @@ public final class Shader2DRenderer {
                     }
                     sdf = min(sdf, rrVarying(pos, uBoxes[i], uRadii[i]));
                 }
-                // Bridges span the shared columns of neighbouring rows so the seam between them reads as
-                // solid glass instead of an edge. A bridge reaches the far ends of both rows, so its outer
-                // corners inherit those rows' rounding; a square bridge corner would fill in the rounded
-                // ends of the stack (e.g. the top-right corner of a right-aligned module list).
                 for (int i = 0; i < %d; i++) {
                     if (i + 1 >= uBoxCount) {
                         break;
@@ -606,8 +598,6 @@ public final class Shader2DRenderer {
                 return sdf;
             }
 
-            // Thickness of the thickest row under this pixel, so edge light can fade out where only a
-            // sliver row (e.g. one mid-animation) is present. Pixels covered only by a bridge count as thick.
             float rowThickness(vec2 pos) {
                 float thickness = -1.0;
                 for (int i = 0; i < %d; i++) {
@@ -1127,7 +1117,6 @@ public final class Shader2DRenderer {
                     float thickness = Math.max(0.75f, request.thickness);
                     float glowRadius = Math.max(0f, request.glowRadius);
                     float halfExtent = size * 0.72f + thickness + glowRadius + 2f;
-                    // The quad is rotated, so its reach is at most the half diagonal.
                     float reach = halfExtent * 1.4143f;
                     GraphicsApiCompatibility.markLayerRegion(frameWidth, frameHeight,
                             request.centerX - reach, request.centerY - reach,
@@ -1549,17 +1538,11 @@ public final class Shader2DRenderer {
         GraphicsApiCompatibility.markLayerRegion(frameWidth, frameHeight, x, y, x + width, y + height);
     }
 
-    /**
-     * Reports where the silhouette composite can produce pixels: the triangles
-     * grown by the blur kernel, the bilinear footprint of the downscaled blur
-     * and the inset samples of the composite shader.
-     */
     private static void markSilhouetteRegion(float frameWidth, float frameHeight, float[] bounds, float padding) {
         if (!GraphicsApiCompatibility.isRegionTrackingActive())
             return;
 
         if (bounds == null) {
-            // NaN coordinates: the rasterized extent is unknown.
             GraphicsApiCompatibility.markWholeLayer();
             return;
         }
@@ -1779,9 +1762,6 @@ public final class Shader2DRenderer {
             return;
         }
 
-        // A compatibility layer starts transparent, so reading it back would give glass and blur
-        // nothing to refract. Rebuild what OpenGL would have read: the scene with the UI drawn so
-        // far (premultiplied) on top.
         layerCopyTexture.resize(viewportWidth, viewportHeight);
         GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, state.viewportX, state.viewportY, viewportWidth, viewportHeight);
 

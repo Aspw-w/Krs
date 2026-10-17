@@ -2,7 +2,6 @@ package com.instrumentalist.krs.utils.render;
 
 import com.instrumentalist.krs.screen.CustomTitleScreen;
 import com.instrumentalist.krs.utils.GuiInputBlocker;
-import com.instrumentalist.krs.utils.math.Interpolation;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -17,9 +16,6 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
 
-/**
- * Draws assets/krs/title.png (a JPEG, so vanilla's PNG loader cannot read it) as the menu background, with the title screen's mouse parallax.
- */
 public final class TitleBackground {
     private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath("krs", "title_background");
     private static final String PATH = "assets/krs/title.png";
@@ -34,13 +30,11 @@ public final class TitleBackground {
         if (!ensureLoaded() || width <= 0 || height <= 0)
             return false;
 
-        // Same parallax as CustomTitleScreen: the offset is shared and kept in NanoVG units so it carries over between screens.
         Minecraft mc = Minecraft.getInstance();
         if (!GuiInputBlocker.shouldBlockMinecraftMouse()) {
             float targetX = NanoVGManager.toScaledMouseX(mc.mouseHandler.getScaledXPos(mc.getWindow()));
             float targetY = NanoVGManager.toScaledMouseY(mc.mouseHandler.getScaledYPos(mc.getWindow()));
-            CustomTitleScreen.bgOffsetX = Interpolation.INSTANCE.lerp(CustomTitleScreen.bgOffsetX, targetX, 0.03f);
-            CustomTitleScreen.bgOffsetY = Interpolation.INSTANCE.lerp(CustomTitleScreen.bgOffsetY, targetY, 0.03f);
+            CustomTitleScreen.stepBackgroundParallax(targetX, targetY, 0.03f);
         }
 
         float offsetX = CustomTitleScreen.bgOffsetX * width / Math.max(1f, NanoVGManager.getScaledScreenWidth());
