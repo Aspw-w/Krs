@@ -8,6 +8,7 @@ import com.instrumentalist.krs.hacks.features.movement.LongJump;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.hacks.features.render.WidelyPutin;
 import com.instrumentalist.krs.hacks.features.render.Zoom;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Camera;
@@ -112,6 +113,12 @@ public abstract class CameraMixin implements IMinecraft {
         }
 
         move(-getMaxZoom(finalDistance), 0.0F, 0.0F);
+    }
+
+    @ModifyExpressionValue(method = "extractRenderState",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;isSpectator()Z"))
+    private boolean freecamSmartCullHook(boolean original) {
+        return original || ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly();
     }
 
     @ModifyReturnValue(method = "calculateFov", at = @At("RETURN"))

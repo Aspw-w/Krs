@@ -2,7 +2,6 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.level.CaveFinder;
-import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.hacks.features.level.Xray;
 import net.minecraft.client.renderer.chunk.VisGraph;
 import net.minecraft.core.BlockPos;
@@ -17,7 +16,6 @@ public abstract class ChunkOcclusionGraphBuilderMixin {
     @Inject(at = @At("HEAD"), method = "setOpaque(Lnet/minecraft/core/BlockPos;)V", cancellable = true)
     private void chunkOcclusionHook(BlockPos pos, CallbackInfo ci) {
         if (ModuleManager.getModuleState(Xray.class)
-                || ModuleManager.getModuleState(Freecam.class)
                 || CaveFinder.isActive())
             ci.cancel();
     }

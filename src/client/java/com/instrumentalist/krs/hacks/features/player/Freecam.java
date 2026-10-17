@@ -31,8 +31,6 @@ public class Freecam extends Module {
 
     @Override
     public void onDisable() {
-        if (canFly)
-            reloadChunks();
         canFly = false;
     }
 
@@ -46,7 +44,6 @@ public class Freecam extends Module {
         camYaw = player.getYRot();
         camPitch = player.getXRot();
         canFly = true;
-        reloadChunks();
     }
 
     @Override
@@ -105,11 +102,6 @@ public class Freecam extends Module {
     private boolean isKeyDown(KeyMapping key) {
         return InputConstants.isKeyDown(InputConstants.getKey(key.saveString()).getValue()
         );
-    }
-
-    private void reloadChunks() {
-        if (mc.level != null)
-            mc.levelExtractor.allChanged();
     }
 
     public static boolean getCanFly() {

@@ -3,7 +3,6 @@ package com.instrumentalist.mixin.injector;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.level.CaveFinder;
 import com.instrumentalist.krs.hacks.features.level.Xray;
-import com.instrumentalist.krs.hacks.features.player.Freecam;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
@@ -24,7 +23,6 @@ public abstract class SodiumCullTaskMixin {
     )
     private boolean krs$disableChunkOcclusion(boolean original) {
         if (ModuleManager.getModuleState(Xray.class)
-                || ModuleManager.getModuleState(Freecam.class)
                 || CaveFinder.isActive()) {
             return false;
         }
