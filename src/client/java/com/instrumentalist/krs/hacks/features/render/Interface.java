@@ -940,7 +940,7 @@ public class Interface extends Module {
         float visibleChatHeight = visibleLines * chatLineHeight * chatScale;
 
         if (visibleLines == 0f) {
-            return 438f;
+            return 278f;
         }
 
         return (40f + visibleChatHeight) * guiToNanoVgScale - 30f + (16f + 12f);

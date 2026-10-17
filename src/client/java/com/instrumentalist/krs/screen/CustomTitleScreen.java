@@ -80,15 +80,40 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
 
     public static float bgOffsetX = 0;
     public static float bgOffsetY = 0;
+    private static float bgParallaxScreenWidth = -1f;
+    private static float bgParallaxScreenHeight = -1f;
+    private static boolean bgParallaxHoldCenter;
+    private static float bgParallaxHoldMouseX;
+    private static float bgParallaxHoldMouseY;
 
     public static void stepBackgroundParallax(float targetX, float targetY, float amount) {
         if (!Float.isFinite(targetX) || !Float.isFinite(targetY) || !Float.isFinite(amount))
             return;
 
-        if (!Float.isFinite(bgOffsetX) || !Float.isFinite(bgOffsetY)) {
-            bgOffsetX = targetX;
-            bgOffsetY = targetY;
+        float screenWidth = NanoVGManager.getScaledScreenWidth();
+        float screenHeight = NanoVGManager.getScaledScreenHeight();
+        if (!(screenWidth > 0f) || !(screenHeight > 0f))
             return;
+
+        if (screenWidth != bgParallaxScreenWidth || screenHeight != bgParallaxScreenHeight
+                || !Float.isFinite(bgOffsetX) || !Float.isFinite(bgOffsetY)) {
+            bgParallaxScreenWidth = screenWidth;
+            bgParallaxScreenHeight = screenHeight;
+            bgOffsetX = screenWidth / 2f;
+            bgOffsetY = screenHeight / 2f;
+            bgParallaxHoldCenter = true;
+            bgParallaxHoldMouseX = targetX;
+            bgParallaxHoldMouseY = targetY;
+            return;
+        }
+
+        if (bgParallaxHoldCenter) {
+            if (Math.abs(targetX - bgParallaxHoldMouseX) < 0.5f && Math.abs(targetY - bgParallaxHoldMouseY) < 0.5f) {
+                targetX = screenWidth / 2f;
+                targetY = screenHeight / 2f;
+            } else {
+                bgParallaxHoldCenter = false;
+            }
         }
 
         bgOffsetX += (targetX - bgOffsetX) * amount;
