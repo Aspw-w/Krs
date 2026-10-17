@@ -951,7 +951,8 @@ public final class Shader2DRenderer {
     private int silhouetteArmoredLineAlphaUniform = -1;
     private int silhouetteThroughBlockLineAlphaUniform = -1;
 
-    private final RenderTexture sourceTexture = new RenderTexture(false);
+    private final RenderTexture sourceTexture = new RenderTexture(true);
+    private final RenderTexture layerCopyTexture = new RenderTexture(false);
     private final RenderTexture blurPingTexture = new RenderTexture(true);
     private final RenderTexture blurPongTexture = new RenderTexture(true);
     private final RenderTexture silhouetteMaskTexture = new RenderTexture(true);
@@ -1532,12 +1533,7 @@ public final class Shader2DRenderer {
             blurPingTexture.resize(blurWidth, blurHeight);
             blurPongTexture.resize(blurWidth, blurHeight);
 
-            prepareCommonState();
-            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, state.readFramebuffer);
-            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, state.drawFramebuffer);
-            GL13.glActiveTexture(GL13.GL_TEXTURE0);
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, sourceTexture.texture);
-            GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, state.viewportX, state.viewportY, viewportWidth, viewportHeight);
+            captureBackgroundSource(state, viewportWidth, viewportHeight);
 
             sourceCaptured = true;
             blurCacheValid = false;
@@ -1580,6 +1576,44 @@ public final class Shader2DRenderer {
             blurCacheValid = true;
             cachedBlurRadius = blurRadius;
         }
+    }
+
+    private void captureBackgroundSource(GLState state, int viewportWidth, int viewportHeight) {
+        boolean compatibilityLayer = GraphicsApiCompatibility.isLayerActive();
+        if (compatibilityLayer)
+            GraphicsApiCompatibility.requestBackdrop();
+        int backdropTexture = compatibilityLayer ? GraphicsApiCompatibility.getActiveBackdropTexture() : 0;
+
+        prepareCommonState();
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, state.readFramebuffer);
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, state.drawFramebuffer);
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+        if (backdropTexture == 0) {
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, sourceTexture.texture);
+            GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, state.viewportX, state.viewportY, viewportWidth, viewportHeight);
+            return;
+        }
+
+        // A compatibility layer starts transparent, so reading it back would give glass and blur
+        // nothing to refract. Rebuild what OpenGL would have read: the scene with the UI drawn so
+        // far (premultiplied) on top.
+        layerCopyTexture.resize(viewportWidth, viewportHeight);
+        GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, state.viewportX, state.viewportY, viewportWidth, viewportHeight);
+
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, sourceTexture.framebuffer);
+        GL11.glViewport(0, 0, viewportWidth, viewportHeight);
+        GL11.glColorMask(true, true, true, true);
+        GL11.glClearColor(0f, 0f, 0f, 1f);
+        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
+        GL11.glDisable(GL11.GL_BLEND);
+        GL11.glColorMask(true, true, true, false);
+        renderBlurPass(backdropTexture, sourceTexture.framebuffer, viewportWidth, viewportHeight, 0f, 1f, 0f);
+        GL11.glColorMask(true, true, true, true);
+        GL11.glEnable(GL11.GL_BLEND);
+        GL20.glBlendEquationSeparate(GL14.GL_FUNC_ADD, GL14.GL_FUNC_ADD);
+        GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        renderBlurPass(layerCopyTexture.texture, sourceTexture.framebuffer, viewportWidth, viewportHeight, 0f, 1f, 0f);
+        GL11.glDisable(GL11.GL_BLEND);
     }
 
     private void drawGlassRequests(float frameWidth, float frameHeight, GLState state, List<GlassRequest> requests) {
@@ -1943,6 +1977,7 @@ public final class Shader2DRenderer {
         }
 
         sourceTexture.destroy();
+        layerCopyTexture.destroy();
         blurPingTexture.destroy();
         blurPongTexture.destroy();
         silhouetteMaskTexture.destroy();

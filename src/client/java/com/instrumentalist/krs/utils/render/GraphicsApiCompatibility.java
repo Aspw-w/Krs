@@ -59,27 +59,37 @@ public final class GraphicsApiCompatibility {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final float MAX_SCALED_LAYER_PIXEL_RATIO = 2.0f;
     private static final long CONTINUOUS_LAYER_TIMEOUT_NANOS = 100_000_000L;
-    private static final int TRANSFER_SLOT_COUNT = 2;
+    private static final int TRANSFER_SLOT_COUNT = 3;
     private static final int TRANSFER_FREE = 0;
     private static final int TRANSFER_COPYING = 1;
     private static final int TRANSFER_READY = 2;
     private static final int TRANSFER_GPU_IN_FLIGHT = 3;
     private static final int FALLBACK_REFRESH_RATE = 120;
     private static final long REFRESH_RATE_CACHE_NANOS = 1_000_000_000L;
+    private static final int BACKDROP_SLOT_COUNT = 3;
+    private static final int BACKDROP_FREE = 0;
+    private static final int BACKDROP_IN_FLIGHT = 1;
+    private static final int BACKDROP_READY = 2;
+    private static final long BACKDROP_REQUEST_TIMEOUT_NANOS = 1_000_000_000L;
+    private static final long BACKDROP_MAX_AGE_NANOS = 500_000_000L;
+    private static final long BACKDROP_HALF_RESOLUTION_PIXELS = 2_000_000L;
 
     public enum Layer {
-        NANO_VG(true, -1),
-        NANO_VG_BEFORE_GUI(true, -1),
-        NANO_VG_IMMEDIATE(true, -1),
-        ESP(true, 0),
-        IMGUI(false, -1);
+        NANO_VG(true, -1, false),
+        NANO_VG_BEFORE_GUI(true, -1, false),
+        NANO_VG_IMMEDIATE(true, -1, false),
+        // World-anchored: a frame that arrives late is drawn against a newer camera.
+        ESP(true, 0, true),
+        IMGUI(false, -1, false);
 
         private final boolean scaled;
         private final int maximumFramesPerSecond;
+        private final boolean synchronous;
 
-        Layer(boolean scaled, int maximumFramesPerSecond) {
+        Layer(boolean scaled, int maximumFramesPerSecond, boolean synchronous) {
             this.scaled = scaled;
             this.maximumFramesPerSecond = maximumFramesPerSecond;
+            this.synchronous = synchronous;
         }
     }
 
@@ -92,11 +102,22 @@ public final class GraphicsApiCompatibility {
             .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
             .build();
 
+    private static final RenderPipeline BACKDROP_PIPELINE = RenderPipeline.builder()
+            .withLocation(Identifier.fromNamespaceAndPath("krs", "pipeline/legacy_ui_backdrop"))
+            .withVertexShader("core/screenquad")
+            .withFragmentShader("core/blit_screen")
+            .withBindGroupLayout(BindGroupLayouts.IN_SAMPLER)
+            .withColorTargetState(ColorTargetState.DEFAULT)
+            .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+            .build();
+
     private static boolean initialized;
     private static boolean compatibilityRenderer;
     private static boolean layerActive;
     private static int activeLayerWidth;
     private static int activeLayerHeight;
+    private static LayerCache activeLayerCache;
+    private static int activeBackdropTexture;
 
     private static long offscreenWindow;
     private static long offscreenContext;
@@ -149,6 +170,27 @@ public final class GraphicsApiCompatibility {
         return activeLayerHeight;
     }
 
+    /**
+     * Returns an OpenGL texture holding Minecraft's main target as it looked
+     * before the active layer is composited, or {@code 0} when none is
+     * available yet. Compatibility layers start transparent, so effects that
+     * sample the screen behind them (blur, liquid glass) need this instead of
+     * the layer framebuffer. The capture is asynchronous and may be a frame or
+     * two old.
+     */
+    public static int getActiveBackdropTexture() {
+        return layerActive ? activeBackdropTexture : 0;
+    }
+
+    /**
+     * Marks the active layer as sampling the screen behind it. Backdrop
+     * captures continue while a layer keeps requesting them.
+     */
+    public static void requestBackdrop() {
+        if (layerActive && activeLayerCache != null)
+            activeLayerCache.backdrop.lastRequestNanos = System.nanoTime();
+    }
+
     public static void runWithOpenGlContext(Runnable action) {
         if (action == null)
             return;
@@ -190,17 +232,27 @@ public final class GraphicsApiCompatibility {
         renderOffscreenLayer(layer, renderer, null);
     }
 
+    public static void renderOffscreenLayer(Layer layer, Runnable renderer, Runnable skipped) {
+        renderOffscreenLayer(layer, renderer, skipped, false);
+    }
+
     /**
      * Renders a cached compatibility layer. UI layers follow the active
-     * display refresh rate at a maximum device-pixel ratio of two. ESP requests
-     * every game frame so camera transforms cannot outpace its cached image.
-     * The asynchronous transfer queue applies backpressure when either GPU is
+     * display refresh rate at a maximum device-pixel ratio of two. The
+     * asynchronous transfer queue applies backpressure when either GPU is
      * unable to keep up.
      *
-     * @param skipped invoked instead of {@code renderer} when a cached frame is
-     *                reused; queue-backed renderers use this to drop stale work
+     * <p>Synchronous frames are rendered, read back and uploaded within the
+     * current game frame. Anything projected from the world (ESP, name tags)
+     * must use them: an asynchronous frame reaches the screen a few frames
+     * late and visibly trails the camera while it turns or bobs.</p>
+     *
+     * @param skipped     invoked instead of {@code renderer} when a cached frame is
+     *                    reused; queue-backed renderers use this to drop stale work
+     * @param synchronous forces this frame to be synchronous for layers that are
+     *                    not synchronous by default
      */
-    public static void renderOffscreenLayer(Layer layer, Runnable renderer, Runnable skipped) {
+    public static void renderOffscreenLayer(Layer layer, Runnable renderer, Runnable skipped, boolean synchronous) {
         if (renderer == null)
             return;
         if (!usesCompatibilityRenderer()) {
@@ -237,29 +289,92 @@ public final class GraphicsApiCompatibility {
             invalidateLayerCache(cache);
 
         reclaimGpuTransfers(cache);
-        uploadNewestReadyTransfer(cache);
-
-        long updateIntervalNanos = getUpdateIntervalNanos(layer, now);
-        boolean update = updateIntervalNanos == 0L
-                || cache.nextRenderNanos == 0L
-                || now >= cache.nextRenderNanos;
 
         OpenGlFramebuffer glFramebuffer = layer.scaled ? SCALED_FRAMEBUFFER : NATIVE_FRAMEBUFFER;
         boolean rendered = false;
-        if (update) {
-            boolean[] issued = new boolean[1];
-            runWithOpenGlContext(() -> issued[0] = advanceReadbackPipeline(
-                    glFramebuffer, cache, width, height, renderer
-            ));
-            rendered = issued[0];
-            if (rendered)
-                scheduleNextRender(cache, now, updateIntervalNanos);
+        if (synchronous || layer.synchronous) {
+            renderSynchronousFrame(glFramebuffer, cache, width, height, renderer);
+            rendered = true;
+        } else {
+            uploadNewestReadyTransfer(cache);
+
+            long updateIntervalNanos = getUpdateIntervalNanos(layer, now);
+            boolean update = updateIntervalNanos == 0L
+                    || cache.nextRenderNanos == 0L
+                    || now >= cache.nextRenderNanos;
+
+            if (update) {
+                boolean[] issued = new boolean[1];
+                runWithOpenGlContext(() -> issued[0] = advanceReadbackPipeline(
+                        glFramebuffer, cache, width, height, renderer
+                ));
+                rendered = issued[0];
+                if (rendered)
+                    scheduleNextRender(cache, now, updateIntervalNanos);
+            }
         }
 
         if (!rendered && skipped != null)
             skipped.run();
 
+        // Capture before compositing so the backdrop never contains this layer.
+        if (rendered)
+            captureBackdropIfRequested(target, cache, width, height);
+
         compositeCachedLayer(target, cache, width, height);
+    }
+
+    private static void renderSynchronousFrame(OpenGlFramebuffer glFramebuffer, LayerCache cache,
+                                               int width, int height, Runnable renderer) {
+        // Frames still in the asynchronous pipeline are older than this one.
+        cache.generation++;
+        TransferSlot transfer = acquireSynchronousTransferSlot(cache);
+        runWithOpenGlContext(() -> {
+            ensureOpenGlFramebuffer(glFramebuffer, width, height);
+            renderAndReadSynchronously(glFramebuffer, cache, transfer, width, height, renderer);
+        });
+
+        transfer.sequence = ++cache.nextSequence;
+        transfer.generation = cache.generation;
+        transfer.state = TRANSFER_READY;
+        uploadNewestReadyTransfer(cache);
+    }
+
+    private static TransferSlot acquireSynchronousTransferSlot(LayerCache cache) {
+        releaseStaleReadyTransfers(cache);
+        TransferSlot slot = findFreeTransferSlot(cache);
+        if (slot != null)
+            return slot;
+
+        TransferSlot oldest = null;
+        for (TransferSlot candidate : cache.transferSlots) {
+            if (candidate.state == TRANSFER_GPU_IN_FLIGHT && (oldest == null || candidate.sequence < oldest.sequence))
+                oldest = candidate;
+        }
+        if (oldest != null) {
+            if (oldest.gpuFence != null) {
+                oldest.gpuFence.awaitCompletion(GpuFence.NO_TIMEOUT);
+                oldest.gpuFence.close();
+                oldest.gpuFence = null;
+            }
+            oldest.state = TRANSFER_FREE;
+            return oldest;
+        }
+
+        // Only worker copies started by an earlier asynchronous frame remain.
+        awaitWorkerCopies(cache);
+        releaseStaleReadyTransfers(cache);
+        slot = findFreeTransferSlot(cache);
+        if (slot == null)
+            throw new IllegalStateException("No compatibility transfer slot became available");
+        return slot;
+    }
+
+    private static void releaseStaleReadyTransfers(LayerCache cache) {
+        for (TransferSlot slot : cache.transferSlots) {
+            if (slot.state == TRANSFER_READY && slot.generation != cache.generation)
+                slot.state = TRANSFER_FREE;
+        }
     }
 
     private static long getUpdateIntervalNanos(Layer layer, long now) {
@@ -422,30 +537,68 @@ public final class GraphicsApiCompatibility {
         return true;
     }
 
+    private static void renderLayerContents(OpenGlFramebuffer target, LayerCache cache,
+                                            int width, int height, Runnable renderer) {
+        uploadReadyBackdrop(cache.backdrop);
+
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, target.framebuffer);
+        GL11.glViewport(0, 0, width, height);
+        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        GL11.glColorMask(true, true, true, true);
+        GL11.glDepthMask(true);
+        GL11.glStencilMask(0xFF);
+        GL11.glClearColor(0f, 0f, 0f, 0f);
+        GL11.glClearDepth(1.0);
+        GL11.glClearStencil(0);
+        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_STENCIL_BUFFER_BIT);
+
+        layerActive = true;
+        activeLayerWidth = width;
+        activeLayerHeight = height;
+        activeLayerCache = cache;
+        activeBackdropTexture = usableBackdropTexture(cache.backdrop);
+        try {
+            renderer.run();
+        } finally {
+            layerActive = false;
+            activeLayerWidth = 0;
+            activeLayerHeight = 0;
+            activeLayerCache = null;
+            activeBackdropTexture = 0;
+        }
+
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, target.framebuffer);
+    }
+
+    private static void renderAndReadSynchronously(OpenGlFramebuffer target, LayerCache cache, TransferSlot transfer,
+                                                   int width, int height, Runnable renderer) {
+        try {
+            renderLayerContents(target, cache, width, height, renderer);
+
+            int packAlignment = GL11.glGetInteger(GL11.GL_PACK_ALIGNMENT);
+            int packRowLength = GL11.glGetInteger(GL12.GL_PACK_ROW_LENGTH);
+            int pixelPackBuffer = GL11.glGetInteger(GL21.GL_PIXEL_PACK_BUFFER_BINDING);
+            try {
+                GL15.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, 0);
+                GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
+                GL11.glPixelStorei(GL12.GL_PACK_ROW_LENGTH, 0);
+                // Only waits for this context's own UI work, never for Minecraft's GPU queue.
+                GL11.nglReadPixels(0, 0, width, height, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE,
+                        MemoryUtil.memAddress(transfer.mapping.data()));
+            } finally {
+                GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, packAlignment);
+                GL11.glPixelStorei(GL12.GL_PACK_ROW_LENGTH, packRowLength);
+                GL15.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, pixelPackBuffer);
+            }
+        } finally {
+            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
+        }
+    }
+
     private static void renderAndQueueReadback(OpenGlFramebuffer target, LayerCache cache, ReadbackSlot slot,
                                                int width, int height, Runnable renderer) {
-        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, target.framebuffer);
         try {
-            GL11.glViewport(0, 0, width, height);
-            GL11.glDisable(GL11.GL_SCISSOR_TEST);
-            GL11.glColorMask(true, true, true, true);
-            GL11.glDepthMask(true);
-            GL11.glStencilMask(0xFF);
-            GL11.glClearColor(0f, 0f, 0f, 0f);
-            GL11.glClearDepth(1.0);
-            GL11.glClearStencil(0);
-            GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_STENCIL_BUFFER_BIT);
-
-            layerActive = true;
-            activeLayerWidth = width;
-            activeLayerHeight = height;
-            try {
-                renderer.run();
-            } finally {
-                layerActive = false;
-                activeLayerWidth = 0;
-                activeLayerHeight = 0;
-            }
+            renderLayerContents(target, cache, width, height, renderer);
 
             int packAlignment = GL11.glGetInteger(GL11.GL_PACK_ALIGNMENT);
             int packRowLength = GL11.glGetInteger(GL12.GL_PACK_ROW_LENGTH);
@@ -465,11 +618,174 @@ public final class GraphicsApiCompatibility {
                 GL15.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, pixelPackBuffer);
             }
         } finally {
-            layerActive = false;
-            activeLayerWidth = 0;
-            activeLayerHeight = 0;
             GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
         }
+    }
+
+    private static void captureBackdropIfRequested(RenderTarget target, LayerCache cache, int width, int height) {
+        Backdrop backdrop = cache.backdrop;
+        long now = System.nanoTime();
+        if (backdrop.lastRequestNanos == 0L || now - backdrop.lastRequestNanos > BACKDROP_REQUEST_TIMEOUT_NANOS)
+            return;
+
+        BackdropSlot slot = null;
+        for (BackdropSlot candidate : backdrop.slots) {
+            if (candidate.state == BACKDROP_FREE) {
+                slot = candidate;
+                break;
+            }
+        }
+        if (slot == null)
+            return;
+
+        // Glass mostly samples the blurred copy, so large targets are captured at half size.
+        int divisor = (long) width * height >= BACKDROP_HALF_RESOLUTION_PIXELS ? 2 : 1;
+        int captureWidth = Math.max(1, width / divisor);
+        int captureHeight = Math.max(1, height / divisor);
+        GpuDevice device = RenderSystem.getDevice();
+        if (backdrop.texture == null || backdrop.texture.isClosed()
+                || backdrop.textureWidth != captureWidth || backdrop.textureHeight != captureHeight) {
+            destroyBackdropTexture(backdrop);
+            backdrop.texture = device.createTexture(
+                    "Krs legacy UI backdrop",
+                    GpuTexture.USAGE_RENDER_ATTACHMENT | GpuTexture.USAGE_COPY_SRC,
+                    GpuFormat.RGBA8_UNORM,
+                    captureWidth,
+                    captureHeight,
+                    1,
+                    1
+            );
+            backdrop.textureView = device.createTextureView(backdrop.texture);
+            backdrop.textureWidth = captureWidth;
+            backdrop.textureHeight = captureHeight;
+        }
+        if (slot.buffer == null || slot.buffer.isClosed()
+                || slot.width != captureWidth || slot.height != captureHeight) {
+            if (slot.buffer != null)
+                slot.buffer.close();
+            slot.buffer = device.createBuffer(
+                    () -> "Krs legacy UI backdrop readback",
+                    GpuBuffer.USAGE_MAP_READ | GpuBuffer.USAGE_COPY_DST,
+                    (long) captureWidth * captureHeight * 4L
+            );
+            slot.width = captureWidth;
+            slot.height = captureHeight;
+        }
+
+        CommandEncoder encoder = device.createCommandEncoder();
+        try (RenderPass pass = encoder.createRenderPass(() -> "Krs legacy UI backdrop", backdrop.textureView, Optional.empty())) {
+            pass.setPipeline(RenderSystem.getCompiledPipeline(BACKDROP_PIPELINE));
+            pass.setUniform("InSampler", target.getColorTextureView(),
+                    RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+            pass.draw(3, 1, 0, 0);
+        }
+
+        BackdropSlot capture = slot;
+        capture.state = BACKDROP_IN_FLIGHT;
+        capture.capturedNanos = now;
+        capture.sequence = ++backdrop.nextSequence;
+        encoder.copyTextureToBuffer(backdrop.texture, capture.buffer, 0L, () -> capture.state = BACKDROP_READY, 0);
+    }
+
+    private static void uploadReadyBackdrop(Backdrop backdrop) {
+        BackdropSlot newest = null;
+        for (BackdropSlot slot : backdrop.slots) {
+            if (slot.state != BACKDROP_READY)
+                continue;
+            if (newest == null || slot.sequence > newest.sequence) {
+                if (newest != null)
+                    newest.state = BACKDROP_FREE;
+                newest = slot;
+            } else {
+                slot.state = BACKDROP_FREE;
+            }
+        }
+        if (newest == null)
+            return;
+
+        int textureBinding = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        int unpackAlignment = GL11.glGetInteger(GL11.GL_UNPACK_ALIGNMENT);
+        int unpackRowLength = GL11.glGetInteger(GL12.GL_UNPACK_ROW_LENGTH);
+        int pixelUnpackBuffer = GL11.glGetInteger(GL21.GL_PIXEL_UNPACK_BUFFER_BINDING);
+        try (GpuBufferSlice.MappedView view = newest.buffer.map(true, false)) {
+            GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, 0);
+            GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+            GL11.glPixelStorei(GL12.GL_UNPACK_ROW_LENGTH, 0);
+            if (backdrop.glTexture == 0) {
+                backdrop.glTexture = GL11.glGenTextures();
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, backdrop.glTexture);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+            } else {
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, backdrop.glTexture);
+            }
+
+            // Buffer rows use the same bottom-up order as OpenGL textures.
+            if (backdrop.glWidth != newest.width || backdrop.glHeight != newest.height) {
+                GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, newest.width, newest.height, 0,
+                        GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, view.data());
+                backdrop.glWidth = newest.width;
+                backdrop.glHeight = newest.height;
+            } else {
+                GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, newest.width, newest.height,
+                        GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, view.data());
+            }
+            backdrop.glCapturedNanos = newest.capturedNanos;
+        } catch (RuntimeException exception) {
+            logTransferFailure(exception);
+        } finally {
+            GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, unpackAlignment);
+            GL11.glPixelStorei(GL12.GL_UNPACK_ROW_LENGTH, unpackRowLength);
+            GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, pixelUnpackBuffer);
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureBinding);
+            newest.state = BACKDROP_FREE;
+        }
+    }
+
+    private static int usableBackdropTexture(Backdrop backdrop) {
+        if (backdrop.glTexture == 0 || backdrop.glCapturedNanos == 0L)
+            return 0;
+        // A stale capture (e.g. after the layer was idle) would show the wrong scene.
+        return System.nanoTime() - backdrop.glCapturedNanos <= BACKDROP_MAX_AGE_NANOS ? backdrop.glTexture : 0;
+    }
+
+    private static void destroyBackdropTexture(Backdrop backdrop) {
+        if (backdrop.textureView != null) {
+            backdrop.textureView.close();
+            backdrop.textureView = null;
+        }
+        if (backdrop.texture != null) {
+            backdrop.texture.close();
+            backdrop.texture = null;
+        }
+        backdrop.textureWidth = 0;
+        backdrop.textureHeight = 0;
+    }
+
+    private static void destroyBackdropResources(Backdrop backdrop) {
+        destroyBackdropTexture(backdrop);
+        for (BackdropSlot slot : backdrop.slots) {
+            if (slot.buffer != null) {
+                slot.buffer.close();
+                slot.buffer = null;
+            }
+            slot.width = 0;
+            slot.height = 0;
+            slot.state = BACKDROP_FREE;
+        }
+        backdrop.lastRequestNanos = 0L;
+    }
+
+    private static void destroyBackdropOpenGlTexture(Backdrop backdrop) {
+        if (backdrop.glTexture != 0) {
+            GL11.glDeleteTextures(backdrop.glTexture);
+            backdrop.glTexture = 0;
+        }
+        backdrop.glWidth = 0;
+        backdrop.glHeight = 0;
+        backdrop.glCapturedNanos = 0L;
     }
 
     private static void dispatchLatestCompletedReadback(LayerCache cache) {
@@ -833,8 +1149,10 @@ public final class GraphicsApiCompatibility {
 
         if (compatibilityRenderer && offscreenWindow != 0L) {
             runWithOpenGlContext(() -> {
-                for (LayerCache cache : LAYER_CACHES.values())
+                for (LayerCache cache : LAYER_CACHES.values()) {
                     destroyReadbackResources(cache);
+                    destroyBackdropOpenGlTexture(cache.backdrop);
+                }
                 destroyOpenGlFramebuffer(SCALED_FRAMEBUFFER);
                 destroyOpenGlFramebuffer(NATIVE_FRAMEBUFFER);
             });
@@ -844,6 +1162,7 @@ public final class GraphicsApiCompatibility {
         for (LayerCache cache : LAYER_CACHES.values()) {
             destroyTransferResources(cache);
             destroyUploadTextures(cache);
+            destroyBackdropResources(cache.backdrop);
         }
         LAYER_CACHES.clear();
         if (executor != null)
@@ -858,6 +1177,8 @@ public final class GraphicsApiCompatibility {
         layerActive = false;
         activeLayerWidth = 0;
         activeLayerHeight = 0;
+        activeLayerCache = null;
+        activeBackdropTexture = 0;
         initialized = false;
     }
 
@@ -963,7 +1284,36 @@ public final class GraphicsApiCompatibility {
         private volatile int state = TRANSFER_FREE;
     }
 
+    private static final class BackdropSlot {
+        private GpuBuffer buffer;
+        private int width;
+        private int height;
+        private long sequence;
+        private long capturedNanos;
+        private volatile int state = BACKDROP_FREE;
+    }
+
+    private static final class Backdrop {
+        private final BackdropSlot[] slots = new BackdropSlot[BACKDROP_SLOT_COUNT];
+        private GpuTexture texture;
+        private GpuTextureView textureView;
+        private int textureWidth;
+        private int textureHeight;
+        private int glTexture;
+        private int glWidth;
+        private int glHeight;
+        private long glCapturedNanos;
+        private long nextSequence;
+        private long lastRequestNanos;
+
+        private Backdrop() {
+            for (int index = 0; index < BACKDROP_SLOT_COUNT; index++)
+                slots[index] = new BackdropSlot();
+        }
+    }
+
     private static final class LayerCache {
+        private final Backdrop backdrop = new Backdrop();
         private final ReadbackSlot[] readbackSlots = new ReadbackSlot[TRANSFER_SLOT_COUNT];
         private final TransferSlot[] transferSlots = new TransferSlot[TRANSFER_SLOT_COUNT];
         private final GpuTexture[] textures = new GpuTexture[TRANSFER_SLOT_COUNT];

@@ -54,7 +54,8 @@ public abstract class RenderSystemMixin implements IMinecraft {
                             Client.nanoVgManager.renderQueued();
                             CustomTitleScreen.renderStartupLoadBarIfNeeded(Client.nanoVgManager);
                         },
-                        Client.nanoVgManager::discardRenderQueue
+                        Client.nanoVgManager::discardRenderQueue,
+                        Client.nanoVgManager.hasWorldAnchoredRenderers()
                 );
             }
         } else if (Client.nanoVgManager != null) {

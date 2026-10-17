@@ -218,7 +218,7 @@ public class PlayerIndicator extends Module {
             return;
         }
 
-        Client.nanoVgManager.load(vg -> vg.globalAlpha(INDICATOR_OPACITY, () -> renderIndicators(vg)));
+        Client.nanoVgManager.loadWorldAnchored(vg -> vg.globalAlpha(INDICATOR_OPACITY, () -> renderIndicators(vg)));
     }
 
     private void renderIndicators(NVGU vg) {

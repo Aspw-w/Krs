@@ -40,6 +40,7 @@ public class NanoVGManager implements IMinecraft {
     private final ByteBuffer colourWriteMask = BufferUtils.createByteBuffer(4);
     private long lastQueueOverflowLogNanos;
     private int droppedRenderers;
+    private boolean worldAnchoredQueued;
 
     public static float getUiScale() {
         int guiScale = mc.getWindow().getGuiScale();
@@ -93,6 +94,27 @@ public class NanoVGManager implements IMinecraft {
         }
     }
 
+    /**
+     * Queues a renderer whose positions are projected from the world this
+     * frame (name tags, indicators). On non-OpenGL backends such frames are
+     * composited synchronously so they cannot trail the camera.
+     */
+    public void loadWorldAnchored(Consumer<NVGU> vg) {
+        if (vg == null)
+            return;
+
+        synchronized (renderQueueLock) {
+            worldAnchoredQueued = true;
+        }
+        load(vg);
+    }
+
+    public boolean hasWorldAnchoredRenderers() {
+        synchronized (renderQueueLock) {
+            return worldAnchoredQueued;
+        }
+    }
+
     public void loadBeforeGui(Consumer<NVGU> vg) {
         if (vg == null)
             return;
@@ -120,6 +142,7 @@ public class NanoVGManager implements IMinecraft {
             renderQueue = frameRenderQueue;
             frameRenderQueue = pendingRenderers;
             renderQueue.clear();
+            worldAnchoredQueued = false;
         }
         if (frameRenderQueue.isEmpty()) return;
 
@@ -232,6 +255,7 @@ public class NanoVGManager implements IMinecraft {
         synchronized (renderQueueLock) {
             renderQueue.clear();
             frameRenderQueue.clear();
+            worldAnchoredQueued = false;
         }
     }
 
@@ -241,6 +265,7 @@ public class NanoVGManager implements IMinecraft {
 
     private void clearQueues() {
         synchronized (renderQueueLock) {
+            worldAnchoredQueued = false;
             renderQueue.clear();
             frameRenderQueue.clear();
             beforeGuiRenderQueue.clear();

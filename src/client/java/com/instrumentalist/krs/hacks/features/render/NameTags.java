@@ -95,7 +95,7 @@ public class NameTags extends Module {
         }
         if (data.isEmpty()) return;
 
-        Client.nanoVgManager.load(vg -> {
+        Client.nanoVgManager.loadWorldAnchored(vg -> {
             ArrayList<NameTagRenderEntry> entries = renderEntryBuffer;
             entries.clear();
             int entryIndex = 0;
