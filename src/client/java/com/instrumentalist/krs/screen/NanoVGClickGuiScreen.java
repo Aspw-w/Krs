@@ -1772,7 +1772,7 @@ public class NanoVGClickGuiScreen extends Screen {
                     vg.globalAlpha(finalOptionProgress, () -> {
                         if (selected)
                             renderListRowMark(vg, optionChip);
-                        drawWrappedListOption(option, optionChip.x + u(12f), optionChip.y + u(4f) + textOffset, optionChip.width - u(18f));
+                        drawWrappedListOption(option, optionChip.x + u(12f), optionChip.y + u(4f) + textOffset, optionChip.width - u(18f), selected);
                     });
                 }
                 optionY += optionHeight;
@@ -3645,16 +3645,17 @@ public class NanoVGClickGuiScreen extends Screen {
         return Math.max(u(20f), u(4f) + lines * u(14f) + u(3f));
     }
 
-    private void drawWrappedListOption(String option, float x, float y, float maxWidth) {
+    private void drawWrappedListOption(String option, float x, float y, float maxWidth, boolean selected) {
         float size = font(11f);
         float lineHeight = u(14f);
+        NVGFont optionFont = selected ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
         List<String> lines = wrapListOption(option, maxWidth);
         for (int i = 0; i < lines.size(); i++)
-            NVGFonts.INTER.drawText(lines.get(i), x, y + i * lineHeight, size, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+            optionFont.drawText(lines.get(i), x, y + i * lineHeight, size, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
     }
 
     private static List<String> wrapListOption(String option, float maxWidth) {
-        return wrapTextToWidth(option == null ? "" : option, NVGFonts.INTER, font(11f), Math.max(u(20f), maxWidth));
+        return wrapTextToWidth(option == null ? "" : option, NVGFonts.INTER_MEDIUM, font(11f), Math.max(u(20f), maxWidth));
     }
 
     private float wrappedSettingRowHeight(String label, float maxWidth) {
