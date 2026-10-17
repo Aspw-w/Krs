@@ -143,20 +143,20 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
         float swing = Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
 
         switch (OldHitting.mode.get().toLowerCase(Locale.ROOT)) {
-            case "dash" -> {
-                this.applyFirstPersonItem(matrices, arm, equipProgress / 1.7F, 0.0F);
-
-                this.applyMirroredAxisRotation(matrices, arm, -swing * 22.0F, swing / 2.0F, 0.0F, 9.0F);
-                this.applyMirroredAxisRotation(matrices, arm, -swing * 50.0F, 0.8F, swing / 2.0F, 0.0F);
-
-                this.applyBlockTransformation(matrices, arm);
-            }
-
             case "push" -> {
                 this.applyFirstPersonItem(matrices, arm, equipProgress / 2.0F, 0.0F);
 
                 this.applyMirroredAxisRotation(matrices, arm, -swing * 40.0F / 2.0F, swing / 2.0F, 1.0F, 4.0F);
                 this.applyMirroredAxisRotation(matrices, arm, -swing * 30.0F, 1.0F, swing / 3.0F, 0.0F);
+
+                this.applyBlockTransformation(matrices, arm);
+            }
+
+            case "dash" -> {
+                this.applyFirstPersonItem(matrices, arm, equipProgress / 1.7F, 0.0F);
+
+                this.applyMirroredAxisRotation(matrices, arm, -swing * 22.0F, swing / 2.0F, 0.0F, 9.0F);
+                this.applyMirroredAxisRotation(matrices, arm, -swing * 50.0F, 0.8F, swing / 2.0F, 0.0F);
 
                 this.applyBlockTransformation(matrices, arm);
             }
@@ -170,11 +170,30 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
                 this.applyBlockTransformation(matrices, arm);
             }
 
+            case "swank" -> {
+                this.applyFirstPersonItem(matrices, arm, equipProgress / 2.0F, swingProgress);
+
+                this.applyMirroredAxisRotation(matrices, arm, swing * 30.0F / 2.0F, -swing, 0.0F, 9.0F);
+                this.applyMirroredAxisRotation(matrices, arm, swing * 40.0F, 1.0F, -swing / 2.0F, 0.0F);
+
+                this.applyBlockTransformation(matrices, arm);
+            }
+
             case "swonk" -> {
                 this.applyFirstPersonItem(matrices, arm, equipProgress / 1.6F, 0.0F);
 
                 this.applyMirroredAxisRotation(matrices, arm, -swing * -30.0F / 2.0F, swing / 2.0F, 1.0F, 4.0F);
                 this.applyMirroredAxisRotation(matrices, arm, -swing * 7.5F, 1.0F, swing / 3.0F, 0.0F);
+
+                this.applyBlockTransformation(matrices, arm);
+            }
+
+            case "ethr" -> {
+                matrices.translate((arm == HumanoidArm.RIGHT ? 1 : -1) * -0.08F, 0.1F, 0.0F);
+                this.applyFirstPersonItem(matrices, arm, equipProgress / 1.4F, 0.0F);
+
+                this.applyMirroredAxisRotation(matrices, arm, -swing * 65.0F / 2.0F, swing / 2.0F, 1.0F, 4.0F);
+                this.applyMirroredAxisRotation(matrices, arm, -swing * 60.0F, 1.0F, swing / 3.0F, 0.0F);
 
                 this.applyBlockTransformation(matrices, arm);
             }

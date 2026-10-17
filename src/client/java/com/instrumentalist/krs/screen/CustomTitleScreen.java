@@ -10,6 +10,7 @@ import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.network.FileUtil;
 import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
 import com.instrumentalist.krs.utils.render.NanoVGTheme;
+import com.instrumentalist.krs.utils.render.Shader2DRenderer;
 import com.mojang.blaze3d.platform.cursor.CursorType;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import com.mojang.realmsclient.RealmsMainScreen;
@@ -130,9 +131,19 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
             Client.configManager.setMainMenuMusicFrame(frame, true);
     }
 
+    public static void resetBackgroundState() {
+        bgParallaxScreenWidth = -1f;
+        bgParallaxScreenHeight = -1f;
+        bgParallaxHoldCenter = false;
+        mc.mouseHandler.resyncMousePosition();
+        mc.mouseHandler.setIgnoreFirstMove();
+        Shader2DRenderer.INSTANCE.invalidateBackdrop();
+    }
+
     @Override
     public void added() {
         super.added();
+        resetBackgroundState();
         syncMainMenuMusicVolume();
         MAIN_MENU_MUSIC.playLoop();
     }

@@ -20,7 +20,7 @@ import java.util.Locale;
 public class OldHitting extends Module {
 
     @Setting
-    public static final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "Push", "Dash", "Swang", "Swonk"}, "Vanilla");
+    public static final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "Push", "Dash", "Swang", "Swank", "Swonk", "Ethr"}, "Vanilla");
 
     @Setting
     private static final ListValue thirdPersonMode = new ListValue("Third Person Mode", new String[]{"Vanilla", "Legacy Vanilla"}, "Legacy Vanilla");

@@ -1048,6 +1048,14 @@ public final class Shader2DRenderer {
         blurCacheValid = false;
     }
 
+    public void invalidateBackdrop() {
+        sourceCaptured = false;
+        blurCacheValid = false;
+        cachedBlurWidth = 0;
+        cachedBlurHeight = 0;
+        cachedBlurRadius = -1f;
+    }
+
     public void drawBlurredRoundedRect(float frameWidth, float frameHeight, float x, float y, float width, float height, float radius, float blurRadius, float alpha) {
         reusableSingleBlurRequest.set(x, y, width, height, radius, blurRadius, alpha);
         drawBlurredRoundedRects(frameWidth, frameHeight, singleBlurRequest);
