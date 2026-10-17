@@ -153,6 +153,7 @@ public class NanoVGClickGuiScreen extends Screen {
     private Rect settingsPanelScrollbarTrackRect = new Rect(0f, 0f, 0f, 0f);
     private Rect settingsPanelScrollbarThumbRect = new Rect(0f, 0f, 0f, 0f);
     private TextFocus textFocus = TextFocus.NONE;
+    private boolean textInputActive;
     private TextValue focusedTextValue;
     private Module focusedTextModule;
     private SettingValue<?> focusedNumberValue;
@@ -227,7 +228,17 @@ public class NanoVGClickGuiScreen extends Screen {
         screenMouseY = NanoVGManager.toScaledMouseY(mouseY);
         updateScaledMouse();
         context.requestCursor(resolveHoverCursor());
+        syncTextInput();
         Client.nanoVgManager.load(nanoVgRenderer);
+    }
+
+    private void syncTextInput() {
+        boolean wantsTextInput = textFocus != TextFocus.NONE;
+        if (wantsTextInput == textInputActive || minecraft == null)
+            return;
+
+        textInputActive = wantsTextInput;
+        minecraft.onTextInputFocusChange(this, wantsTextInput);
     }
 
     @Override
@@ -590,6 +601,7 @@ public class NanoVGClickGuiScreen extends Screen {
         bindingModule = null;
         bindingValue = null;
         clearTextFocus();
+        syncTextInput();
         resetHoverCursor();
         super.removed();
     }
