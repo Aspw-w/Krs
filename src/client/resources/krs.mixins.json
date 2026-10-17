@@ -29,6 +29,7 @@
     "EntityRenderDispatcherMixin",
     "EntityRendererMixin",
     "FireworkRocketEntityMixin",
+    "FrontendCommandEncoderMixin",
     "FirstPersonHandsAndItemsMixin",
     "GameRendererMixin",
     "GlBackendMixin",

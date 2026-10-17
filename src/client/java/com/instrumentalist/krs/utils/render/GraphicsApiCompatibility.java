@@ -36,7 +36,9 @@ import org.lwjgl.system.MemoryUtil;
 import org.slf4j.Logger;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -73,6 +75,9 @@ public final class GraphicsApiCompatibility {
     private static final long BACKDROP_REQUEST_TIMEOUT_NANOS = 1_000_000_000L;
     private static final long BACKDROP_MAX_AGE_NANOS = 500_000_000L;
     private static final long BACKDROP_HALF_RESOLUTION_PIXELS = 2_000_000L;
+    private static final long DEFERRED_FILL_WAIT_NANOS = 1_000_000_000L;
+    private static final int PARALLEL_COPY_MIN_BYTES = 1 << 20;
+    private static final int PARALLEL_COPY_CHUNKS = 3;
 
     public enum Layer {
         NANO_VG(true, -1, false),
@@ -126,6 +131,9 @@ public final class GraphicsApiCompatibility {
     private static final OpenGlFramebuffer SCALED_FRAMEBUFFER = new OpenGlFramebuffer();
     private static final OpenGlFramebuffer NATIVE_FRAMEBUFFER = new OpenGlFramebuffer();
     private static final Map<Layer, LayerCache> LAYER_CACHES = new EnumMap<>(Layer.class);
+    // Synchronous frames whose GPU upload is already recorded but whose staging data is still
+    // being read back by OpenGL. They are filled right before Minecraft submits the frame.
+    private static final List<TransferSlot> PENDING_FILLS = new ArrayList<>();
     private static ExecutorService transferExecutor;
     private static long lastTransferFailureLogNanos;
     private static long refreshRateCacheExpiresNanos;
@@ -245,7 +253,11 @@ public final class GraphicsApiCompatibility {
      * <p>Synchronous frames are rendered, read back and uploaded within the
      * current game frame. Anything projected from the world (ESP, name tags)
      * must use them: an asynchronous frame reaches the screen a few frames
-     * late and visibly trails the camera while it turns or bobs.</p>
+     * late and visibly trails the camera while it turns or bobs. The upload
+     * and composite are recorded immediately, while the readback runs on the
+     * OpenGL context and only has to land in the staging buffer before the
+     * frame is submitted (see {@link #completeDeferredReadbacks()}), so the
+     * render thread does not stall on the OpenGL GPU queue.</p>
      *
      * @param skipped     invoked instead of {@code renderer} when a cached frame is
      *                    reused; queue-backed renderers use this to drop stale work
@@ -331,13 +343,115 @@ public final class GraphicsApiCompatibility {
         TransferSlot transfer = acquireSynchronousTransferSlot(cache);
         runWithOpenGlContext(() -> {
             ensureOpenGlFramebuffer(glFramebuffer, width, height);
-            renderAndReadSynchronously(glFramebuffer, cache, transfer, width, height, renderer);
+            renderAndQueueDeferredReadback(glFramebuffer, cache, transfer, width, height, renderer);
         });
 
         transfer.sequence = ++cache.nextSequence;
         transfer.generation = cache.generation;
         transfer.state = TRANSFER_READY;
+        // The GPU copy only reads the staging buffer when the frame executes,
+        // so it can be recorded before the pixels arrive.
         uploadNewestReadyTransfer(cache);
+    }
+
+    /**
+     * Copies the pixels of every synchronous frame recorded since the last
+     * submit into their staging buffers. Must run before the GPU frame that
+     * uploads them is submitted.
+     */
+    public static void completeDeferredReadbacks() {
+        if (PENDING_FILLS.isEmpty())
+            return;
+
+        try {
+            runWithOpenGlContext(() -> {
+                int previousBuffer = GL11.glGetInteger(GL21.GL_PIXEL_PACK_BUFFER_BINDING);
+                try {
+                    for (TransferSlot slot : PENDING_FILLS)
+                        fillDeferredReadback(slot);
+                } finally {
+                    GL15.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, previousBuffer);
+                }
+            });
+        } finally {
+            PENDING_FILLS.clear();
+        }
+    }
+
+    private static void fillDeferredReadback(TransferSlot slot) {
+        long fence = slot.readbackFence;
+        slot.readbackFence = 0L;
+        if (fence == 0L || slot.mapping == null || slot.pixelPackBuffer == 0)
+            return;
+
+        try {
+            int status;
+            do {
+                status = GL32.glClientWaitSync(fence, GL32.GL_SYNC_FLUSH_COMMANDS_BIT, DEFERRED_FILL_WAIT_NANOS);
+            } while (status == GL32.GL_TIMEOUT_EXPIRED);
+            if (status == GL32.GL_WAIT_FAILED) {
+                logTransferFailure(new IllegalStateException("OpenGL failed to wait for a compatibility readback fence"));
+                return;
+            }
+        } finally {
+            GL32.glDeleteSync(fence);
+        }
+
+        int byteCount = slot.pixelPackBufferSize;
+        GL15.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, slot.pixelPackBuffer);
+        ByteBuffer mapped = GL30.glMapBufferRange(GL21.GL_PIXEL_PACK_BUFFER, 0L, byteCount, GL30.GL_MAP_READ_BIT);
+        if (mapped == null) {
+            logTransferFailure(new IllegalStateException("Could not map a synchronous OpenGL compatibility readback"));
+            return;
+        }
+        try {
+            copyMemoryParallel(MemoryUtil.memAddress(mapped), MemoryUtil.memAddress(slot.mapping.data()), byteCount);
+        } finally {
+            if (!GL15.glUnmapBuffer(GL21.GL_PIXEL_PACK_BUFFER))
+                logTransferFailure(new IllegalStateException("OpenGL compatibility readback data became corrupt"));
+        }
+    }
+
+    private static void copyMemoryParallel(long source, long destination, int byteCount) {
+        ExecutorService executor = transferExecutor;
+        if (executor == null || byteCount < PARALLEL_COPY_MIN_BYTES) {
+            MemoryUtil.memCopy(source, destination, byteCount);
+            return;
+        }
+
+        // Cache-line aligned chunks; the render thread copies the first one itself.
+        int chunk = ((byteCount / PARALLEL_COPY_CHUNKS) + 63) & ~63;
+        List<Future<?>> tasks = new ArrayList<>(PARALLEL_COPY_CHUNKS - 1);
+        List<long[]> ranges = new ArrayList<>(PARALLEL_COPY_CHUNKS - 1);
+        for (int offset = chunk; offset < byteCount; offset += chunk) {
+            long start = offset;
+            long length = Math.min(chunk, byteCount - offset);
+            try {
+                tasks.add(executor.submit(() -> MemoryUtil.memCopy(source + start, destination + start, length)));
+            } catch (RejectedExecutionException exception) {
+                tasks.add(null);
+            }
+            ranges.add(new long[]{start, length});
+        }
+
+        MemoryUtil.memCopy(source, destination, Math.min(chunk, byteCount));
+        for (int index = 0; index < tasks.size(); index++) {
+            Future<?> task = tasks.get(index);
+            long[] range = ranges.get(index);
+            // Workers may be busy with asynchronous layers; never wait behind them.
+            if (task == null || task.cancel(false)) {
+                MemoryUtil.memCopy(source + range[0], destination + range[0], range[1]);
+                continue;
+            }
+            try {
+                task.get();
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                MemoryUtil.memCopy(source + range[0], destination + range[0], range[1]);
+            } catch (Exception exception) {
+                MemoryUtil.memCopy(source + range[0], destination + range[0], range[1]);
+            }
+        }
     }
 
     private static TransferSlot acquireSynchronousTransferSlot(LayerCache cache) {
@@ -570,8 +684,8 @@ public final class GraphicsApiCompatibility {
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, target.framebuffer);
     }
 
-    private static void renderAndReadSynchronously(OpenGlFramebuffer target, LayerCache cache, TransferSlot transfer,
-                                                   int width, int height, Runnable renderer) {
+    private static void renderAndQueueDeferredReadback(OpenGlFramebuffer target, LayerCache cache, TransferSlot transfer,
+                                                       int width, int height, Runnable renderer) {
         try {
             renderLayerContents(target, cache, width, height, renderer);
 
@@ -579,12 +693,24 @@ public final class GraphicsApiCompatibility {
             int packRowLength = GL11.glGetInteger(GL12.GL_PACK_ROW_LENGTH);
             int pixelPackBuffer = GL11.glGetInteger(GL21.GL_PIXEL_PACK_BUFFER_BINDING);
             try {
-                GL15.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, 0);
+                if (transfer.pixelPackBuffer == 0 || transfer.pixelPackBufferSize != cache.byteCount) {
+                    if (transfer.pixelPackBuffer == 0)
+                        transfer.pixelPackBuffer = GL15.glGenBuffers();
+                    GL15.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, transfer.pixelPackBuffer);
+                    GL15.glBufferData(GL21.GL_PIXEL_PACK_BUFFER, cache.byteCount, GL15.GL_STREAM_READ);
+                    transfer.pixelPackBufferSize = cache.byteCount;
+                }
+                GL15.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, transfer.pixelPackBuffer);
                 GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
                 GL11.glPixelStorei(GL12.GL_PACK_ROW_LENGTH, 0);
-                // Only waits for this context's own UI work, never for Minecraft's GPU queue.
-                GL11.nglReadPixels(0, 0, width, height, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE,
-                        MemoryUtil.memAddress(transfer.mapping.data()));
+                // Asynchronous DMA into the PBO; completed before submit by completeDeferredReadbacks.
+                GL11.glReadPixels(0, 0, width, height, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, 0L);
+                if (transfer.readbackFence != 0L)
+                    GL32.glDeleteSync(transfer.readbackFence);
+                transfer.readbackFence = GL32.glFenceSync(GL32.GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+                GL11.glFlush();
+                if (!PENDING_FILLS.contains(transfer))
+                    PENDING_FILLS.add(transfer);
             } finally {
                 GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, packAlignment);
                 GL11.glPixelStorei(GL12.GL_PACK_ROW_LENGTH, packRowLength);
@@ -981,6 +1107,8 @@ public final class GraphicsApiCompatibility {
     }
 
     private static void resetLayerCache(LayerCache cache, int width, int height) {
+        // Uploads recorded this frame still read the staging buffers about to be destroyed.
+        completeDeferredReadbacks();
         awaitWorkerCopies(cache);
         runWithOpenGlContext(() -> destroyReadbackResources(cache));
         destroyTransferResources(cache);
@@ -1165,6 +1293,7 @@ public final class GraphicsApiCompatibility {
             destroyBackdropResources(cache.backdrop);
         }
         LAYER_CACHES.clear();
+        PENDING_FILLS.clear();
         if (executor != null)
             executor.shutdownNow();
 
@@ -1217,6 +1346,18 @@ public final class GraphicsApiCompatibility {
                 slot.copyComplete = false;
                 slot.sequence = 0L;
                 slot.generation = 0L;
+            }
+            for (TransferSlot slot : cache.transferSlots) {
+                PENDING_FILLS.remove(slot);
+                if (slot.readbackFence != 0L) {
+                    GL32.glDeleteSync(slot.readbackFence);
+                    slot.readbackFence = 0L;
+                }
+                if (slot.pixelPackBuffer != 0) {
+                    GL15.glDeleteBuffers(slot.pixelPackBuffer);
+                    slot.pixelPackBuffer = 0;
+                }
+                slot.pixelPackBufferSize = 0;
             }
         } finally {
             GL15.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, previousBuffer);
@@ -1279,6 +1420,9 @@ public final class GraphicsApiCompatibility {
         private GpuBuffer buffer;
         private GpuBufferSlice.MappedView mapping;
         private GpuFence gpuFence;
+        private int pixelPackBuffer;
+        private int pixelPackBufferSize;
+        private long readbackFence;
         private long sequence;
         private long generation;
         private volatile int state = TRANSFER_FREE;
