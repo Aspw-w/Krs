@@ -1171,8 +1171,31 @@ public final class Shader2DRenderer {
             int textureWidth = Math.max(1, (int) Math.ceil(viewportWidth / (float) downscale));
             int textureHeight = Math.max(1, (int) Math.ceil(viewportHeight / (float) downscale));
             float textureRadius = clamp(requestedRadius / downscale, 0f, 24);
-            markSilhouetteRegion(frameWidth, frameHeight, vertices, vertexCount, armorVertices, armorVertexCount,
-                    viewportWidth, viewportHeight, downscale, textureRadius, insetPixels);
+            float[] bounds = silhouetteBounds(vertices, vertexCount, armorVertices, armorVertexCount);
+            float padding = silhouettePadding(frameWidth, frameHeight, viewportWidth, viewportHeight, downscale, textureRadius, insetPixels);
+            markSilhouetteRegion(frameWidth, frameHeight, bounds, padding);
+
+            float regionU0 = 0f;
+            float regionV0 = 0f;
+            float regionU1 = 1f;
+            float regionV1 = 1f;
+            if (bounds != null) {
+                regionU0 = clamp((bounds[0] - padding) / frameWidth, 0f, 1f);
+                regionU1 = clamp((bounds[2] + padding) / frameWidth, 0f, 1f);
+                regionV0 = clamp(1f - (bounds[3] + padding) / frameHeight, 0f, 1f);
+                regionV1 = clamp(1f - (bounds[1] - padding) / frameHeight, 0f, 1f);
+                if (regionU0 >= regionU1 || regionV0 >= regionV1)
+                    return;
+            }
+            int insetTexelsX = (int) Math.ceil(Math.max(0f, insetPixels) / frameWidth * textureWidth) + 2;
+            int insetTexelsY = (int) Math.ceil(Math.max(0f, insetPixels) / frameHeight * textureHeight) + 2;
+            int radiusTexels = (int) Math.ceil(textureRadius) + 2;
+            int pongX0 = Math.max(0, (int) Math.floor(regionU0 * textureWidth) - insetTexelsX);
+            int pongX1 = Math.min(textureWidth, (int) Math.ceil(regionU1 * textureWidth) + insetTexelsX);
+            int pongY0 = Math.max(0, (int) Math.floor(regionV0 * textureHeight) - insetTexelsY);
+            int pongY1 = Math.min(textureHeight, (int) Math.ceil(regionV1 * textureHeight) + insetTexelsY);
+            int pingY0 = Math.max(0, pongY0 - radiusTexels);
+            int pingY1 = Math.min(textureHeight, pongY1 + radiusTexels);
 
             ensureSilhouetteTextures(viewportWidth, viewportHeight, textureWidth, textureHeight);
             uploadTriangleBuffer(vertices, vertexCount, triangleVertexBuffer);
@@ -1183,9 +1206,13 @@ public final class Shader2DRenderer {
             renderSelfDepthMask(frameWidth, frameHeight, triangleVertexBuffer, vertexCount, viewportWidth, viewportHeight, reversedDepth);
             renderArmorDepthMask(frameWidth, frameHeight, triangleArmorVertexBuffer, armorVertexCount, viewportWidth, viewportHeight, reversedDepth);
             renderOccludedSilhouetteMask(frameWidth, frameHeight, triangleVertexBuffer, vertexCount, triangleArmorVertexBuffer, armorVertexCount, viewportWidth, viewportHeight, reversedDepth, sourceDepthTexture);
+            enableScissor(pongX0, pingY0, pongX1 - pongX0, pingY1 - pingY0);
             renderBlurPass(silhouetteMaskTexture.texture, silhouetteBlurPingTexture.framebuffer, textureWidth, textureHeight, textureRadius, 1f, 0f);
+            enableScissor(pongX0, pongY0, pongX1 - pongX0, pongY1 - pongY0);
             renderBlurPass(silhouetteBlurPingTexture.texture, silhouetteBlurPongTexture.framebuffer, textureWidth, textureHeight, textureRadius, 0f, 1f);
-            drawSilhouetteComposite(renderState, frameWidth, frameHeight, Math.max(0f, insetPixels), clamp(lineAlpha, 0f, 1f), clamp(armoredLineAlpha, 0f, 1f), clamp(throughBlockLineAlpha, 0f, 1f), color);
+            GL11.glDisable(GL11.GL_SCISSOR_TEST);
+            drawSilhouetteComposite(renderState, frameWidth, frameHeight, Math.max(0f, insetPixels), clamp(lineAlpha, 0f, 1f), clamp(armoredLineAlpha, 0f, 1f), clamp(throughBlockLineAlpha, 0f, 1f), color,
+                    regionU0, regionV0, regionU1, regionV1);
         } finally {
             state.restore();
         }
@@ -1258,6 +1285,12 @@ public final class Shader2DRenderer {
     }
 
     private void ensureSilhouetteTextures(int maskWidth, int maskHeight, int blurWidth, int blurHeight) {
+        if (silhouetteMaskTexture.framebuffer != 0
+                && silhouetteMaskTexture.width == maskWidth && silhouetteMaskTexture.height == maskHeight
+                && silhouetteBlurPongTexture.framebuffer != 0
+                && silhouetteBlurPongTexture.width == blurWidth && silhouetteBlurPongTexture.height == blurHeight)
+            return;
+
         silhouetteMaskTexture.resize(maskWidth, maskHeight);
         silhouetteArmorMaskTexture.resize(maskWidth, maskHeight);
         silhouetteOccludedMaskTexture.resize(maskWidth, maskHeight);
@@ -1394,11 +1427,17 @@ public final class Shader2DRenderer {
         GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, vertexCount);
     }
 
-    private void drawSilhouetteComposite(GLState state, float frameWidth, float frameHeight, float insetPixels, float lineAlpha, float armoredLineAlpha, float throughBlockLineAlpha, Color color) {
+    private void drawSilhouetteComposite(GLState state, float frameWidth, float frameHeight, float insetPixels, float lineAlpha, float armoredLineAlpha, float throughBlockLineAlpha, Color color,
+                                         float regionU0, float regionV0, float regionU1, float regionV1) {
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, state.drawFramebuffer);
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, state.readFramebuffer);
         GL11.glViewport(state.viewportX, state.viewportY, state.viewportWidth, state.viewportHeight);
         prepareCommonState();
+        int scissorX0 = (int) Math.floor(regionU0 * state.viewportWidth);
+        int scissorY0 = (int) Math.floor(regionV0 * state.viewportHeight);
+        int scissorX1 = (int) Math.ceil(regionU1 * state.viewportWidth);
+        int scissorY1 = (int) Math.ceil(regionV1 * state.viewportHeight);
+        enableScissor(state.viewportX + scissorX0, state.viewportY + scissorY0, scissorX1 - scissorX0, scissorY1 - scissorY0);
         GL11.glEnable(GL11.GL_BLEND);
         GL20.glBlendEquationSeparate(GL14.GL_FUNC_ADD, GL14.GL_FUNC_ADD);
         GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
@@ -1434,7 +1473,13 @@ public final class Shader2DRenderer {
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, silhouetteOccludedMaskTexture.texture);
         GL30.glBindVertexArray(vertexArray);
         GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 6);
+        GL11.glDisable(GL11.GL_SCISSOR_TEST);
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
+    }
+
+    private static void enableScissor(int x, int y, int width, int height) {
+        GL11.glEnable(GL11.GL_SCISSOR_TEST);
+        GL11.glScissor(x, y, Math.max(0, width), Math.max(0, height));
     }
 
     private static int silhouetteDownscale(float blurRadius) {
@@ -1453,28 +1498,36 @@ public final class Shader2DRenderer {
      * grown by the blur kernel, the bilinear footprint of the downscaled blur
      * and the inset samples of the composite shader.
      */
-    private static void markSilhouetteRegion(float frameWidth, float frameHeight,
-                                             FloatBuffer vertices, int vertexCount,
-                                             FloatBuffer armorVertices, int armorVertexCount,
-                                             int viewportWidth, int viewportHeight,
-                                             int downscale, float textureRadius, float insetPixels) {
+    private static void markSilhouetteRegion(float frameWidth, float frameHeight, float[] bounds, float padding) {
         if (!GraphicsApiCompatibility.isRegionTrackingActive())
             return;
 
-        float[] bounds = {Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY};
-        includeTriangleBounds(vertices, vertexCount, bounds);
-        includeTriangleBounds(armorVertices, armorVertexCount, bounds);
-        if (!(bounds[0] <= bounds[2] && bounds[1] <= bounds[3])) {
+        if (bounds == null) {
             // NaN coordinates: the rasterized extent is unknown.
             GraphicsApiCompatibility.markWholeLayer();
             return;
         }
 
-        float frameUnitsPerPixel = Math.max(frameWidth / viewportWidth, frameHeight / viewportHeight);
-        float blurReach = (textureRadius + 4f) * downscale * frameUnitsPerPixel;
-        float padding = blurReach + Math.max(insetPixels, 0f) + 2f;
         GraphicsApiCompatibility.markLayerRegion(frameWidth, frameHeight,
                 bounds[0] - padding, bounds[1] - padding, bounds[2] + padding, bounds[3] + padding);
+    }
+
+    private static float silhouettePadding(float frameWidth, float frameHeight, int viewportWidth, int viewportHeight,
+                                           int downscale, float textureRadius, float insetPixels) {
+        float frameUnitsPerPixel = Math.max(frameWidth / viewportWidth, frameHeight / viewportHeight);
+        float blurReach = (textureRadius + 4f) * downscale * frameUnitsPerPixel;
+        return blurReach + Math.max(insetPixels, 0f) + 2f;
+    }
+
+    private static float[] silhouetteBounds(FloatBuffer vertices, int vertexCount,
+                                            FloatBuffer armorVertices, int armorVertexCount) {
+        float[] bounds = {Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY};
+        includeTriangleBounds(vertices, vertexCount, bounds);
+        includeTriangleBounds(armorVertices, armorVertexCount, bounds);
+        if (!(bounds[0] <= bounds[2] && bounds[1] <= bounds[3]))
+            return null;
+
+        return bounds;
     }
 
     private static void includeTriangleBounds(FloatBuffer vertices, int vertexCount, float[] bounds) {
@@ -2736,6 +2789,7 @@ public final class Shader2DRenderer {
         private final boolean cullFace;
         private final boolean scissorTest;
         private final boolean depthMask;
+        private final int[] scissorBox;
 
         private GLState(
                 int activeTexture,
@@ -2768,7 +2822,8 @@ public final class Shader2DRenderer {
                 boolean depthTest,
                 boolean cullFace,
                 boolean scissorTest,
-                boolean depthMask
+                boolean depthMask,
+                int[] scissorBox
         ) {
             this.activeTexture = activeTexture;
             this.textureBinding = textureBinding;
@@ -2801,6 +2856,7 @@ public final class Shader2DRenderer {
             this.cullFace = cullFace;
             this.scissorTest = scissorTest;
             this.depthMask = depthMask;
+            this.scissorBox = scissorBox;
         }
 
         private static GLState capture() {
@@ -2823,6 +2879,7 @@ public final class Shader2DRenderer {
             int viewportY;
             int viewportWidth;
             int viewportHeight;
+            int[] scissorBox = new int[4];
             try (MemoryStack stack = MemoryStack.stackPush()) {
                 IntBuffer viewport = stack.mallocInt(4);
                 GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
@@ -2830,6 +2887,9 @@ public final class Shader2DRenderer {
                 viewportY = viewport.get(1);
                 viewportWidth = viewport.get(2);
                 viewportHeight = viewport.get(3);
+                IntBuffer scissor = stack.mallocInt(4);
+                GL11.glGetIntegerv(GL11.GL_SCISSOR_BOX, scissor);
+                scissor.get(scissorBox);
             }
 
             return new GLState(
@@ -2863,7 +2923,8 @@ public final class Shader2DRenderer {
                     GL11.glIsEnabled(GL11.GL_DEPTH_TEST),
                     GL11.glIsEnabled(GL11.GL_CULL_FACE),
                     GL11.glIsEnabled(GL11.GL_SCISSOR_TEST),
-                    GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK)
+                    GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK),
+                    scissorBox
             );
         }
 
@@ -2899,7 +2960,8 @@ public final class Shader2DRenderer {
                     depthTest,
                     cullFace,
                     scissorTest,
-                    depthMask
+                    depthMask,
+                    scissorBox
             );
         }
 
@@ -2911,6 +2973,7 @@ public final class Shader2DRenderer {
             GL11.glDepthFunc(depthFunc);
             restoreCapability(GL11.GL_CULL_FACE, cullFace);
             restoreCapability(GL11.GL_SCISSOR_TEST, scissorTest);
+            GL11.glScissor(scissorBox[0], scissorBox[1], scissorBox[2], scissorBox[3]);
             GL11.glDepthMask(depthMask);
             GL11.glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
             GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, readFramebuffer);
