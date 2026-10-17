@@ -299,14 +299,14 @@ public class PlayerIndicator extends Module {
         for (IndicatorData data : placedIndicators) {
             if (!data.labelVisible)
                 continue;
-            NanoVGTheme.renderCompactEffects(vg, data.labelX, data.labelY, data.labelWidth, data.labelHeight, 5f, 1f);
+            NanoVGTheme.renderCompactEffects(vg, data.labelX, data.labelY, data.labelWidth, data.labelHeight, NanoVGTheme.RADIUS_LABEL, 1f);
         }
         vg.flushEffectBatch();
 
         for (IndicatorData data : placedIndicators) {
             if (!data.labelVisible)
                 continue;
-            NanoVGTheme.renderCompact(vg, data.labelX, data.labelY, data.labelWidth, data.labelHeight, 5f, 1f);
+            NanoVGTheme.renderCompact(vg, data.labelX, data.labelY, data.labelWidth, data.labelHeight, NanoVGTheme.RADIUS_LABEL, 1f);
             vg.roundedRectangle(data.labelX + 3f, data.labelY + 3f, 2f, data.labelHeight - 6f, 1f, withAlpha(data.drawColor, 210));
             NVGFonts.INTER_MEDIUM.drawText(
                     data.label,

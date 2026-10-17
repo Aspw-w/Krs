@@ -140,7 +140,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
 
     private void renderUiButton(NVGU vg, MenuButton state) {
         Color baseColor = state.hovered ? BUTTON_HOVERED : BUTTON_IDLE;
-        vg.roundedRectangle(state.x - 110f, state.y - 34f, 220f, 38f, 14f, baseColor);
+        vg.roundedRectangle(state.x - 110f, state.y - 34f, 220f, 38f, NanoVGTheme.RADIUS_PANEL, baseColor);
 
         if (state.animation > 1f) {
             vg.roundedRectangle(state.x - state.animation, state.y - 2.5f, state.animation * 2f, 3f, 2f, new Color(255, 255, 255, state.hovered ? 230 : 170));
@@ -320,10 +320,10 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         float trackHeight = 5f;
 
         vg.beginEffectBatch();
-        NanoVGTheme.renderPanelEffects(vg, panelX, panelY, panelWidth, panelHeight, 14f, 1f);
+        NanoVGTheme.renderPanelEffects(vg, panelX, panelY, panelWidth, panelHeight, NanoVGTheme.RADIUS_PANEL, 1f);
         vg.flushEffectBatch();
 
-        NanoVGTheme.renderPanel(vg, panelX, panelY, panelWidth, panelHeight, 14f, 1f);
+        NanoVGTheme.renderPanel(vg, panelX, panelY, panelWidth, panelHeight, NanoVGTheme.RADIUS_PANEL, 1f);
         NVGFonts.INTER_MEDIUM.drawText("Loading", panelX + 22f, panelY + 12f, 15f, new Color(255, 255, 255, 230), Alignment.LEFT_TOP, true);
         vg.roundedRectangle(trackX, trackY, trackWidth, trackHeight, 3f, NanoVGTheme.base(90));
 
@@ -384,14 +384,14 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
             float iconSize = 80f;
 
             vg.beginEffectBatch();
-            NanoVGTheme.renderPanelEffects(vg, menuX, menuY, menuWidth, menuHeight, 18f, 1f);
-            NanoVGTheme.renderPanelEffects(vg, iconX, iconY, iconSize, iconSize, 16f, 1f);
+            NanoVGTheme.renderPanelEffects(vg, menuX, menuY, menuWidth, menuHeight, NanoVGTheme.RADIUS_MENU, 1f);
+            NanoVGTheme.renderPanelEffects(vg, iconX, iconY, iconSize, iconSize, NanoVGTheme.RADIUS_MENU, 1f);
             vg.flushEffectBatch();
 
-            NanoVGTheme.renderPanel(vg, menuX, menuY, menuWidth, menuHeight, 18f, 1f);
-            NanoVGTheme.renderPanel(vg, iconX, iconY, iconSize, iconSize, 16f, 1f);
+            NanoVGTheme.renderPanel(vg, menuX, menuY, menuWidth, menuHeight, NanoVGTheme.RADIUS_MENU, 1f);
+            NanoVGTheme.renderPanel(vg, iconX, iconY, iconSize, iconSize, NanoVGTheme.RADIUS_MENU, 1f);
             if (ensureTexture(vg, "icon", "assets/krs/icon.png"))
-                vg.texturedRoundedRectangle(iconX, iconY, iconSize, iconSize, 16f, "icon");
+                vg.texturedRoundedRectangle(iconX, iconY, iconSize, iconSize, NanoVGTheme.RADIUS_MENU, "icon");
 
             NVGFonts.INTER_MEDIUM.drawText("Welcome to Krs Client (v" + Client.clientVersion + ")", 8f, screenHeight - 8f, 22f, Color.WHITE, Alignment.LEFT_BOTTOM, true);
             NVGFonts.INTER_MEDIUM.drawText(getCurrentTime(), screenWidth - 10f, 10f, 22f, Color.WHITE, Alignment.RIGHT_TOP, true);
@@ -407,7 +407,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
 
             vg.beginEffectBatch();
             for (MenuButton state : visibleMenuButtons) {
-                NanoVGTheme.renderPanelEffects(vg, state.x - 110f, state.y - 34f, 220f, 38f, 14f, state.hovered ? 1f : 0.92f);
+                NanoVGTheme.renderPanelEffects(vg, state.x - 110f, state.y - 34f, 220f, 38f, NanoVGTheme.RADIUS_PANEL, state.hovered ? 1f : 0.92f);
             }
             vg.flushEffectBatch();
 

@@ -10,13 +10,16 @@ public final class NanoVGTheme {
     public static final Color BASE = new Color(0x16, 0x16, 0x16);
     public static final Color TEXT = new Color(0xF6, 0xF6, 0xF1);
     public static final Color MUTED = new Color(0xC8, 0xC8, 0xC2);
-    public static final Color DANGER = new Color(0xFF, 0x3D, 0x2E);
-    public static final Color WARNING = new Color(0xFF, 0x8A, 0x00);
-    public static final Color ACCENT = new Color(0x00, 0xFF, 0xFF);
+    // Softer system-style hues; fully saturated neon reads as a sticker on top of the glass.
+    public static final Color DANGER = new Color(0xFF, 0x45, 0x3A);
+    public static final Color WARNING = new Color(0xFF, 0x9F, 0x0A);
+    public static final Color ACCENT = new Color(0x64, 0xD2, 0xFF);
+    // One radius scale for every surface: labels < HUD/controls < panels < large menus.
+    public static final float RADIUS_LABEL = 6f;
     public static final float RADIUS_HUD = 8f;
     public static final float RADIUS_PANEL = 12f;
-    public static final float RADIUS_MENU = 18f;
-    public static final float RADIUS_CONTROL = 8f;
+    public static final float RADIUS_MENU = 16f;
+    public static final float RADIUS_CONTROL = RADIUS_HUD;
     private static final Shader2DRenderer.GlassRequest PANEL_GLASS = Shader2DRenderer.GlassRequest.panel();
     private static final Shader2DRenderer.GlassRequest COMPACT_GLASS = Shader2DRenderer.GlassRequest.compact();
     private static final Shader2DRenderer.GlassRequest CONTROL_GLASS = Shader2DRenderer.GlassRequest.control();
@@ -25,8 +28,8 @@ public final class NanoVGTheme {
     private static final Color PANEL_BOTTOM = new Color(0x16, 0x16, 0x16, 92);
 
     public static final Color COMPACT_BACKGROUND = new Color(0x16, 0x16, 0x16, 78);
-    public static final Color SWITCH_ON = new Color(0x2F, 0xD1, 0x6A);
-    public static final Color SLIDER_FILL = new Color(0xFF, 0xB3, 0x40);
+    public static final Color SWITCH_ON = new Color(0x30, 0xD1, 0x58);
+    public static final Color SLIDER_FILL = ACCENT;
     public static final Color INPUT_FOCUS = new Color(0xEE, 0xF2, 0xF7);
     public static final Color SCROLLBAR_THUMB = new Color(0xEE, 0xF2, 0xF7);
     public static final Color CONTROL_TRACK = new Color(255, 255, 255, 190);
@@ -162,14 +165,25 @@ public final class NanoVGTheme {
         ConnectedGlassRect next = index + 1 < entries.size() ? entries.get(index + 1) : null;
         float left = entry.x();
         float right = entry.x() + entry.width();
-        output[0] = coversCorner(previous, left) ? 0f : radius;
-        output[1] = coversCorner(previous, right) ? 0f : radius;
-        output[2] = coversCorner(next, right) ? 0f : radius;
-        output[3] = coversCorner(next, left) ? 0f : radius;
+        output[0] = exposedCornerRadius(previous, left, radius);
+        output[1] = exposedCornerRadius(previous, right, radius);
+        output[2] = exposedCornerRadius(next, right, radius);
+        output[3] = exposedCornerRadius(next, left, radius);
     }
 
-    private static boolean coversCorner(ConnectedGlassRect neighbor, float cornerX) {
-        return neighbor != null && cornerX >= neighbor.x() - 0.5f && cornerX <= neighbor.x() + neighbor.width() + 0.5f;
+    // A corner that sticks out past its neighbour by less than the radius can only round off by that
+    // much; a full radius would cut a notch into the seam between the two rows.
+    private static float exposedCornerRadius(ConnectedGlassRect neighbor, float cornerX, float radius) {
+        if (neighbor == null)
+            return radius;
+
+        float neighborLeft = neighbor.x();
+        float neighborRight = neighbor.x() + neighbor.width();
+        if (cornerX >= neighborLeft - 0.5f && cornerX <= neighborRight + 0.5f)
+            return 0f;
+
+        float exposedWidth = cornerX < neighborLeft ? neighborLeft - cornerX : cornerX - neighborRight;
+        return Math.min(radius, exposedWidth);
     }
 
     public interface ConnectedGlassRect {

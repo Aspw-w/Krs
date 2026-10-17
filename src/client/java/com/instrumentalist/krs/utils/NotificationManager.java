@@ -188,7 +188,7 @@ class Notification {
         float preferWidth = getPreferredWidth();
         float width = 28f + preferWidth;
 
-        NanoVGTheme.renderPanelEffects(vg, x - preferWidth, y - 120, width, 58, 8f, fadeProgress);
+        NanoVGTheme.renderPanelEffects(vg, x - preferWidth, y - 120, width, 58, NanoVGTheme.RADIUS_HUD, fadeProgress);
     }
 
     public void renderBody(NVGU vg, float x, float y) {
@@ -198,7 +198,7 @@ class Notification {
         float preferWidth = getPreferredWidth();
         float width = 28f + preferWidth;
 
-        NanoVGTheme.renderPanel(vg, x - preferWidth, y - 120, width, 58, 8f, fadeProgress);
+        NanoVGTheme.renderPanel(vg, x - preferWidth, y - 120, width, 58, NanoVGTheme.RADIUS_HUD, fadeProgress);
 
         if (fadeProgress > 0.1) {
             NVGFonts.INTER_MEDIUM.drawText(title, x + 14 - preferWidth, y - 114, 24f, textColor, Alignment.LEFT_TOP, true);

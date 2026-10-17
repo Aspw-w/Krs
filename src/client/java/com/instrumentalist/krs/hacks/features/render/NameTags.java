@@ -279,11 +279,11 @@ public class NameTags extends Module {
     }
 
     private void drawNameTagEffects(NVGU vg, NameTagRenderEntry entry) {
-        NanoVGTheme.renderCompactEffects(vg, entry.rectX, entry.rectY, entry.width, entry.height, 6f, 1f);
+        NanoVGTheme.renderCompactEffects(vg, entry.rectX, entry.rectY, entry.width, entry.height, NanoVGTheme.RADIUS_LABEL, 1f);
     }
 
     private void drawNameTagBody(NVGU vg, NameTagRenderEntry entry) {
-        NanoVGTheme.renderCompact(vg, entry.rectX, entry.rectY, entry.width, entry.height, 6f, 1f);
+        NanoVGTheme.renderCompact(vg, entry.rectX, entry.rectY, entry.width, entry.height, NanoVGTheme.RADIUS_LABEL, 1f);
         drawNameTagText(entry);
     }
 

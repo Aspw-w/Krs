@@ -383,6 +383,8 @@ public final class Shader2DRenderer {
                 );
             }
 
+            %s
+
             void main() {
                 vec4 boxRect = uBoxRects[vEffectIndex];
                 vec4 glass0 = uGlass0[vEffectIndex];
@@ -467,46 +469,64 @@ public final class Shader2DRenderer {
                 color = mix(vec3(luminance), color, 1.0 + glass2.y);
                 color = mix(color, color * vec3(0.92, 0.95, 1.05), glass2.z);
 
-                float edgeHL = max(glass1.x, 0.0);
-                float specAmt = max(glass1.y, 0.0);
-                float fresnelAmt = max(glass1.z, 0.0);
-                if (edgeHL > 0.001 || specAmt > 0.001 || fresnelAmt > 0.001) {
-                    color *= 1.0 + 0.06 * depth;
-                    float fres = pow(1.0 - abs(normal.z), 4.0) * fresnelAmt;
-                    float borderWidth = 1.5;
-                    float innerStroke = smoothstep(-borderWidth - 1.0, -borderWidth, sdf)
-                            * (1.0 - smoothstep(-1.0, 0.0, sdf));
-                    float topBias = 0.5 + 0.5 * (-localPx.y / max(halfSize.y, 1.0));
-                    innerStroke *= (0.4 + 0.6 * topBias);
-                    float rim = edge * edgeHL * 0.22;
-                    float innerGlow = smoothstep(5.0, 0.0, -sdf) * edgeHL * 0.15;
-                    float envRefl = (normal.y * 0.5 + 0.5) * fres * 0.08;
-                    float totalSpec = 0.0;
-                    if (specAmt > 0.001) {
-                        vec3 viewDir = vec3(0.0, 0.0, 1.0);
-                        vec3 light1 = normalize(vec3(0.4, 0.7, 1.0));
-                        vec3 half1 = normalize(light1 + viewDir);
-                        float spec1 = pow(max(dot(normal, half1), 0.0), 90.0);
-                        vec3 light2 = normalize(vec3(-0.3, -0.5, 1.0));
-                        vec3 half2 = normalize(light2 + viewDir);
-                        float spec2 = pow(max(dot(normal, half2), 0.0), 50.0) * 0.3;
-                        vec3 light3 = normalize(vec3(0.1, 0.3, 1.0));
-                        float specBroad = pow(max(dot(normal, light3), 0.0), 6.0) * 0.1;
-                        vec3 light4 = normalize(vec3(0.0, 0.9, 0.4));
-                        vec3 half4 = normalize(light4 + viewDir);
-                        float spec4 = pow(max(dot(normal, half4), 0.0), 120.0) * 0.6;
-                        totalSpec = (spec1 + spec2 + specBroad + spec4) * specAmt;
-                    }
-                    color += vec3(totalSpec);
-                    color += vec3(rim + innerGlow);
-                    color += vec3(innerStroke * edgeHL * 0.55);
-                    color += vec3(envRefl);
-                    color = mix(color, vec3(1.0), fres * 0.2);
-                }
+                float topBias = 0.5 + 0.5 * (-localPx.y / max(halfSize.y, 1.0));
+                float thinFade = smoothstep(1.0, 4.0, min(boxRect.z, boxRect.w));
+                color = applyGlassLighting(color, glass1, sdf, edge, depth, normal, topBias, thinFade);
 
                 fragColor = vec4(color, mask * clamp(glass2.x, 0.0, 1.0));
             }
-            """.formatted(EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE);
+            """.formatted(EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE, EFFECT_BATCH_SIZE,
+                glassLightingFunction());
+    }
+
+    private static String glassLightingFunction() {
+        return """
+            // Every light here comes from above. The bevel normal is built from pixel-space gradients
+            // where +y runs down the screen, so it is flipped to y-up before any light term uses it.
+            // thinFade dims the edge light on slivers (e.g. a list row mid-animation) so they do not
+            // turn into a solid bright line.
+            vec3 applyGlassLighting(vec3 color, vec4 glass1, float sdf, float edge, float depth,
+                                    vec3 normal, float topBias, float thinFade) {
+                float edgeHL = max(glass1.x, 0.0) * thinFade;
+                float specAmt = max(glass1.y, 0.0);
+                float fresnelAmt = max(glass1.z, 0.0);
+                if (edgeHL <= 0.001 && specAmt <= 0.001 && fresnelAmt <= 0.001) {
+                    return color;
+                }
+
+                vec3 n = vec3(normal.x, -normal.y, normal.z);
+                color *= 1.0 + 0.06 * depth * clamp(specAmt + fresnelAmt, 0.0, 1.0);
+                float fres = pow(1.0 - abs(n.z), 4.0) * fresnelAmt;
+                float borderWidth = 1.5;
+                float innerStroke = smoothstep(-borderWidth - 1.0, -borderWidth, sdf)
+                        * (1.0 - smoothstep(-1.0, 0.0, sdf));
+                innerStroke *= (0.4 + 0.6 * topBias);
+                float rim = edge * edgeHL * 0.22 * (0.5 + 0.5 * topBias);
+                float innerGlow = smoothstep(5.0, 0.0, -sdf) * edgeHL * 0.15 * (0.5 + 0.5 * topBias);
+                float envRefl = (n.y * 0.5 + 0.5) * fres * 0.08;
+                float totalSpec = 0.0;
+                if (specAmt > 0.001) {
+                    vec3 viewDir = vec3(0.0, 0.0, 1.0);
+                    vec3 light1 = normalize(vec3(0.4, 0.7, 1.0));
+                    vec3 half1 = normalize(light1 + viewDir);
+                    float spec1 = pow(max(dot(n, half1), 0.0), 90.0);
+                    vec3 light2 = normalize(vec3(-0.3, -0.5, 1.0));
+                    vec3 half2 = normalize(light2 + viewDir);
+                    float spec2 = pow(max(dot(n, half2), 0.0), 50.0) * 0.3;
+                    vec3 light3 = normalize(vec3(0.1, 0.3, 1.0));
+                    float specBroad = pow(max(dot(n, light3), 0.0), 6.0) * 0.1;
+                    vec3 light4 = normalize(vec3(0.0, 0.9, 0.4));
+                    vec3 half4 = normalize(light4 + viewDir);
+                    float spec4 = pow(max(dot(n, half4), 0.0), 120.0) * 0.6;
+                    totalSpec = (spec1 + spec2 + specBroad + spec4) * specAmt;
+                }
+                color += vec3(totalSpec);
+                color += vec3(rim + innerGlow);
+                color += vec3(innerStroke * edgeHL * 0.55);
+                color += vec3(envRefl);
+                return mix(color, vec3(1.0), fres * 0.2);
+            }
+            """;
     }
 
     private static String connectedLiquidGlassFragmentShader() {
@@ -551,26 +571,55 @@ public final class Shader2DRenderer {
                     }
                     sdf = min(sdf, rrVarying(pos, uBoxes[i], uRadii[i]));
                 }
+                // Bridges span the shared columns of neighbouring rows so the seam between them reads as
+                // solid glass instead of an edge. A bridge reaches the far ends of both rows, so its outer
+                // corners inherit those rows' rounding; a square bridge corner would fill in the rounded
+                // ends of the stack (e.g. the top-right corner of a right-aligned module list).
                 for (int i = 0; i < %d; i++) {
                     if (i + 1 >= uBoxCount) {
                         break;
                     }
                     vec4 a = uBoxes[i];
                     vec4 b = uBoxes[i + 1];
-                    float left = max(a.x, b.x) + 2.0;
-                    float right = min(a.x + a.z, b.x + b.z) - 2.0;
+                    float left = max(a.x, b.x);
+                    float right = min(a.x + a.z, b.x + b.z);
                     float width = right - left;
                     if (width <= 1.0) {
                         continue;
                     }
-                    float top = min(a.y, b.y);
-                    float bottom = max(a.y + a.w, b.y + b.w);
-                    vec2 halfSize = vec2(width, max(bottom - top, 1.0)) * 0.5;
-                    vec2 local = pos - vec2(left + halfSize.x, top + halfSize.y);
-                    vec2 q = abs(local) - halfSize;
-                    sdf = min(sdf, min(max(q.x, q.y), 0.0) + length(max(q, vec2(0.0))));
+                    bool aUpper = a.y <= b.y;
+                    vec4 upper = aUpper ? a : b;
+                    vec4 upperRadii = aUpper ? uRadii[i] : uRadii[i + 1];
+                    bool aLower = a.y + a.w >= b.y + b.w;
+                    vec4 lower = aLower ? a : b;
+                    vec4 lowerRadii = aLower ? uRadii[i] : uRadii[i + 1];
+                    float top = upper.y;
+                    float bottom = lower.y + lower.w;
+                    vec4 bridgeRadii = max(vec4(
+                        upperRadii.x - (left - upper.x),
+                        upperRadii.y - (upper.x + upper.z - right),
+                        lowerRadii.z - (lower.x + lower.z - right),
+                        lowerRadii.w - (left - lower.x)
+                    ), vec4(0.0));
+                    sdf = min(sdf, rrVarying(pos, vec4(left, top, width, max(bottom - top, 1.0)), bridgeRadii));
                 }
                 return sdf;
+            }
+
+            // Thickness of the thickest row under this pixel, so edge light can fade out where only a
+            // sliver row (e.g. one mid-animation) is present. Pixels covered only by a bridge count as thick.
+            float rowThickness(vec2 pos) {
+                float thickness = -1.0;
+                for (int i = 0; i < %d; i++) {
+                    if (i >= uBoxCount) {
+                        break;
+                    }
+                    vec4 box = uBoxes[i];
+                    if (all(greaterThanEqual(pos, box.xy)) && all(lessThanEqual(pos, box.xy + box.zw))) {
+                        thickness = max(thickness, min(box.z, box.w));
+                    }
+                }
+                return thickness < 0.0 ? 1.0e6 : thickness;
             }
 
             float bevelHeight(float distanceInside, float zRadius) {
@@ -595,6 +644,8 @@ public final class Shader2DRenderer {
                     texture(source, clamp(uv - chromaOffset, vec2(0.0), vec2(1.0))).b
                 );
             }
+
+            %s
 
             void main() {
                 vec2 halfSize = max(uBoundRect.zw * 0.5, vec2(0.5));
@@ -668,9 +719,14 @@ public final class Shader2DRenderer {
                 color = mix(vec3(luminance), color, 1.0 + uGlass2.y);
                 color = mix(color, color * vec3(0.92, 0.95, 1.05), uGlass2.z);
 
+                float topBias = 0.5 + 0.5 * (-localPx.y / max(halfSize.y, 1.0));
+                float thinFade = smoothstep(1.0, 4.0, rowThickness(vPosition));
+                color = applyGlassLighting(color, uGlass1, sdf, edge, depth, normal, topBias, thinFade);
+
                 fragColor = vec4(color, mask * clamp(uGlass2.x, 0.0, 1.0));
             }
-            """.formatted(CONNECTED_BOX_LIMIT, CONNECTED_BOX_LIMIT, CONNECTED_BOX_LIMIT, CONNECTED_BOX_LIMIT);
+            """.formatted(CONNECTED_BOX_LIMIT, CONNECTED_BOX_LIMIT, CONNECTED_BOX_LIMIT, CONNECTED_BOX_LIMIT,
+                CONNECTED_BOX_LIMIT, glassLightingFunction());
     }
 
     private static String indicatorVertexShader() {
@@ -2461,9 +2517,9 @@ public final class Shader2DRenderer {
         public float saturation = 0.06f;
         public float tintStrength = 0.1f;
         public float brightness = -0.14f;
-        public float shadowOpacity = 0.3f;
-        public float shadowSpread = 10f;
-        public float shadowOffsetY = 2f;
+        public float shadowOpacity = 0.16f;
+        public float shadowSpread = 12f;
+        public float shadowOffsetY;
         public float bevelMode;
         public float blurAmount = 0.25f;
 
@@ -2512,16 +2568,16 @@ public final class Shader2DRenderer {
             GlassRequest request = new GlassRequest();
             request.refraction = 0.72f;
             request.chromAberration = 0.02f;
-            request.edgeHighlight = 0f;
+            request.edgeHighlight = 0.08f;
             request.specular = 0f;
             request.fresnel = 0f;
             request.blurAmount = 0.32f;
             request.brightness = -0.22f;
             request.saturation = 0.08f;
             request.tintStrength = 0f;
-            request.shadowOpacity = 0.26f;
-            request.shadowSpread = 12f;
-            request.shadowOffsetY = 2f;
+            request.shadowOpacity = 0.16f;
+            request.shadowSpread = 16f;
+            request.shadowOffsetY = 0f;
             return request;
         }
 
@@ -2529,16 +2585,16 @@ public final class Shader2DRenderer {
             GlassRequest request = new GlassRequest();
             request.refraction = 0.58f;
             request.chromAberration = 0.015f;
-            request.edgeHighlight = 0f;
+            request.edgeHighlight = 0.07f;
             request.specular = 0f;
             request.fresnel = 0f;
             request.blurAmount = 0.26f;
             request.brightness = -0.18f;
             request.saturation = 0.05f;
             request.tintStrength = 0f;
-            request.shadowOpacity = 0.2f;
-            request.shadowSpread = 8f;
-            request.shadowOffsetY = 1f;
+            request.shadowOpacity = 0.12f;
+            request.shadowSpread = 10f;
+            request.shadowOffsetY = 0f;
             return request;
         }
 
@@ -2553,9 +2609,9 @@ public final class Shader2DRenderer {
             request.brightness = 0f;
             request.saturation = 0f;
             request.tintStrength = 0f;
-            request.shadowOpacity = 0.3f;
-            request.shadowSpread = 8f;
-            request.shadowOffsetY = 1f;
+            request.shadowOpacity = 0.18f;
+            request.shadowSpread = 10f;
+            request.shadowOffsetY = 0f;
             request.zRadius = 40f;
             return request;
         }

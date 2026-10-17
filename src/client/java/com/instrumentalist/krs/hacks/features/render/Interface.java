@@ -832,9 +832,9 @@ public class Interface extends Module {
     }
 
     private static void renderSomeInformationEffects(NVGU vg, SomeInformationRenderState state) {
-        NanoVGTheme.renderConnectedEffects(vg, state.informationEntries, 8f, 1f);
-        NanoVGTheme.renderConnectedEffects(vg, state.potionEntries, 8f, 1f);
-        NanoVGTheme.renderConnectedEffects(vg, state.connectionEntries, 8f, 1f);
+        NanoVGTheme.renderConnectedEffects(vg, state.informationEntries, NanoVGTheme.RADIUS_HUD, 1f);
+        NanoVGTheme.renderConnectedEffects(vg, state.potionEntries, NanoVGTheme.RADIUS_HUD, 1f);
+        NanoVGTheme.renderConnectedEffects(vg, state.connectionEntries, NanoVGTheme.RADIUS_HUD, 1f);
     }
 
     private static void renderSomeInformationBody(NVGU vg, SomeInformationRenderState state) {
@@ -866,11 +866,11 @@ public class Interface extends Module {
     }
 
     private static void renderConnectedInfoHudChipEffects(NVGU vg, List<InfoHudEntry> entries, float alpha) {
-        NanoVGTheme.renderConnectedEffects(vg, entries, 8f, alpha);
+        NanoVGTheme.renderConnectedEffects(vg, entries, NanoVGTheme.RADIUS_HUD, alpha);
     }
 
     private static void renderConnectedInfoHudChipBodies(NVGU vg, List<InfoHudEntry> entries, float alpha) {
-        NanoVGTheme.renderConnected(vg, entries, 8f, alpha);
+        NanoVGTheme.renderConnected(vg, entries, NanoVGTheme.RADIUS_HUD, alpha);
 
         for (InfoHudEntry entry : entries) {
             renderInfoHudChipText(entry);
@@ -878,7 +878,7 @@ public class Interface extends Module {
     }
 
     private static void renderPotionHudBodies(NVGU vg, List<PotionHudEntry> potionEntries) {
-        NanoVGTheme.renderConnected(vg, potionEntries, 8f, 1f);
+        NanoVGTheme.renderConnected(vg, potionEntries, NanoVGTheme.RADIUS_HUD, 1f);
         for (int i = 0, n = potionEntries.size(); i < n; i++) {
             PotionHudEntry entry = potionEntries.get(i);
             NVGFonts.INTER.drawText(entry.text, entry.textX, entry.textY, HUD_FONT_SIZE, NanoVGTheme.TEXT, Alignment.RIGHT_TOP, false);
@@ -1607,7 +1607,7 @@ public class Interface extends Module {
         float centerX = mapX + halfSize;
         float centerY = mapY + halfSize;
 
-        NanoVGTheme.renderPanel(vg, mapX, mapY, 150f, 150f, 20f, 1f);
+        NanoVGTheme.renderPanel(vg, mapX, mapY, 150f, 150f, NanoVGTheme.RADIUS_MENU, 1f);
         float blockScale = (150f - 12f) / (MINIMAP_VISIBLE_RADIUS_BLOCKS * 2f);
         renderMinimapTerrain(vg, mapX, mapY, centerX, centerY, blockScale, viewX, viewZ);
         vg.line(centerX, mapY + 7f, centerX, mapY + 150f - 7f, 1f, new Color(255, 255, 255, 28));
@@ -1632,7 +1632,7 @@ public class Interface extends Module {
         float mapX = getLeftHudX();
         float mapY = getMinimapY();
 
-        NanoVGTheme.renderPanelEffects(vg, mapX, mapY, 150f, 150f, 20f, 1f);
+        NanoVGTheme.renderPanelEffects(vg, mapX, mapY, 150f, 150f, NanoVGTheme.RADIUS_MENU, 1f);
     }
 
     private void renderMinimapTerrain(NVGU vg, float mapX, float mapY, float centerX, float centerY, float blockScale, double viewX, double viewZ) {
@@ -2529,7 +2529,7 @@ public class Interface extends Module {
 
         for (int i = 0, n = renderEntries.size(); i < n; i++) {
             ModuleListRenderEntry entry = renderEntries.get(i);
-            float radius = Math.min(8f, entry.height / 2f);
+            float radius = Math.min(NanoVGTheme.RADIUS_HUD, entry.height / 2f);
             ConnectedHudRect previous = i > 0 ? renderEntries.get(i - 1) : null;
             ConnectedHudRect next = i + 1 < n ? renderEntries.get(i + 1) : null;
             entry.updateCornerRadii(
@@ -2549,13 +2549,13 @@ public class Interface extends Module {
         float effectAlpha = 0f;
         for (ModuleListRenderEntry entry : renderEntries)
             effectAlpha = Math.max(effectAlpha, entry.alpha / 255f);
-        NanoVGTheme.renderConnectedEffects(vg, renderEntries, 8f, effectAlpha);
+        NanoVGTheme.renderConnectedEffects(vg, renderEntries, NanoVGTheme.RADIUS_HUD, effectAlpha);
     }
 
     private void renderModuleListBody(NVGU vg, List<ModuleListRenderEntry> renderEntries) {
         if (renderEntries.isEmpty()) return;
 
-        NanoVGTheme.renderConnected(vg, renderEntries, 8f, 1f);
+        NanoVGTheme.renderConnected(vg, renderEntries, NanoVGTheme.RADIUS_HUD, 1f);
 
         for (ModuleListRenderEntry entry : renderEntries) {
             boolean clipAnimatedEntry = entry.alpha != 255;
@@ -2622,7 +2622,7 @@ public class Interface extends Module {
                 after = waterText.substring(1);
                 float boxWidth = NVGFonts.INTER.getWidth(waterText, 20f) + 21f;
                 float boxHeight = NVGFonts.INTER.getHeight(20f) + 13f;
-                NanoVGTheme.renderPanel(vg, 16f, 16f, boxWidth, boxHeight, 14f, 1f);
+                NanoVGTheme.renderPanel(vg, 16f, 16f, boxWidth, boxHeight, NanoVGTheme.RADIUS_PANEL, 1f);
                 NVGFonts.INTER.drawText(first, 26f, 22f, 20f, NanoVGTheme.ACCENT, Alignment.LEFT_TOP, true);
                 NVGFonts.INTER.drawText(after, NVGFonts.INTER.getWidth(first, 20f) + 26f, 22f, 20f, new Color(255, 255, 255, 255), Alignment.LEFT_TOP, true);
                 break;
@@ -2637,7 +2637,7 @@ public class Interface extends Module {
                 float fpsWidth = NVGFonts.INTER.getWidth(fpsText, 18f);
                 float width = Math.max(titleWidth, fpsWidth) + padding * 2;
                 float height = NVGFonts.INTER.getHeight(20f) + NVGFonts.INTER.getHeight(18f) + padding * 3;
-                NanoVGTheme.renderPanel(vg, x, y, width, height - 6f, 16f, 1f);
+                NanoVGTheme.renderPanel(vg, x, y, width, height - 6f, NanoVGTheme.RADIUS_MENU, 1f);
                 first = waterText.substring(0, 1);
                 after = waterText.substring(1);
                 NVGFonts.INTER.drawText(first, x + padding, y + padding, 20f, NanoVGTheme.ACCENT, Alignment.LEFT_TOP, true);
@@ -2655,7 +2655,7 @@ public class Interface extends Module {
                 waterText = waterMarkText.get() + " " + Client.clientVersion + " | " + mc.getFps() + " fps";
                 float boxWidth = NVGFonts.INTER.getWidth(waterText, 20f) + 21f;
                 float boxHeight = NVGFonts.INTER.getHeight(20f) + 13f;
-                NanoVGTheme.renderPanelEffects(vg, 16f, 16f, boxWidth, boxHeight, 14f, 1f);
+                NanoVGTheme.renderPanelEffects(vg, 16f, 16f, boxWidth, boxHeight, NanoVGTheme.RADIUS_PANEL, 1f);
                 break;
 
             case "bullshit":
@@ -2668,7 +2668,7 @@ public class Interface extends Module {
                 float fpsWidth = NVGFonts.INTER.getWidth(fpsText, 18f);
                 float width = Math.max(titleWidth, fpsWidth) + padding * 2;
                 float height = NVGFonts.INTER.getHeight(20f) + NVGFonts.INTER.getHeight(18f) + padding * 3;
-                NanoVGTheme.renderPanelEffects(vg, x, y, width, height - 6f, 16f, 1f);
+                NanoVGTheme.renderPanelEffects(vg, x, y, width, height - 6f, NanoVGTheme.RADIUS_MENU, 1f);
                 break;
         }
     }
