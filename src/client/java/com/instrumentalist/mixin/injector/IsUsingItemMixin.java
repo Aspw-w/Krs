@@ -10,28 +10,27 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(IsUsingItem.class)
 public abstract class IsUsingItemMixin implements IMinecraft {
 
-    @Inject(
+    @ModifyReturnValue(
             method = "get(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/client/multiplayer/ClientLevel;Lnet/minecraft/world/entity/LivingEntity;ILnet/minecraft/world/item/ItemDisplayContext;)Z",
-            at = @At("HEAD"),
-            cancellable = true
+            at = @At("RETURN")
     )
-    private void krs$oldHittingThirdPersonUseState(ItemStack stack, ClientLevel level, LivingEntity entity, int seed, ItemDisplayContext displayContext, CallbackInfoReturnable<Boolean> cir) {
-        if (GuiEntityRenderGuard.isActive()
+    private boolean krs$oldHittingThirdPersonUseState(boolean original, ItemStack stack, ClientLevel level, LivingEntity entity, int seed, ItemDisplayContext displayContext) {
+        if (original
+                || GuiEntityRenderGuard.isActive()
                 || !(entity instanceof LocalPlayer)
                 || entity != mc.player
                 || stack != entity.getMainHandItem()
                 || displayContext != ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
                 && displayContext != ItemDisplayContext.THIRD_PERSON_LEFT_HAND
                 || !OldHitting.shouldBlock())
-            return;
+            return original;
 
-        cir.setReturnValue(true);
+        return true;
     }
 }

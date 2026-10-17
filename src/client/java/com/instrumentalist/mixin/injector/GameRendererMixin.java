@@ -11,6 +11,7 @@ import com.instrumentalist.krs.hacks.features.render.*;
 import com.instrumentalist.krs.utils.render.DebugOverlayRenderer;
 import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
 import com.instrumentalist.krs.utils.render.RenderUtil;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -27,7 +28,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -67,12 +67,12 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
     @Unique
     private PoseStack krs$levelBobStack;
 
-    @Inject(method = "mainRenderTarget", at = @At("HEAD"))
-    private void frameBufferEvent(CallbackInfoReturnable<RenderTarget> ci) {
-        if (!Client.loaded || Client.eventManager == null || !Client.eventManager.hasListeners(FrameBufferEvent.class))
-            return;
+    @ModifyReturnValue(method = "mainRenderTarget", at = @At("RETURN"))
+    private RenderTarget frameBufferEvent(RenderTarget original) {
+        if (Client.loaded && Client.eventManager != null && Client.eventManager.hasListeners(FrameBufferEvent.class))
+            Client.eventManager.call(new FrameBufferEvent());
 
-        Client.eventManager.call(new FrameBufferEvent());
+        return original;
     }
 
     // Since 26.3 renderLevel() only renders the extracted state; the camera partial tick is part of that state.

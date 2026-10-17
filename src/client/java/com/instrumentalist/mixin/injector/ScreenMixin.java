@@ -3,10 +3,9 @@ package com.instrumentalist.mixin.injector;
 import com.instrumentalist.krs.utils.GuiInputBlocker;
 import net.minecraft.client.gui.screens.Screen;
 import org.spongepowered.asm.mixin.Mixin;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Screen.class)
 public abstract class ScreenMixin {
@@ -21,9 +20,8 @@ public abstract class ScreenMixin {
         return GuiInputBlocker.sanitizeMouseCoordinate(mouseY);
     }
 
-    @Inject(method = "isMouseOver(DD)Z", at = @At("HEAD"), cancellable = true)
-    private void blockScreenHoverWhenImguiCaptures(double mouseX, double mouseY, CallbackInfoReturnable<Boolean> cir) {
-        if (GuiInputBlocker.shouldBlockMinecraftMouse())
-            cir.setReturnValue(false);
+    @ModifyReturnValue(method = "isMouseOver(DD)Z", at = @At("RETURN"))
+    private boolean blockScreenHoverWhenImguiCaptures(boolean original) {
+        return original && !GuiInputBlocker.shouldBlockMinecraftMouse();
     }
 }

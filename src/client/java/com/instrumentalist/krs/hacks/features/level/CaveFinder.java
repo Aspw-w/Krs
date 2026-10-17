@@ -50,7 +50,7 @@ public class CaveFinder extends Module {
         return active && isTerrainPipeline(location);
     }
 
-    private static boolean isTerrainPipeline(String location) {
+    public static boolean isTerrainPipeline(String location) {
         return location != null
                 && (location.endsWith("pipeline/solid_terrain")
                 || location.endsWith("pipeline/cutout_terrain"));

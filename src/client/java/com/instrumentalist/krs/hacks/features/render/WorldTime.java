@@ -9,7 +9,6 @@ import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import com.instrumentalist.krs.utils.input.Keys;
 
-import java.util.Locale;
 
 public class WorldTime extends Module {
 
@@ -27,17 +26,14 @@ public class WorldTime extends Module {
     @Setting
     public static final BooleanValue clearWeather = new BooleanValue("Clear Weather", true);
 
+    private static final Long[] TIME_TICKS = {1000L, 13000L, 18000L, 0L};
+
     public static Long getActiveTimeTicks() {
         if (!ModuleManager.getModuleState(WorldTime.class) || mc.level == null)
             return null;
 
-        return switch (time.get().toLowerCase(Locale.ROOT)) {
-            case "day" -> 1000L;
-            case "night" -> 13000L;
-            case "midnight" -> 18000L;
-            case "sunrise" -> 0L;
-            default -> null;
-        };
+        int index = time.getCurrentIndex();
+        return index >= 0 && index < TIME_TICKS.length ? TIME_TICKS[index] : null;
     }
 
     public static boolean shouldClearWeather() {

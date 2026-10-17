@@ -58,6 +58,10 @@ public class Xray extends Module {
         mc.levelExtractor.allChanged();
     }
 
+    public static boolean isActive() {
+        return enabled;
+    }
+
     public static boolean hookTransparentOre(BlockState blockState, boolean original) {
         if (enabled) {
             if (isVisible(blockState, null)) return true;

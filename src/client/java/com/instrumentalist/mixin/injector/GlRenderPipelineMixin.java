@@ -17,15 +17,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class GlRenderPipelineMixin {
 
     @Unique
-    private String krs$location;
+    private static boolean krs$frontFaceCulled;
+
+    @Unique
+    private boolean krs$terrainPipeline;
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void krs$rememberLocation(@Coerce Object device, BackendRenderPipeline.CreateInfo createInfo, @Coerce Object program, @Coerce Object vertexArray, CallbackInfo ci) {
-        this.krs$location = createInfo.name();
+        this.krs$terrainPipeline = CaveFinder.isTerrainPipeline(createInfo.name());
     }
 
     @Inject(method = "bind", at = @At("RETURN"))
     private void krs$caveFinderCullFace(CallbackInfo ci) {
-        GL11.glCullFace(CaveFinder.shouldCullFront(this.krs$location) ? GL11.GL_FRONT : GL11.GL_BACK);
+        boolean cullFront = this.krs$terrainPipeline && CaveFinder.isActive();
+        if (cullFront == krs$frontFaceCulled)
+            return;
+
+        GL11.glCullFace(cullFront ? GL11.GL_FRONT : GL11.GL_BACK);
+        krs$frontFaceCulled = cullFront;
     }
 }

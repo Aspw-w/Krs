@@ -20,6 +20,12 @@ public final class OldHittingRenderGuard {
     public static Entity enter(Entity entity) {
         Entity previous = RENDERED_ENTITY.get();
 
+        if (entity != null && entity != Minecraft.getInstance().player)
+            entity = null;
+
+        if (entity == previous)
+            return previous;
+
         if (entity == null)
             RENDERED_ENTITY.remove();
         else
@@ -29,6 +35,9 @@ public final class OldHittingRenderGuard {
     }
 
     public static void exit(Entity previous) {
+        if (RENDERED_ENTITY.get() == previous)
+            return;
+
         if (previous == null)
             RENDERED_ENTITY.remove();
         else

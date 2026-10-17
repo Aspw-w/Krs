@@ -156,10 +156,9 @@ public abstract class ClientPlayerEntityMixin extends Player {
             InputUtil.stop(this.input);
     }
 
-    @Inject(method = "isShiftKeyDown()Z", at = @At("HEAD"), cancellable = true)
-    private void freecamShiftKeyHook(CallbackInfoReturnable<Boolean> cir) {
-        if (ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly())
-            cir.setReturnValue(false);
+    @ModifyReturnValue(method = "isShiftKeyDown()Z", at = @At("RETURN"))
+    private boolean freecamShiftKeyHook(boolean original) {
+        return original && !(ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly());
     }
 
     @Inject(method = "raycastHitResult(FLnet/minecraft/world/entity/Entity;)Lnet/minecraft/world/phys/HitResult;", at = @At("HEAD"), cancellable = true)
