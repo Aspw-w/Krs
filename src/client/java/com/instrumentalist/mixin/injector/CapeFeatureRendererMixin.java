@@ -1,7 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.render.ClientCape;
+import com.instrumentalist.krs.hacks.features.render.Capes;
 import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -43,7 +43,7 @@ public abstract class CapeFeatureRendererMixin extends RenderLayer<AvatarRenderS
     public void render(PoseStack matrixStack, SubmitNodeCollector submitter, int i, AvatarRenderState playerEntityRenderState, float f, float g, CallbackInfo ci) {
         if (!GuiEntityRenderGuard.isActive()
                 && ((IEntityRenderState) playerEntityRenderState).client$getEntity() instanceof LocalPlayer
-                && ModuleManager.getModuleState(ClientCape.class)) {
+                && ModuleManager.getModuleState(Capes.class)) {
             ci.cancel();
 
             if (!playerEntityRenderState.isInvisible && playerEntityRenderState.showCape) {
@@ -56,7 +56,7 @@ public abstract class CapeFeatureRendererMixin extends RenderLayer<AvatarRenderS
                         }
 
                         // Since 26.3 the glint is drawn by the glint variant of the solid render type in the same pass.
-                        RenderType capeRenderType = ClientCape.enchantmentGlint.get()
+                        RenderType capeRenderType = Capes.enchantmentGlint.get()
                                 ? RenderTypes.entitySolidGlint(skinTextures.cape().texturePath())
                                 : RenderTypes.entitySolid(skinTextures.cape().texturePath());
                         submitter.submitModel(this.model, playerEntityRenderState, matrixStack, capeRenderType, i, OverlayTexture.NO_OVERLAY, playerEntityRenderState.outlineColor);

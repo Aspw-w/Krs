@@ -3,7 +3,7 @@ package com.instrumentalist.mixin.injector;
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.render.ClientCape;
+import com.instrumentalist.krs.hacks.features.render.Capes;
 import com.instrumentalist.krs.hacks.features.render.OldHitting;
 import com.instrumentalist.krs.hacks.features.render.Rotations;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
@@ -32,7 +32,7 @@ public abstract class PlayerEntityRendererMixin implements IMinecraft {
 
     @Inject(method = "extractCapeState", at = @At("HEAD"), cancellable = true)
     private static void capeModifier(Avatar avatar, AvatarRenderState state, float tickDelta, CallbackInfo ci) {
-        if (avatar instanceof LocalPlayer player && ModuleManager.getModuleState(ClientCape.class) && ClientCape.oldCapeMovement.get()) {
+        if (avatar instanceof LocalPlayer player && ModuleManager.getModuleState(Capes.class) && Capes.oldCapeMovement.get()) {
             ci.cancel();
 
             ClientAvatarState avatarState = player.avatarState();

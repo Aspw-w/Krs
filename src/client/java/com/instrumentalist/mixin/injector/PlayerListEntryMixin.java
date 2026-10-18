@@ -2,7 +2,7 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.render.ClientCape;
+import com.instrumentalist.krs.hacks.features.render.Capes;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.core.ClientAsset;
 import net.minecraft.client.multiplayer.PlayerInfo;
@@ -25,7 +25,7 @@ public abstract class PlayerListEntryMixin implements IMinecraft {
     @Inject(method = "getSkin", at = @At("RETURN"), cancellable = true)
     private void getSkinTextures(CallbackInfoReturnable<PlayerSkin> ci) {
         var textures = ci.getReturnValue();
-        if (!ModuleManager.getModuleState(ClientCape.class) || !ClientCape.customCape.get() || mc.player != null && !profile.id().equals(mc.player.getGameProfile().id()) || textures.cape() != null && !ClientCape.capeOverride.get()) return;
+        if (!ModuleManager.getModuleState(Capes.class) || !Capes.customCape.get() || mc.player != null && !profile.id().equals(mc.player.getGameProfile().id()) || textures.cape() != null && !Capes.capeOverride.get()) return;
         Identifier capeId = Identifier.fromNamespaceAndPath("krs", "cape");
         Identifier capeFile = Identifier.fromNamespaceAndPath("krs", "cape.png");
         ClientAsset.Texture cape = new ClientAsset.ResourceTexture(capeId, capeFile);
