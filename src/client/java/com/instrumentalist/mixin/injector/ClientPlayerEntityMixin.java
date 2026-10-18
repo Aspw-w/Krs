@@ -7,7 +7,6 @@ import com.instrumentalist.krs.hacks.features.exploit.PortalScreen;
 import com.instrumentalist.krs.hacks.features.movement.*;
 import com.instrumentalist.krs.hacks.features.player.Phase;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
-import com.instrumentalist.krs.hacks.features.render.EntityYawFix;
 import com.instrumentalist.krs.utils.move.InputUtil;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
@@ -216,15 +215,6 @@ public abstract class ClientPlayerEntityMixin extends Player {
     @ModifyExpressionValue(method = "modifyInput(Lnet/minecraft/world/phys/Vec2;)Lnet/minecraft/world/phys/Vec2;", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;isMovingSlowly()Z"))
     private boolean noSlowSneakMultiplierHook(boolean original) {
         return original && !NoSlow.shouldNoSlowSneak();
-    }
-
-    // Since 26.3 getViewYRot always interpolates through getYRot(F); 26.2 only did so (via super) while riding.
-    @WrapOperation(method = "getViewYRot(F)F", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;getYRot(F)F"))
-    private float entityHorizontalFixYawHook(LocalPlayer instance, float delta, Operation<Float> original) {
-        if (ModuleManager.getModuleState(EntityYawFix.class) && instance.isPassenger())
-            return delta == 1.0F ? this.yRotO : Mth.lerp(delta, this.yRotO, this.getYRot());
-
-        return original.call(instance, delta);
     }
 
     @ModifyExpressionValue(method = "aiStep", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/ClientInput;hasForwardImpulse()Z"))
