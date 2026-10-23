@@ -5,6 +5,7 @@ import com.instrumentalist.krs.hacks.features.render.OldHitting;
 import com.instrumentalist.krs.hacks.features.render.ESP;
 import com.instrumentalist.krs.utils.math.ToolUtil;
 import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
+import com.instrumentalist.krs.utils.render.custommodel.CustomModelRenderer;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -31,6 +32,16 @@ public abstract class ItemInHandLayerMixin {
 
     @Unique
     private int krs$legacyVanillaArmDirection;
+
+    @Inject(
+            method = "submit(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;ILnet/minecraft/client/renderer/entity/state/ArmedEntityRenderState;FF)V",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void krs$skipForCustomModel(PoseStack poseStack, SubmitNodeCollector submitter, int light, ArmedEntityRenderState state, float limbSwing, float limbSwingAmount, CallbackInfo ci) {
+        if (CustomModelRenderer.isActive(state))
+            ci.cancel();
+    }
 
     @Inject(
             method = "submit(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;ILnet/minecraft/client/renderer/entity/state/ArmedEntityRenderState;FF)V",

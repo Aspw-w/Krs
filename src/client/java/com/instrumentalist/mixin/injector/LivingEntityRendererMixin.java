@@ -5,13 +5,20 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.Rotations;
 import com.instrumentalist.krs.hacks.features.render.TrueSight;
 import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
+import com.instrumentalist.krs.utils.render.custommodel.CustomModelRenderer;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.Model;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.texture.UvMapping;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -70,6 +77,19 @@ public abstract class LivingEntityRendererMixin {
 
         state.isInvisible = false;
         state.isInvisibleToPlayer = false;
+    }
+
+    @WrapOperation(
+            method = "submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/SubmitNodeCollector;submitModel(Lnet/minecraft/client/model/Model;Ljava/lang/Object;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/rendertype/RenderType;IIILnet/minecraft/client/renderer/texture/UvMapping;I)V")
+    )
+    private void krs$customModelBody(SubmitNodeCollector collector, Model<?> model, Object state, PoseStack poseStack, RenderType renderType,
+                                     int lightCoords, int overlayCoords, int tintedColor, UvMapping uvMapping, int outlineColor, Operation<Void> original) {
+        if (state instanceof AvatarRenderState avatar
+                && CustomModelRenderer.trySubmit(avatar, poseStack, collector, lightCoords, overlayCoords, tintedColor))
+            return;
+
+        original.call(collector, model, state, poseStack, renderType, lightCoords, overlayCoords, tintedColor, uvMapping, outlineColor);
     }
 
     @Unique

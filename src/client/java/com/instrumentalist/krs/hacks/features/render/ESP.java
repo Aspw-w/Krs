@@ -7,6 +7,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
 import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
+import com.instrumentalist.krs.utils.render.IrisCompat;
 import com.instrumentalist.krs.utils.render.Shader2DRenderer;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
@@ -87,6 +88,8 @@ public class ESP extends Module {
     private static Object itemCaptureState = null;
     private static Object equipmentCaptureState = null;
     private static boolean itemCaptureArmor = false;
+    private static final Matrix4f IRIS_PROJECTION = new Matrix4f();
+    private static boolean irisProjectionSynced = false;
 
     public ESP() {
         super("ESP", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, true);
@@ -127,6 +130,7 @@ public class ESP extends Module {
         captureOpen = true;
         reversedDepth = false;
         zeroToOneDepth = false;
+        irisProjectionSynced = false;
 
         updateProjection();
     }
@@ -142,6 +146,7 @@ public class ESP extends Module {
 
         if (!projectionReady && !updateProjection())
             return;
+        syncIrisProjection();
 
         Entity entity = getCapturedEntity(captureModelState ? modelSubmit.state() : equipmentCaptureState);
         Model<? super S> model = modelSubmit.model();
@@ -195,6 +200,7 @@ public class ESP extends Module {
 
         if (!projectionReady && !updateProjection())
             return;
+        syncIrisProjection();
 
         VertexConsumer consumer = SILHOUETTE_CONSUMER.reset(
                 VIEW_PROJECTION,
@@ -243,6 +249,7 @@ public class ESP extends Module {
 
         if (!projectionReady && !updateProjection())
             return;
+        syncIrisProjection();
 
         SilhouetteVertexConsumer consumer = SILHOUETTE_CONSUMER.reset(
                 VIEW_PROJECTION,
@@ -255,6 +262,26 @@ public class ESP extends Module {
         for (BakedQuad quad : quads) {
             consumer.addBakedQuad(poseMatrix, quad, alphaMaskFor(quad));
         }
+    }
+
+    public static void captureCustomModel(Object state, PoseStack.Pose pose, Identifier texture, float[] positions, float[] uvs, int[] indices) {
+        if (!canCapture() || pose == null || !shouldCaptureState(state))
+            return;
+
+        if (!projectionReady && !updateProjection())
+            return;
+        syncIrisProjection();
+
+        SilhouetteVertexConsumer consumer = SILHOUETTE_CONSUMER.reset(
+                VIEW_PROJECTION,
+                captureWidth,
+                captureHeight,
+                alphaMaskFor(texture),
+                TRIANGLES
+        );
+        Matrix4fc poseMatrix = pose.pose();
+        for (int i = 0; i + 2 < indices.length; i += 3)
+            consumer.addMeshTriangle(poseMatrix, positions, uvs, indices[i], indices[i + 1], indices[i + 2]);
     }
 
     public static void renderCapturedShadow() {
@@ -348,7 +375,17 @@ public class ESP extends Module {
     }
 
     private static boolean canCapture() {
-        return captureOpen && !GuiEntityRenderGuard.isActive();
+        return captureOpen && !GuiEntityRenderGuard.isActive() && !IrisCompat.isRenderingShadowPass();
+    }
+
+    private static void syncIrisProjection() {
+        if (irisProjectionSynced)
+            return;
+        irisProjectionSynced = true;
+        if (!IrisCompat.isShaderPackInUse() || !IrisCompat.gbufferMatrices(IRIS_PROJECTION, VIEW_PROJECTION))
+            return;
+
+        reversedDepth = isReversedDepthProjection(IRIS_PROJECTION);
     }
 
     private static boolean updateProjection() {
@@ -382,6 +419,7 @@ public class ESP extends Module {
         itemCaptureState = null;
         equipmentCaptureState = null;
         itemCaptureArmor = false;
+        irisProjectionSynced = false;
         captureWidth = 0;
         captureHeight = 0;
         captureId++;
@@ -426,6 +464,17 @@ public class ESP extends Module {
         }
 
         return ArmorRenderKind.NONE;
+    }
+
+    private static AlphaMask alphaMaskFor(Identifier texture) {
+        if (texture == null || !(mc.getTextureManager().getTexture(texture) instanceof DynamicTexture dynamicTexture))
+            return null;
+
+        NativeImage image = dynamicTexture.getPixels();
+        if (image == null || image.isClosed() || image.getWidth() <= 0 || image.getHeight() <= 0)
+            return null;
+
+        return IMAGE_ALPHA_MASKS.computeIfAbsent(image, NativeImageAlphaMask::new);
     }
 
     private static AlphaMask alphaMaskFor(BakedQuad quad) {
@@ -694,6 +743,18 @@ public class ESP extends Module {
                 addVertex(itemVector.x, itemVector.y, itemVector.z, UVPair.unpackU(packedUv), UVPair.unpackV(packedUv));
             }
             activeAlphaMask = fallbackAlphaMask;
+        }
+
+        private void addMeshTriangle(Matrix4fc poseMatrix, float[] positions, float[] uvs, int a, int b, int c) {
+            addMeshVertex(poseMatrix, positions, uvs, a);
+            addMeshVertex(poseMatrix, positions, uvs, b);
+            addMeshVertex(poseMatrix, positions, uvs, c);
+            addMeshVertex(poseMatrix, positions, uvs, c);
+        }
+
+        private void addMeshVertex(Matrix4fc poseMatrix, float[] positions, float[] uvs, int index) {
+            poseMatrix.transformPosition(positions[index * 3], positions[index * 3 + 1], positions[index * 3 + 2], itemVector);
+            addVertex(itemVector.x, itemVector.y, itemVector.z, uvs[index * 2], uvs[index * 2 + 1]);
         }
 
         private void projectVertex(int index, float x, float y, float z) {

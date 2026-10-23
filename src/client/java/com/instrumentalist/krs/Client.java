@@ -7,6 +7,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.screen.CustomTitleScreen;
 import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.network.FileUtil;
+import com.instrumentalist.krs.utils.render.custommodel.ModelDownloader;
 import com.instrumentalist.krs.utils.network.WebAccessUtil;
 import com.instrumentalist.krs.utils.NotificationManager;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
@@ -24,7 +25,7 @@ public class Client implements IMinecraft {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    public static String clientVersion = "1.3-Release";
+    public static String clientVersion = "1.3.1-Dev";
 
     public static volatile EventManager eventManager = null;
     public static ConfigManager configManager = null;
@@ -58,6 +59,7 @@ public class Client implements IMinecraft {
         ChatUtil.showLog("Initialized Notification Manager");
 
         FileUtil.INSTANCE.doCfgNetLoaderAsync();
+        ModelDownloader.startAsync();
 
         ModuleManager.onInitialize();
         ChatUtil.showLog("Initialized Module Manager");

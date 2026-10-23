@@ -5,6 +5,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.OldHitting;
 import com.instrumentalist.krs.hacks.features.render.ViewModel;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
+import com.instrumentalist.krs.utils.render.custommodel.CustomModelRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import org.spongepowered.asm.mixin.Mixin;
@@ -220,6 +221,13 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
     private void armModifierHook(PoseStack matrices, SubmitNodeCollector submitter, int light, float equipProgress, float swingProgress, HumanoidArm arm, PlayerRenderState playerState, CallbackInfo ci) {
         if (this.shouldUseCustomEquipOffset())
             this.customRenderArmHoldingItem(matrices, submitter, light, equipProgress, swingProgress, arm, playerState, ci);
+    }
+
+    @Inject(method = "renderPlayerHand", at = @At("HEAD"), cancellable = true)
+    private void customModelHandHook(PoseStack matrices, SubmitNodeCollector submitter, int light, HumanoidArm arm, PlayerRenderState playerState, CallbackInfo ci) {
+        if (playerState.avatarRenderState != null
+                && CustomModelRenderer.trySubmitFirstPersonHand(playerState.avatarRenderState, matrices, submitter, light, arm))
+            ci.cancel();
     }
 
     @Inject(method = "swingArm", at = @At("HEAD"), cancellable = true)

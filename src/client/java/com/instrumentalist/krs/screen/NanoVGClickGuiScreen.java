@@ -1749,7 +1749,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
             float optionY = y;
             for (int i = 0; i < value.values.length; i++) {
-                float optionProgress = Math.clamp((progress - i * 0.035f) / 0.78f, 0f, 1f);
+                float optionProgress = Math.clamp((progress - i * listOptionStagger(value)) / 0.78f, 0f, 1f);
                 if (optionProgress > 0.01f)
                     addControl(ControlType.LIST_OPTION, new Rect(x, optionY, width, heights[i]), value, null, i);
                 optionY += heights[i];
@@ -1761,7 +1761,7 @@ public class NanoVGClickGuiScreen extends Screen {
             for (int i = 0; i < value.values.length; i++) {
                 String option = value.values[i];
                 float optionHeight = heights[i];
-                float optionProgress = Math.clamp((progress - i * 0.035f) / 0.78f, 0f, 1f);
+                float optionProgress = Math.clamp((progress - i * listOptionStagger(value)) / 0.78f, 0f, 1f);
                 if (optionProgress > 0.01f) {
                     Rect optionRect = new Rect(x, optionY, width, optionHeight);
                     boolean selected = i == value.getCurrentIndex();
@@ -1778,6 +1778,10 @@ public class NanoVGClickGuiScreen extends Screen {
                 optionY += optionHeight;
             }
         }));
+    }
+
+    private static float listOptionStagger(ListValue value) {
+        return Math.min(0.035f, 0.22f / Math.max(1, value.values.length));
     }
 
     private void renderFloatSetting(NVGU vg, Rect row, FloatValue value) {

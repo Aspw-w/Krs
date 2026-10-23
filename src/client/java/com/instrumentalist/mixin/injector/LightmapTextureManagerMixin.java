@@ -1,10 +1,8 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.level.CaveFinder;
 import com.instrumentalist.krs.hacks.features.render.AntiBlind;
 import com.instrumentalist.krs.hacks.features.render.FullBright;
-import com.instrumentalist.krs.hacks.features.level.Xray;
 import net.minecraft.client.renderer.LightmapRenderStateExtractor;
 import net.minecraft.client.renderer.state.LightmapRenderState;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,7 +15,7 @@ public abstract class LightmapTextureManagerMixin {
 
     @Inject(at = @At("RETURN"), method = "extract")
     private void fullBrightAndAntiBlindHook(LightmapRenderState state, float delta, CallbackInfo ci) {
-        if (ModuleManager.getModuleState(Xray.class) || ModuleManager.getModuleState(CaveFinder.class) || ModuleManager.getModuleState(FullBright.class)) {
+        if (FullBright.isBrightening()) {
             state.needsUpdate = true;
             state.blockFactor = 1.0F;
             state.blockLightTint = LightmapRenderStateExtractor.WHITE;

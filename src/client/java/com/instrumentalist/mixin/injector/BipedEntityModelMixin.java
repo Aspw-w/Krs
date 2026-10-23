@@ -2,7 +2,10 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.features.render.OldHitting;
 import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
+import com.instrumentalist.krs.utils.render.custommodel.CustomModelRenderer;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import net.minecraft.client.model.AnimationUtils;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.HumanoidModel;
@@ -67,6 +70,12 @@ public abstract class BipedEntityModelMixin<T extends HumanoidRenderState> exten
             this.rightArm.xRot = Mth.cos(g * 0.6662F + 3.1415927F) * 2.0F * h * 0.5F / bipedEntityRenderState.speedValue;
             this.leftArm.xRot = Mth.cos(g * 0.6662F) * 2.0F * h * 0.5F / bipedEntityRenderState.speedValue;
         }
+    }
+
+    @WrapMethod(method = "setupAnim(Lnet/minecraft/client/renderer/entity/state/HumanoidRenderState;)V")
+    private void krs$fitCustomModelParts(T state, Operation<Void> original) {
+        original.call(state);
+        CustomModelRenderer.fitBodyParts(state, this.head, this.body, this.rightArm, this.leftArm, this.rightLeg, this.leftLeg);
     }
 
     @Inject(method = "setupAnim(Lnet/minecraft/client/renderer/entity/state/HumanoidRenderState;)V", at = @At(value = "FIELD", target = "Lnet/minecraft/client/model/geom/ModelPart;zRot:F", ordinal = 1, shift = At.Shift.AFTER), cancellable = true)
