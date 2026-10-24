@@ -1365,19 +1365,19 @@ public class Interface extends Module {
             }
         }
 
-        NVGFonts.INTER_MEDIUM.drawText(entry.entityName, entry.hudX + 10f + entry.iconFix, entry.hudY + 10f, 16f, alphaColor(255, 255, 255, entry.alphaValue), Alignment.LEFT_TOP, true);
+        NVGFonts.INTER_MEDIUM.drawText(entry.entityName, entry.hudX + 10f + entry.iconFix, entry.hudY + 10f, 16f, alphaColor(255, 255, 255, entry.alphaValue), Alignment.LEFT_TOP, false);
 
         vg.roundedRectangle(entry.healthBarX + entry.iconFix, entry.healthBarY, state.previousTargetWidth, entry.barHeight, 5f, alphaColor(50, 50, 50, entry.alphaValue));
         if (state.previousHealthRatio >= 0.01f)
             vg.roundedRectangle(entry.healthBarX + entry.iconFix, entry.healthBarY, state.previousTargetWidth * state.previousHealthRatio, entry.barHeight, 5f, alphaColor(255, 50, 50, entry.barAlpha));
-        NVGFonts.ICON.drawText(MaterialIcon.HEART, entry.textX - 0.5f + entry.iconFix, entry.healthBarY - 3f, 14f, alphaColor(255, 100, 100, entry.barAlpha), Alignment.LEFT_TOP, true);
-        NVGFonts.INTER.drawText(entry.healthPctStr, entry.textX + 2f + NVGFonts.ICON.getWidth(MaterialIcon.HEART, 14f) + entry.iconFix, entry.healthBarY - 2f, 14f, alphaColor(255, 100, 100, entry.barAlpha), Alignment.LEFT_TOP, true);
+        NVGFonts.ICON.drawText(MaterialIcon.HEART, entry.textX - 0.5f + entry.iconFix, entry.healthBarY - 3f, 14f, alphaColor(255, 100, 100, entry.barAlpha), Alignment.LEFT_TOP, false);
+        NVGFonts.INTER.drawText(entry.healthPctStr, entry.textX + 2f + NVGFonts.ICON.getWidth(MaterialIcon.HEART, 14f) + entry.iconFix, entry.healthBarY - 2f, 14f, alphaColor(255, 100, 100, entry.barAlpha), Alignment.LEFT_TOP, false);
 
         vg.roundedRectangle(entry.healthBarX + entry.iconFix, entry.regenBarY, state.previousTargetWidth, entry.barHeight, 5f, alphaColor(50, 50, 50, entry.alphaValue));
         if (state.previousRegenRatio >= 0.01f)
             vg.roundedRectangle(entry.healthBarX + entry.iconFix, entry.regenBarY, state.previousTargetWidth * state.previousRegenRatio, entry.barHeight, 5f, alphaColor(255, 254, 59, entry.barAlpha));
-        NVGFonts.ICON.drawText(MaterialIcon.BROKEN_HEART, entry.textX - 0.5f + entry.iconFix, entry.regenBarY - 3f, 14f, alphaColor(255, 254, 59, entry.barAlpha), Alignment.LEFT_TOP, true);
-        NVGFonts.INTER.drawText(entry.regenPctStr, entry.textX + 2f + entry.iconFix + NVGFonts.ICON.getWidth(MaterialIcon.BROKEN_HEART, 14f), entry.regenBarY - 2f, 14f, alphaColor(255, 254, 59, entry.barAlpha), Alignment.LEFT_TOP, true);
+        NVGFonts.ICON.drawText(MaterialIcon.BROKEN_HEART, entry.textX - 0.5f + entry.iconFix, entry.regenBarY - 3f, 14f, alphaColor(255, 254, 59, entry.barAlpha), Alignment.LEFT_TOP, false);
+        NVGFonts.INTER.drawText(entry.regenPctStr, entry.textX + 2f + entry.iconFix + NVGFonts.ICON.getWidth(MaterialIcon.BROKEN_HEART, 14f), entry.regenBarY - 2f, 14f, alphaColor(255, 254, 59, entry.barAlpha), Alignment.LEFT_TOP, false);
     }
 
     public static void renderModuleInformation(NVGU vg, float startY, float deltaSpeed) {
@@ -2597,8 +2597,8 @@ public class Interface extends Module {
                 float boxWidth = NVGFonts.INTER.getWidth(waterText, 20f) + 21f;
                 float boxHeight = NVGFonts.INTER.getHeight(20f) + 13f;
                 NanoVGTheme.renderPanel(vg, 16f, 16f, boxWidth, boxHeight, NanoVGTheme.RADIUS_PANEL, 1f);
-                NVGFonts.INTER.drawText(first, 26f, 22f, 20f, NanoVGTheme.ACCENT, Alignment.LEFT_TOP, true);
-                NVGFonts.INTER.drawText(after, NVGFonts.INTER.getWidth(first, 20f) + 26f, 22f, 20f, new Color(255, 255, 255, 255), Alignment.LEFT_TOP, true);
+                NVGFonts.INTER.drawText(first, 26f, 22f, 20f, NanoVGTheme.ACCENT, Alignment.LEFT_TOP, false);
+                NVGFonts.INTER.drawText(after, NVGFonts.INTER.getWidth(first, 20f) + 26f, 22f, 20f, new Color(255, 255, 255, 255), Alignment.LEFT_TOP, false);
                 break;
 
             case "bullshit":
@@ -2614,9 +2614,9 @@ public class Interface extends Module {
                 NanoVGTheme.renderPanel(vg, x, y, width, height - 6f, NanoVGTheme.RADIUS_MENU, 1f);
                 first = waterText.substring(0, 1);
                 after = waterText.substring(1);
-                NVGFonts.INTER.drawText(first, x + padding, y + padding, 20f, NanoVGTheme.ACCENT, Alignment.LEFT_TOP, true);
-                NVGFonts.INTER.drawText(after, x + padding + NVGFonts.INTER.getWidth(first, 20f), y + padding, 20f, new Color(255, 255, 255, 255), Alignment.LEFT_TOP, true);
-                NVGFonts.INTER.drawText(fpsText, x + padding, y + padding + NVGFonts.INTER.getHeight(20f) + 6f, 18f, new Color(200, 200, 200, 180), Alignment.LEFT_TOP, true);
+                NVGFonts.INTER.drawText(first, x + padding, y + padding, 20f, NanoVGTheme.ACCENT, Alignment.LEFT_TOP, false);
+                NVGFonts.INTER.drawText(after, x + padding + NVGFonts.INTER.getWidth(first, 20f), y + padding, 20f, new Color(255, 255, 255, 255), Alignment.LEFT_TOP, false);
+                NVGFonts.INTER.drawText(fpsText, x + padding, y + padding + NVGFonts.INTER.getHeight(20f) + 6f, 18f, new Color(200, 200, 200, 180), Alignment.LEFT_TOP, false);
                 break;
         }
     }
