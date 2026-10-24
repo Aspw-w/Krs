@@ -87,11 +87,44 @@ public final class CustomModelRenderer {
         Identifier whiteTexture;
         final int[][][] armTriangles = new int[4][][];
         BodyPartFit partFit;
+        final boolean[] flat;
+        final Map<Integer, List<SkinBuffers>> skinBuffers = new HashMap<>();
 
         LoadedModel(GlbModel model, AutoRig rig, ModelProfile profile) {
             this.model = model;
             this.rig = rig;
             this.profile = profile;
+            flat = new boolean[model.primitives.size()];
+            for (int p = 0; p < flat.length; p++)
+                flat[p] = profile.isFlat(model.primitives.get(p).meshName);
+        }
+
+        SkinBuffers acquireSkinBuffers(int entityId) {
+            List<SkinBuffers> sets = skinBuffers.computeIfAbsent(entityId, k -> new ArrayList<>(2));
+            for (SkinBuffers set : sets) {
+                if (set.pending <= 0)
+                    return set;
+            }
+            SkinBuffers set = new SkinBuffers(model.primitives);
+            if (sets.size() < 4)
+                sets.add(set);
+            return set;
+        }
+    }
+
+    private static final class SkinBuffers {
+        final float[][] positions;
+        final float[][] normals;
+        int pending;
+
+        SkinBuffers(List<GlbModel.Primitive> primitives) {
+            positions = new float[primitives.size()][];
+            normals = new float[primitives.size()][];
+            for (int p = 0; p < positions.length; p++) {
+                int length = primitives.get(p).vertexCount() * 3;
+                positions[p] = new float[length];
+                normals[p] = new float[length];
+            }
         }
     }
 
@@ -243,9 +276,9 @@ public final class CustomModelRenderer {
         ModelAnimator.Smoothing smooth = SMOOTHING.computeIfAbsent(state.id, k -> new ModelAnimator.Smoothing());
         pruneSmoothing();
 
-        Matrix4f[] bones = new Matrix4f[AutoRig.BONE_COUNT];
-        for (int i = 0; i < bones.length; i++)
-            bones[i] = new Matrix4f();
+        Matrix4f[] bones = BONES;
+        for (Matrix4f bone : bones)
+            bone.identity();
         float scale = PLAYER_MODEL_HEIGHT * MODEL_SCALE / rig.height;
         AnimInput input = animInput(state, entity);
         input.seatHipY = SEAT_HEIGHT / (AVATAR_SCALE * scale) + loaded.profile.landmarks.legRadius * rig.height;
@@ -266,6 +299,8 @@ public final class CustomModelRenderer {
         poseStack.scale(scale, scale, scale);
         List<GlbModel.Primitive> primitives = loaded.model.primitives;
         boolean holdingItem = !state.leftHandItemState.isEmpty() || !state.rightHandItemState.isEmpty();
+        SkinBuffers buffers = loaded.acquireSkinBuffers(state.id);
+        packBones(bones);
         Map<Identifier, List<Skinned>> opaque = new HashMap<>();
         Map<Identifier, List<Skinned>> blended = new HashMap<>();
         for (int p = 0; p < primitives.size(); p++) {
@@ -274,21 +309,25 @@ public final class CustomModelRenderer {
                     ? loaded.textureIds[prim.texture] : loaded.whiteTexture;
             int[] withoutProp = rig.indicesWithoutProp.get(p);
             int[] triangles = withoutProp != null && holdingItem ? withoutProp : prim.indices;
-            Skinned skinned = skin(prim, triangles, rig.boneIndices.get(p), rig.boneWeights.get(p), bones);
-            if (loaded.profile.isFlat(prim.meshName)) {
+            boolean flat = loaded.flat[p];
+            float[] normals = buffers.normals[p];
+            skin(prim, rig.boneIndices.get(p), rig.boneWeights.get(p), buffers.positions[p], flat ? null : normals);
+            if (flat) {
                 Vector3f forward = bones[AutoRig.HEAD].transformDirection(new Vector3f(0.0f, 0.0f, 1.0f)).normalize();
-                for (int i = 0; i < skinned.normals.length; i += 3) {
-                    skinned.normals[i] = forward.x;
-                    skinned.normals[i + 1] = forward.y;
-                    skinned.normals[i + 2] = forward.z;
+                for (int i = 0; i < normals.length; i += 3) {
+                    normals[i] = forward.x;
+                    normals[i + 1] = forward.y;
+                    normals[i + 2] = forward.z;
                 }
             }
+            Skinned skinned = new Skinned(buffers.positions[p], normals, prim.uvs, triangles, prim.color);
             (translucent || prim.translucent ? blended : opaque).computeIfAbsent(texture, k -> new ArrayList<>()).add(skinned);
             ESP.captureCustomModel(state, poseStack.last(), texture, skinned.positions, skinned.uvs, skinned.indices);
         }
 
-        submitMeshes(opaque, false, poseStack, collector, tint, light, overlay);
-        submitMeshes(blended, true, poseStack, collector, tint, light, overlay);
+        buffers.pending = opaque.size() + blended.size();
+        submitMeshes(opaque, false, poseStack, collector, tint, light, overlay, buffers);
+        submitMeshes(blended, true, poseStack, collector, tint, light, overlay, buffers);
         poseStack.popPose();
 
         if (SHOW_ITEMS) {
@@ -369,20 +408,22 @@ public final class CustomModelRenderer {
                     .add(new Skinned(prim.positions, prim.normals, prim.uvs, triangles[p], prim.color));
         }
 
-        submitMeshes(opaque, false, poseStack, collector, 0xFFFFFFFF, light, OverlayTexture.NO_OVERLAY);
-        submitMeshes(blended, true, poseStack, collector, 0xFFFFFFFF, light, OverlayTexture.NO_OVERLAY);
+        submitMeshes(opaque, false, poseStack, collector, 0xFFFFFFFF, light, OverlayTexture.NO_OVERLAY, null);
+        submitMeshes(blended, true, poseStack, collector, 0xFFFFFFFF, light, OverlayTexture.NO_OVERLAY, null);
         poseStack.popPose();
         return true;
     }
 
     private static void submitMeshes(Map<Identifier, List<Skinned>> byTexture, boolean blend, PoseStack poseStack, SubmitNodeCollector collector,
-                                     int tint, int light, int overlay) {
+                                     int tint, int light, int overlay, SkinBuffers owner) {
         for (Map.Entry<Identifier, List<Skinned>> entry : byTexture.entrySet()) {
             RenderType type = blend ? shadedTranslucent(entry.getKey()) : shadedCutout(entry.getKey());
             List<Skinned> meshes = entry.getValue();
             collector.submitCustomGeometry(poseStack, type, (pose, buffer) -> {
                 for (Skinned mesh : meshes)
                     mesh.emit(pose, buffer, tint, light, overlay);
+                if (owner != null)
+                    owner.pending--;
             });
         }
     }
@@ -530,9 +571,13 @@ public final class CustomModelRenderer {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             SMOOTHING.clear();
+            for (LoadedModel loaded : LOADED.values())
+                loaded.skinBuffers.clear();
             return;
         }
         SMOOTHING.keySet().removeIf(id -> mc.level.getEntity(id) == null);
+        for (LoadedModel loaded : LOADED.values())
+            loaded.skinBuffers.keySet().removeIf(id -> mc.level.getEntity(id) == null);
     }
 
     private static final class Skinned {
@@ -553,27 +598,85 @@ public final class CustomModelRenderer {
         void emit(PoseStack.Pose pose, com.mojang.blaze3d.vertex.VertexConsumer buffer, int tint, int light, int overlay) {
             int color = ARGB.multiply(tint, this.color);
             int count = positions.length / 3;
-            int[] shaded = new int[count];
-            Vector3f n = new Vector3f();
-            for (int v = 0; v < count; v++) {
-                pose.transformNormal(normals[v * 3], normals[v * 3 + 1], normals[v * 3 + 2], n);
-                shaded[v] = ARGB.multiply(color, ARGB.gray(shade(n)));
-            }
+            float[] out = EmitScratch.positions(count);
+            float[] outN = EmitScratch.normals(count);
+            int[] shaded = EmitScratch.shaded(count);
+            int[] stamp = EmitScratch.stamp(count);
+            int id = EmitScratch.nextStamp();
+            Matrix4f m = pose.pose();
+            Vector3f n = EmitScratch.NORMAL;
             for (int i = 0; i + 2 < indices.length; i += 3) {
-                vertex(pose, buffer, indices[i], shaded, light, overlay);
-                vertex(pose, buffer, indices[i + 1], shaded, light, overlay);
-                vertex(pose, buffer, indices[i + 2], shaded, light, overlay);
-                vertex(pose, buffer, indices[i + 2], shaded, light, overlay);
+                for (int c = 0; c < 3; c++) {
+                    int v = indices[i + c];
+                    if (stamp[v] == id)
+                        continue;
+                    stamp[v] = id;
+                    int o = v * 3;
+                    float x = positions[o], y = positions[o + 1], z = positions[o + 2];
+                    out[o] = m.m00() * x + m.m10() * y + m.m20() * z + m.m30();
+                    out[o + 1] = m.m01() * x + m.m11() * y + m.m21() * z + m.m31();
+                    out[o + 2] = m.m02() * x + m.m12() * y + m.m22() * z + m.m32();
+                    pose.transformNormal(normals[o], normals[o + 1], normals[o + 2], n);
+                    outN[o] = n.x;
+                    outN[o + 1] = n.y;
+                    outN[o + 2] = n.z;
+                    shaded[v] = ARGB.multiply(color, ARGB.gray(shade(n)));
+                }
+                int a = indices[i], b = indices[i + 1], c = indices[i + 2];
+                vertex(buffer, a, out, outN, shaded, light, overlay);
+                vertex(buffer, b, out, outN, shaded, light, overlay);
+                vertex(buffer, c, out, outN, shaded, light, overlay);
+                vertex(buffer, c, out, outN, shaded, light, overlay);
             }
         }
 
-        private void vertex(PoseStack.Pose pose, com.mojang.blaze3d.vertex.VertexConsumer buffer, int v, int[] shaded, int light, int overlay) {
-            buffer.addVertex(pose, positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2])
-                    .setColor(shaded[v])
-                    .setUv(uvs[v * 2], uvs[v * 2 + 1])
-                    .setOverlay(overlay)
-                    .setLight(light)
-                    .setNormal(pose, normals[v * 3], normals[v * 3 + 1], normals[v * 3 + 2]);
+        private void vertex(com.mojang.blaze3d.vertex.VertexConsumer buffer, int v, float[] out, float[] outN, int[] shaded, int light, int overlay) {
+            int o = v * 3;
+            buffer.addVertex(out[o], out[o + 1], out[o + 2], shaded[v], uvs[v * 2], uvs[v * 2 + 1], overlay, light,
+                    outN[o], outN[o + 1], outN[o + 2]);
+        }
+    }
+
+    private static final class EmitScratch {
+        static final Vector3f NORMAL = new Vector3f();
+        private static float[] positions = new float[0];
+        private static float[] normals = new float[0];
+        private static int[] shaded = new int[0];
+        private static int[] stamp = new int[0];
+        private static int stampId;
+
+        static float[] positions(int count) {
+            if (positions.length < count * 3)
+                positions = new float[count * 3];
+            return positions;
+        }
+
+        static float[] normals(int count) {
+            if (normals.length < count * 3)
+                normals = new float[count * 3];
+            return normals;
+        }
+
+        static int[] shaded(int count) {
+            if (shaded.length < count)
+                shaded = new int[count];
+            return shaded;
+        }
+
+        static int[] stamp(int count) {
+            if (stamp.length < count) {
+                stamp = new int[count];
+                stampId = 0;
+            }
+            return stamp;
+        }
+
+        static int nextStamp() {
+            if (++stampId == 0) {
+                Arrays.fill(stamp, 0);
+                stampId = 1;
+            }
+            return stampId;
         }
     }
 
@@ -644,39 +747,79 @@ public final class CustomModelRenderer {
                         .createRenderSetup()));
     }
 
-    private static Skinned skin(GlbModel.Primitive prim, int[] triangles, int[] boneIndex, float[] boneWeight, Matrix4f[] bones) {
+    private static final Matrix4f[] BONES = new Matrix4f[AutoRig.BONE_COUNT];
+    private static final float[] PACKED_BONES = new float[AutoRig.BONE_COUNT * 12];
+
+    static {
+        for (int i = 0; i < BONES.length; i++)
+            BONES[i] = new Matrix4f();
+    }
+
+    private static void packBones(Matrix4f[] bones) {
+        for (int b = 0; b < bones.length; b++) {
+            Matrix4f m = bones[b];
+            int o = b * 12;
+            PACKED_BONES[o] = m.m00();
+            PACKED_BONES[o + 1] = m.m01();
+            PACKED_BONES[o + 2] = m.m02();
+            PACKED_BONES[o + 3] = m.m10();
+            PACKED_BONES[o + 4] = m.m11();
+            PACKED_BONES[o + 5] = m.m12();
+            PACKED_BONES[o + 6] = m.m20();
+            PACKED_BONES[o + 7] = m.m21();
+            PACKED_BONES[o + 8] = m.m22();
+            PACKED_BONES[o + 9] = m.m30();
+            PACKED_BONES[o + 10] = m.m31();
+            PACKED_BONES[o + 11] = m.m32();
+        }
+    }
+
+    private static void skin(GlbModel.Primitive prim, int[] boneIndex, float[] boneWeight, float[] pos, float[] nrm) {
         int count = prim.vertexCount();
         float[] src = prim.positions;
         float[] srcN = prim.normals;
-        float[] pos = new float[count * 3];
-        float[] nrm = new float[count * 3];
-        Vector3f p = new Vector3f();
-        Vector3f n = new Vector3f();
-        Vector3f accP = new Vector3f();
-        Vector3f accN = new Vector3f();
+        float[] mats = PACKED_BONES;
+        boolean normals = nrm != null;
 
         for (int v = 0; v < count; v++) {
-            accP.zero();
-            accN.zero();
+            int o = v * 3;
+            float x = src[o], y = src[o + 1], z = src[o + 2];
+            float nx = srcN[o], ny = srcN[o + 1], nz = srcN[o + 2];
+            float px = 0.0f, py = 0.0f, pz = 0.0f;
+            float qx = 0.0f, qy = 0.0f, qz = 0.0f;
+            int base = v * AutoRig.INFLUENCES;
             for (int k = 0; k < AutoRig.INFLUENCES; k++) {
-                float w = boneWeight[v * AutoRig.INFLUENCES + k];
+                float w = boneWeight[base + k];
                 if (w <= 0.0f)
                     continue;
-                Matrix4f m = bones[boneIndex[v * AutoRig.INFLUENCES + k]];
-                m.transformPosition(p.set(src[v * 3], src[v * 3 + 1], src[v * 3 + 2]));
-                m.transformDirection(n.set(srcN[v * 3], srcN[v * 3 + 1], srcN[v * 3 + 2]));
-                accP.fma(w, p);
-                accN.fma(w, n);
+                int m = boneIndex[base + k] * 12;
+                float m00 = mats[m], m01 = mats[m + 1], m02 = mats[m + 2];
+                float m10 = mats[m + 3], m11 = mats[m + 4], m12 = mats[m + 5];
+                float m20 = mats[m + 6], m21 = mats[m + 7], m22 = mats[m + 8];
+                px += w * (m00 * x + m10 * y + m20 * z + mats[m + 9]);
+                py += w * (m01 * x + m11 * y + m21 * z + mats[m + 10]);
+                pz += w * (m02 * x + m12 * y + m22 * z + mats[m + 11]);
+                if (normals) {
+                    qx += w * (m00 * nx + m10 * ny + m20 * nz);
+                    qy += w * (m01 * nx + m11 * ny + m21 * nz);
+                    qz += w * (m02 * nx + m12 * ny + m22 * nz);
+                }
             }
-            if (accN.lengthSquared() > 1.0e-12f)
-                accN.normalize();
-            pos[v * 3] = accP.x;
-            pos[v * 3 + 1] = accP.y;
-            pos[v * 3 + 2] = accP.z;
-            nrm[v * 3] = accN.x;
-            nrm[v * 3 + 1] = accN.y;
-            nrm[v * 3 + 2] = accN.z;
+            pos[o] = px;
+            pos[o + 1] = py;
+            pos[o + 2] = pz;
+            if (normals) {
+                float lengthSquared = qx * qx + qy * qy + qz * qz;
+                if (lengthSquared > 1.0e-12f) {
+                    float inv = 1.0f / (float) Math.sqrt(lengthSquared);
+                    qx *= inv;
+                    qy *= inv;
+                    qz *= inv;
+                }
+                nrm[o] = qx;
+                nrm[o + 1] = qy;
+                nrm[o + 2] = qz;
+            }
         }
-        return new Skinned(pos, nrm, prim.uvs, triangles, prim.color);
     }
 }
