@@ -16,8 +16,34 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public final class ToolUtil implements IMinecraft {
     public static final ToolUtil INSTANCE = new ToolUtil();
+
+    public static final int TOOL_SWORD = 0;
+    public static final int TOOL_PICKAXE = 1;
+    public static final int TOOL_AXE = 2;
+    public static final int TOOL_SHOVEL = 3;
+
+    private static final Map<Item, int[]> TOOL_INFO = new HashMap<>();
+
+    static {
+        Item[][] tools = {
+                {Items.WOODEN_SWORD, Items.WOODEN_PICKAXE, Items.WOODEN_AXE, Items.WOODEN_SHOVEL},
+                {Items.STONE_SWORD, Items.STONE_PICKAXE, Items.STONE_AXE, Items.STONE_SHOVEL},
+                {Items.GOLDEN_SWORD, Items.GOLDEN_PICKAXE, Items.GOLDEN_AXE, Items.GOLDEN_SHOVEL},
+                {Items.COPPER_SWORD, Items.COPPER_PICKAXE, Items.COPPER_AXE, Items.COPPER_SHOVEL},
+                {Items.IRON_SWORD, Items.IRON_PICKAXE, Items.IRON_AXE, Items.IRON_SHOVEL},
+                {Items.DIAMOND_SWORD, Items.DIAMOND_PICKAXE, Items.DIAMOND_AXE, Items.DIAMOND_SHOVEL},
+                {Items.NETHERITE_SWORD, Items.NETHERITE_PICKAXE, Items.NETHERITE_AXE, Items.NETHERITE_SHOVEL}
+        };
+        for (int tier = 0; tier < tools.length; tier++) {
+            for (int category = 0; category < tools[tier].length; category++)
+                TOOL_INFO.put(tools[tier][category], new int[]{category, tier + 1});
+        }
+    }
 
     public final Minecraft mc = Minecraft.getInstance();
 
@@ -70,13 +96,17 @@ public final class ToolUtil implements IMinecraft {
     }
 
     private int materialStrength(Item item) {
-        if (item == Items.NETHERITE_SWORD) return 5;
-        if (item == Items.DIAMOND_SWORD) return 4;
-        if (item == Items.IRON_SWORD) return 3;
-        if (item == Items.GOLDEN_SWORD) return 2;
-        if (item == Items.STONE_SWORD) return 1;
-        if (item == Items.WOODEN_SWORD) return 0;
-        return -1;
+        return getToolCategory(item) == TOOL_SWORD ? getToolTier(item) : -1;
+    }
+
+    public int getToolCategory(Item item) {
+        int[] info = TOOL_INFO.get(item);
+        return info != null ? info[0] : -1;
+    }
+
+    public int getToolTier(Item item) {
+        int[] info = TOOL_INFO.get(item);
+        return info != null ? info[1] : 0;
     }
 
     private int getEnchantmentLevel(ItemEnchantments itemEnchantments, ResourceKey<Enchantment> enchantment) {

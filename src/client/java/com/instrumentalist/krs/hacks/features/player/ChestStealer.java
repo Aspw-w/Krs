@@ -154,9 +154,16 @@ public class ChestStealer extends Module {
         }
 
         var inventory = player.getInventory();
+        int toolCategory = ToolUtil.INSTANCE.getToolCategory(stack.getItem());
+        int toolTier = ToolUtil.INSTANCE.getToolTier(stack.getItem());
         for (int i = 0; i < Math.min(36, inventory.getContainerSize()); i++) {
             ItemStack invStack = inventory.getItem(i);
             if (ItemStack.matches(invStack, stack) && invStack.getCount() >= stack.getCount())
+                return false;
+
+            if (toolCategory >= 0
+                    && ToolUtil.INSTANCE.getToolCategory(invStack.getItem()) == toolCategory
+                    && ToolUtil.INSTANCE.getToolTier(invStack.getItem()) > toolTier)
                 return false;
         }
 

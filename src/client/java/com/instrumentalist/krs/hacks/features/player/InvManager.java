@@ -60,76 +60,14 @@ public class InvManager extends Module {
 
     private static boolean cleaning = false;
 
-    private final Map<Item, Integer> itemSlots = Map.ofEntries(
-            Map.entry(Items.NETHERITE_SWORD, 0),
-            Map.entry(Items.DIAMOND_SWORD, 0),
-            Map.entry(Items.IRON_SWORD, 0),
-            Map.entry(Items.GOLDEN_SWORD, 0),
-            Map.entry(Items.STONE_SWORD, 0),
-            Map.entry(Items.WOODEN_SWORD, 0),
-            Map.entry(Items.NETHERITE_PICKAXE, 1),
-            Map.entry(Items.DIAMOND_PICKAXE, 1),
-            Map.entry(Items.IRON_PICKAXE, 1),
-            Map.entry(Items.GOLDEN_PICKAXE, 1),
-            Map.entry(Items.STONE_PICKAXE, 1),
-            Map.entry(Items.WOODEN_PICKAXE, 1),
-            Map.entry(Items.NETHERITE_AXE, 2),
-            Map.entry(Items.DIAMOND_AXE, 2),
-            Map.entry(Items.IRON_AXE, 2),
-            Map.entry(Items.GOLDEN_AXE, 2),
-            Map.entry(Items.STONE_AXE, 2),
-            Map.entry(Items.WOODEN_AXE, 2),
-            Map.entry(Items.NETHERITE_SHOVEL, 3),
-            Map.entry(Items.DIAMOND_SHOVEL, 3),
-            Map.entry(Items.IRON_SHOVEL, 3),
-            Map.entry(Items.GOLDEN_SHOVEL, 3),
-            Map.entry(Items.STONE_SHOVEL, 3),
-            Map.entry(Items.WOODEN_SHOVEL, 3)
-    );
-
-    private final Map<Item, Integer> swordMaterialRank = Map.of(
-            Items.NETHERITE_SWORD, 6,
-            Items.DIAMOND_SWORD, 5,
-            Items.IRON_SWORD, 4,
-            Items.GOLDEN_SWORD, 3,
-            Items.STONE_SWORD, 2,
-            Items.WOODEN_SWORD, 1
-    );
-
     private final Map<Item, Double> swordAttackDamageFallback = Map.of(
             Items.NETHERITE_SWORD, 8.0,
             Items.DIAMOND_SWORD, 7.0,
             Items.IRON_SWORD, 6.0,
+            Items.COPPER_SWORD, 5.0,
             Items.STONE_SWORD, 5.0,
             Items.GOLDEN_SWORD, 4.0,
             Items.WOODEN_SWORD, 4.0
-    );
-
-    private final Map<Item, Integer> pickaxeMaterialRank = Map.of(
-            Items.NETHERITE_PICKAXE, 6,
-            Items.DIAMOND_PICKAXE, 5,
-            Items.IRON_PICKAXE, 4,
-            Items.GOLDEN_PICKAXE, 3,
-            Items.STONE_PICKAXE, 2,
-            Items.WOODEN_PICKAXE, 1
-    );
-
-    private final Map<Item, Integer> axeMaterialItem = Map.of(
-            Items.NETHERITE_AXE, 6,
-            Items.DIAMOND_AXE, 5,
-            Items.IRON_AXE, 4,
-            Items.GOLDEN_AXE, 3,
-            Items.STONE_AXE, 2,
-            Items.WOODEN_AXE, 1
-    );
-
-    private final Map<Item, Integer> shovelMaterialItem = Map.of(
-            Items.NETHERITE_SHOVEL, 6,
-            Items.DIAMOND_SHOVEL, 5,
-            Items.IRON_SHOVEL, 4,
-            Items.GOLDEN_SHOVEL, 3,
-            Items.STONE_SHOVEL, 2,
-            Items.WOODEN_SHOVEL, 1
     );
 
     public InvManager() {
@@ -177,8 +115,8 @@ public class InvManager extends Module {
 
         for (int i = 0; i < Math.min(36, inventory.getContainerSize()); i++) {
             ItemStack stack = inventory.getItem(i);
-            Integer slot = itemSlots.get(stack.getItem());
-            if (slot != null) {
+            int slot = ToolUtil.INSTANCE.getToolCategory(stack.getItem());
+            if (slot >= 0) {
                 ItemStack targetStack = hotbarTargets[slot];
                 if (targetStack == null || compareItems(stack, targetStack) > 0)
                     hotbarTargets[slot] = stack;
@@ -254,8 +192,8 @@ public class InvManager extends Module {
 
             for (int i = 0; i <= 35; i++) {
                 ItemStack stack = inventory.getItem(i);
-                Integer slot = itemSlots.get(stack.getItem());
-                if (slot != null) {
+                int slot = ToolUtil.INSTANCE.getToolCategory(stack.getItem());
+                if (slot >= 0) {
                     ItemStack targetStack = cleanerTargets[slot];
                     if (targetStack == null || compareItems(stack, targetStack) > 0)
                         cleanerTargets[slot] = stack;
@@ -300,22 +238,16 @@ public class InvManager extends Module {
         int rank1 = 0;
         int rank2 = 0;
 
-        if (swordMaterialRank.containsKey(item1) && swordMaterialRank.containsKey(item2)) {
-            int attackDamageComparison = Double.compare(getSwordAttackDamage(stack1), getSwordAttackDamage(stack2));
-            if (attackDamageComparison != 0)
-                return attackDamageComparison;
+        int category = ToolUtil.INSTANCE.getToolCategory(item1);
+        if (category >= 0 && category == ToolUtil.INSTANCE.getToolCategory(item2)) {
+            if (category == ToolUtil.TOOL_SWORD) {
+                int attackDamageComparison = Double.compare(getSwordAttackDamage(stack1), getSwordAttackDamage(stack2));
+                if (attackDamageComparison != 0)
+                    return attackDamageComparison;
+            }
 
-            rank1 = swordMaterialRank.getOrDefault(item1, 0);
-            rank2 = swordMaterialRank.getOrDefault(item2, 0);
-        } else if (pickaxeMaterialRank.containsKey(item1) && pickaxeMaterialRank.containsKey(item2)) {
-            rank1 = pickaxeMaterialRank.getOrDefault(item1, 0);
-            rank2 = pickaxeMaterialRank.getOrDefault(item2, 0);
-        } else if (axeMaterialItem.containsKey(item1) && axeMaterialItem.containsKey(item2)) {
-            rank1 = axeMaterialItem.getOrDefault(item1, 0);
-            rank2 = axeMaterialItem.getOrDefault(item2, 0);
-        } else if (shovelMaterialItem.containsKey(item1) && shovelMaterialItem.containsKey(item2)) {
-            rank1 = shovelMaterialItem.getOrDefault(item1, 0);
-            rank2 = shovelMaterialItem.getOrDefault(item2, 0);
+            rank1 = ToolUtil.INSTANCE.getToolTier(item1);
+            rank2 = ToolUtil.INSTANCE.getToolTier(item2);
         }
 
         if (rank1 != rank2)
