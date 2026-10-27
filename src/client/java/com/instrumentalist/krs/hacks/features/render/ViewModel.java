@@ -52,7 +52,7 @@ public class ViewModel extends Module {
     private static final BooleanValue slowSwing = new BooleanValue("Slow Swing", false);
 
     @Setting
-    private static final IntValue setSwingSpeed = new IntValue("Set Swing Speed", 5, -5, 20, slowSwing::get);
+    private static final IntValue setSwingSpeed = new IntValue("Set Swing Speed", 5, -6, 20, slowSwing::get);
 
     public ViewModel() {
         super("View Model", ModuleCategory.Render, Keys.KEY_UNKNOWN, true, false);
