@@ -3,6 +3,8 @@ package org.nvgu.util;
 import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
 import org.lwjgl.nanovg.NanoVG;
 
+import java.nio.ByteBuffer;
+
 /**
  * Drop-in replacements for the NanoVG calls that build geometry or put pixels
  * on screen. While a graphics compatibility layer is rendered they report a
@@ -112,6 +114,14 @@ public final class TrackedNanoVG {
     }
 
     public static float nvgText(long ctx, float x, float y, CharSequence string) {
+        if (GraphicsApiCompatibility.isRegionTrackingActive()) {
+            NanoVG.nvgTextBounds(ctx, x, y, string, TEXT_BOUNDS);
+            markText(ctx);
+        }
+        return NanoVG.nvgText(ctx, x, y, string);
+    }
+
+    public static float nvgText(long ctx, float x, float y, ByteBuffer string) {
         if (GraphicsApiCompatibility.isRegionTrackingActive()) {
             NanoVG.nvgTextBounds(ctx, x, y, string, TEXT_BOUNDS);
             markText(ctx);

@@ -85,6 +85,7 @@ public class Interface extends Module {
     private static final float HUD_FONT_SIZE = 15f;
     private static final float INFO_HUD_ICON_GAP = 4f;
     private static final Color MODULE_LIST_TAG_COLOR = new Color(128, 128, 128);
+    private static final float MODULE_LIST_HORIZONTAL_GRADIENT_SPAN = 300f;
     private static long cachedTimeSecond = -1L;
     private static String cachedTimeText = "00:00:00";
 
@@ -308,14 +309,16 @@ public class Interface extends Module {
         float textX;
         float textY;
         int alpha;
-        Color textColor;
+        int colorIndex;
+        int colorCount;
+        long colorTimeMillis;
         float topLeftRadius;
         float topRightRadius;
         float bottomRightRadius;
         float bottomLeftRadius;
 
         void update(ModuleListEntry entry, float x, float y, float width, float height,
-                    float textX, float textY, int alpha, Color textColor) {
+                    float textX, float textY, int alpha, int colorIndex, int colorCount, long colorTimeMillis) {
             this.entry = entry;
             this.x = x;
             this.y = y;
@@ -324,7 +327,9 @@ public class Interface extends Module {
             this.textX = textX;
             this.textY = textY;
             this.alpha = alpha;
-            this.textColor = textColor;
+            this.colorIndex = colorIndex;
+            this.colorCount = colorCount;
+            this.colorTimeMillis = colorTimeMillis;
         }
 
         void updateCornerRadii(float topLeft, float topRight, float bottomRight, float bottomLeft) {
@@ -497,18 +502,20 @@ public class Interface extends Module {
     }
 
     public static Color getFadedColor(int index, int totalModules) {
-        return getFadedColor(index, totalModules, 255, System.currentTimeMillis());
+        return getFadedColor(index, totalModules, 255, System.currentTimeMillis(), 0f);
     }
 
-    private static Color getFadedColor(int index, int totalModules, int alpha, long currentTimeMillis) {
+    private static Color getFadedColor(int index, int totalModules, int alpha, long currentTimeMillis, float phaseOffset) {
         totalModules = Math.max(1, totalModules);
-        float cycleDuration = 4000f / 3f;
-        float progress = ((currentTimeMillis % (long) cycleDuration) / cycleDuration + (float) index / totalModules) % 1.0f;
+        float cycleDuration = 2000f;
+        float progress = ((currentTimeMillis % (long) cycleDuration) / cycleDuration + (float) index / totalModules + phaseOffset) % 1.0f;
+        if (progress < 0f)
+            progress += 1.0f;
         progress = 0.5f - 0.5f * (float) Math.cos(progress * 2 * Math.PI);
 
-        int red = (int) (255f * progress);
-        int green = (int) (255f * (1.0f - progress));
-        return new Color(red, green, 255, Math.clamp(alpha, 0, 255));
+        float saturation = 0.8f - 0.22f * (float) Math.sin(progress * Math.PI);
+        int rgb = Color.HSBtoRGB((180f + 120f * progress) / 360f, saturation, 1f);
+        return new Color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, Math.clamp(alpha, 0, 255));
     }
 
     private static String getCachedTimeText() {
@@ -2480,7 +2487,6 @@ public class Interface extends Module {
             float bottomPadding = visibleIndex == visibleCount - 1 ? 6f : 2f;
             float effectiveHeight = (fontHeight + topPadding + bottomPadding) * entry.progress;
             float textY = listY + topPadding;
-            Color textColor = getFadedColor(visibleIndex, visibleCount, alpha, colorTimeMillis);
 
             while (moduleListRenderEntryPool.size() <= visibleIndex)
                 moduleListRenderEntryPool.add(new ModuleListRenderEntry());
@@ -2494,7 +2500,9 @@ public class Interface extends Module {
                     textX,
                     textY,
                     alpha,
-                    textColor
+                    visibleIndex,
+                    visibleCount,
+                    colorTimeMillis
             );
             renderEntries.add(renderEntry);
             listY += effectiveHeight;
@@ -2526,6 +2534,29 @@ public class Interface extends Module {
         NanoVGTheme.renderConnectedEffects(vg, renderEntries, NanoVGTheme.RADIUS_HUD, effectAlpha);
     }
 
+    private static final class ModuleListGlyphColour implements NVGU.GlyphColour {
+        private int index;
+        private int count;
+        private int alpha;
+        private long timeMillis;
+        private float originX;
+
+        private void update(ModuleListRenderEntry entry) {
+            this.index = entry.colorIndex;
+            this.count = entry.colorCount;
+            this.alpha = entry.alpha;
+            this.timeMillis = entry.colorTimeMillis;
+            this.originX = entry.right();
+        }
+
+        @Override
+        public Color colourAt(float glyphCenterX) {
+            return getFadedColor(index, count, alpha, timeMillis, (originX - glyphCenterX) / MODULE_LIST_HORIZONTAL_GRADIENT_SPAN);
+        }
+    }
+
+    private final ModuleListGlyphColour moduleListGlyphColour = new ModuleListGlyphColour();
+
     private void renderModuleListBody(NVGU vg, List<ModuleListRenderEntry> renderEntries) {
         if (renderEntries.isEmpty()) return;
 
@@ -2536,8 +2567,9 @@ public class Interface extends Module {
             if (clipAnimatedEntry)
                 vg.pushScissor(entry.x, entry.y, entry.width, entry.height);
             try {
-                NVGFonts.INTER.drawText(entry.entry.text, entry.textX, entry.textY, MODULE_LIST_FONT_SIZE,
-                        entry.textColor, Alignment.LEFT_TOP, true);
+                moduleListGlyphColour.update(entry);
+                NVGFonts.INTER.drawGradientText(entry.entry.text, entry.textX, entry.textY, MODULE_LIST_FONT_SIZE,
+                        Alignment.LEFT_TOP, true, moduleListGlyphColour);
                 if (entry.entry.tagText != null) {
                     NVGFonts.INTER.drawText(
                             entry.entry.tagText,

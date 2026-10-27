@@ -44,6 +44,18 @@ public class NVGFont {
         vg.text(text, x, y, color, identifier, size, alignment);
     }
 
+    public void drawGradientText(String text, final float x, final float y, float size, Alignment alignment, boolean fontShadow, NVGU.GlyphColour colours) {
+        NVGU vg = NVGU.INSTANCE;
+
+        if (fontShadow) {
+            float shadowOffsetX = 2f;
+            float shadowOffsetY = 2f;
+            vg.text(text, x + shadowOffsetX, y + shadowOffsetY, SHADOW_COLOUR, identifier, size, alignment);
+        }
+
+        vg.gradientText(text, x, y, identifier, size, alignment, colours);
+    }
+
     public void drawTextBox(String text, final float x, final float y, float width, float size, Color color, Alignment alignment) {
         NVGU vg = NVGU.INSTANCE;
 

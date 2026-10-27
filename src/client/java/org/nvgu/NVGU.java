@@ -4,6 +4,7 @@ import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.render.Shader2DRenderer;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.nanovg.NVGColor;
+import org.lwjgl.nanovg.NVGGlyphPosition;
 import org.lwjgl.nanovg.NVGPaint;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.stb.STBTTFontinfo;
@@ -15,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
@@ -43,6 +45,7 @@ public class NVGU {
 
     public static NVGU INSTANCE = new NVGU();
     private static final int FILTER_CACHE_SIZE = 1024;
+    private static final int GRADIENT_TEXT_CACHE_LIMIT = 256;
 
     private long handle = -1;
     private final List<NVGColor> colourPool = new ArrayList<>();
@@ -70,6 +73,8 @@ public class NVGU {
     private final ArrayList<Shader2DRenderer.IndicatorRequest> transformedIndicatorRequests = new ArrayList<>();
     private final ArrayList<Shader2DRenderer.IndicatorRequest> transformedIndicatorRequestPool = new ArrayList<>();
     private final float[] textBounds = new float[4];
+    private final Map<String, ByteBuffer> gradientTextBuffers = new HashMap<>();
+    private NVGGlyphPosition.Buffer gradientGlyphPositions = NVGGlyphPosition.create(64);
     private final float[] textAscender = new float[1];
     private final float[] textDescender = new float[1];
     private final float[] textLineHeight = new float[1];
@@ -1425,6 +1430,74 @@ public class NVGU {
         nvgClosePath(handle);
 
         return this;
+    }
+
+    public interface GlyphColour {
+        Color colourAt(float glyphCenterX);
+    }
+
+    public NVGU gradientText(String text, float x, float y, String font, float size, Alignment alignment, GlyphColour colours) {
+        if (text == null || text.isEmpty()) return this;
+
+        String filteredText = filterRenderableText(text, font);
+        if (filteredText.isEmpty()) return this;
+
+        if (colours == null || hasMinecraftFormatting(filteredText))
+            return text(filteredText, x, y, colours == null ? Color.WHITE : colours.colourAt(x), font, size, alignment);
+
+        ByteBuffer encodedText = gradientTextBuffer(filteredText);
+        int textEnd = encodedText.limit();
+        if (gradientGlyphPositions.capacity() < textEnd)
+            gradientGlyphPositions = NVGGlyphPosition.create(Math.max(textEnd, gradientGlyphPositions.capacity() * 2));
+
+        float drawX = getAlignedTextStartX(filteredText, x, font, size, alignment);
+        float drawY = y + 1;
+
+        nvgBeginPath(handle);
+
+        nvgFontFace(handle, font);
+        nvgFontSize(handle, size);
+        nvgTextAlign(handle, leftAligned(alignment).getTextAlignment());
+
+        NVGGlyphPosition.Buffer glyphs = gradientGlyphPositions;
+        glyphs.clear();
+        int glyphCount = nvgTextGlyphPositions(handle, drawX, drawY, encodedText, glyphs);
+        long textAddress = MemoryUtil.memAddress(encodedText);
+        try {
+            for (int i = 0; i < glyphCount; i++) {
+                NVGGlyphPosition glyph = glyphs.get(i);
+                int glyphStart = (int) (glyph.str() - textAddress);
+                int glyphEnd = i + 1 < glyphCount ? (int) (glyphs.get(i + 1).str() - textAddress) : textEnd;
+                if (glyphStart < 0 || glyphEnd > textEnd || glyphEnd <= glyphStart)
+                    continue;
+
+                nvgFillColor(handle, createAndStoreColour(colours.colourAt((glyph.minx() + glyph.maxx()) * 0.5f)));
+                encodedText.limit(glyphEnd).position(glyphStart);
+                nvgText(handle, glyph.x(), drawY, encodedText);
+                encodedText.limit(textEnd).position(0);
+            }
+        } finally {
+            encodedText.limit(textEnd).position(0);
+        }
+
+        nvgClosePath(handle);
+
+        return this;
+    }
+
+    private ByteBuffer gradientTextBuffer(String text) {
+        ByteBuffer cached = gradientTextBuffers.get(text);
+        if (cached != null)
+            return cached;
+
+        if (gradientTextBuffers.size() >= GRADIENT_TEXT_CACHE_LIMIT)
+            gradientTextBuffers.clear();
+
+        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        ByteBuffer buffer = BufferUtils.createByteBuffer(bytes.length);
+        buffer.put(bytes).flip();
+        gradientTextBuffers.put(text, buffer);
+        return buffer;
     }
 
     private NVGU formattedText(String text, float x, float y, Color colour, String font, float size, Alignment alignment) {
