@@ -26,6 +26,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -270,6 +271,36 @@ public abstract class ClientPlayerEntityMixin extends Player {
     @Inject(method = "tick", at = @At("HEAD"))
     private void invMoveHook(CallbackInfo ci) {
         InventoryMove.moveFreely();
+    }
+
+    @WrapOperation(method = "sendChanges", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V"))
+    private void krs$sendPassengerRotation(ClientPacketListener instance, Packet<?> packet, Operation<Void> original) {
+        if (!(packet instanceof ServerboundMovePlayerPacket.Rot)) {
+            original.call(instance, packet);
+            return;
+        }
+
+        MotionEvent event = new MotionEvent(this.getX(), this.getY(), this.getZ(), this.getYRot(), this.getXRot(), this.onGround(), true, false, false);
+        float vanillaYaw = event.yaw;
+        float vanillaPitch = event.pitch;
+
+        if (Client.eventManager != null) Client.eventManager.call(event);
+        if (event.isCancelled()) return;
+        boolean eventRotationChanged = event.yaw != vanillaYaw || event.pitch != vanillaPitch;
+        if (Client.rotationManager != null && (Client.rotationManager.isRotating() || eventRotationChanged)) {
+            float[] fixedRotation = Client.rotationManager.normalizeRotation(event.yaw, event.pitch, this.yRotLast, this.xRotLast);
+            event.yaw = fixedRotation[0];
+            event.pitch = fixedRotation[1];
+        }
+
+        original.call(instance, new ServerboundMovePlayerPacket.Rot(event.yaw, event.pitch, this.onGround(), this.horizontalCollision));
+        this.yRotLast = event.yaw;
+        this.xRotLast = event.pitch;
+
+        MotionEvent postEvent = new MotionEvent(event.x, event.y, event.z, event.yaw, event.pitch, this.onGround(), false, false, true);
+        if (Client.eventManager != null && event.callInPost) Client.eventManager.call(postEvent);
+
+        if (Client.rotationManager != null) Client.rotationManager.postMotionVisualTick();
     }
 
     @Inject(method = "sendPosition", at = @At("HEAD"), cancellable = true)
