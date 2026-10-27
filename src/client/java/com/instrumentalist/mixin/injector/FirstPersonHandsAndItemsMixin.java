@@ -61,6 +61,28 @@ public abstract class FirstPersonHandsAndItemsMixin {
     }
 
     @Unique
+    private ItemStack getMainHandTarget(LocalPlayer player) {
+        if (OldHitting.shouldBlock() || shouldKeepOldEatSwingItemVisible(player))
+            return player.getMainHandItem();
+
+        if (PlayerUtil.INSTANCE.getSpoofSlot() != null) {
+            ItemStack spoofedStack = getFirstPersonSpoofStack(player);
+            return PlayerUtil.INSTANCE.getSpoofing() && spoofedStack != null ? spoofedStack : player.getMainHandItem();
+        }
+
+        return player.getMainHandItem();
+    }
+
+    @Unique
+    private void replaceVisibleItemsWithoutEquipAnimation(LocalPlayer player) {
+        if (player == null || !ModuleManager.getModuleState(ViewModel.class) || !ViewModel.noEquipAnimation.get())
+            return;
+
+        this.mainHandItem = getMainHandTarget(player);
+        this.offHandItem = player.getOffhandItem();
+    }
+
+    @Unique
     private void updateOffhandHeldItems(LocalPlayer player) {
         this.oOffHandHeight = this.offHandHeight;
         ItemStack itemStack2 = player.getOffhandItem();
@@ -126,6 +148,8 @@ public abstract class FirstPersonHandsAndItemsMixin {
 
             if (this.mainHandHeight < 0.1F)
                 this.mainHandItem = itemStack;
+
+            replaceVisibleItemsWithoutEquipAnimation(player);
         } else if (PlayerUtil.INSTANCE.getSpoofSlot() != null && player != null) {
             ci.cancel();
 
@@ -133,7 +157,18 @@ public abstract class FirstPersonHandsAndItemsMixin {
             ItemStack itemStack = PlayerUtil.INSTANCE.getSpoofing() && spoofedStack != null ? spoofedStack : player.getMainHandItem();
             boolean spoofStateActive = PlayerUtil.INSTANCE.getSpoofSlot() != null;
             updateSpoofedHeldItems(player, itemStack, spoofStateActive);
+            replaceVisibleItemsWithoutEquipAnimation(player);
         }
+    }
+
+    @Inject(method = "tick", at = @At("RETURN"))
+    private void noEquipAnimationTickHook(LocalPlayer player, CallbackInfo ci) {
+        replaceVisibleItemsWithoutEquipAnimation(player);
+    }
+
+    @Inject(method = "extractRenderState", at = @At("HEAD"))
+    private void noEquipAnimationExtractHook(LocalPlayer player, float partialTicks, FirstPersonHandsAndItemsRenderState state, CallbackInfo ci) {
+        replaceVisibleItemsWithoutEquipAnimation(player);
     }
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
