@@ -2808,6 +2808,75 @@ public final class Shader2DRenderer {
         }
     }
 
+    private static final NanoVgFrameState ROOT_NANO_VG_FRAME_STATE = new NanoVgFrameState();
+    private static NanoVgFrameState nanoVgFrameState;
+
+    public static NanoVgFrameState enterNanoVgFrameState() {
+        NanoVgFrameState previous = nanoVgFrameState;
+        NanoVgFrameState state = previous == null ? ROOT_NANO_VG_FRAME_STATE : new NanoVgFrameState();
+        state.invariantsCaptured = false;
+        nanoVgFrameState = state;
+        return previous;
+    }
+
+    public static void exitNanoVgFrameState(NanoVgFrameState previous) {
+        nanoVgFrameState = previous;
+    }
+
+    public static final class NanoVgFrameState {
+        private boolean invariantsCaptured;
+        private int textureBinding1;
+        private int sampler1;
+        private int textureBinding2;
+        private int sampler2;
+        private int textureBinding3;
+        private int sampler3;
+        private int readFramebuffer;
+        private int drawFramebuffer;
+        private int depthFunc;
+        private int viewportX;
+        private int viewportY;
+        private int viewportWidth;
+        private int viewportHeight;
+        private final int[] scissorBox = new int[4];
+
+        private NanoVgFrameState() {
+        }
+
+        private void captureInvariants() {
+            if (invariantsCaptured)
+                return;
+
+            GL13.glActiveTexture(GL13.GL_TEXTURE1);
+            textureBinding1 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+            sampler1 = GL11.glGetInteger(GL33.GL_SAMPLER_BINDING);
+            GL13.glActiveTexture(GL13.GL_TEXTURE2);
+            textureBinding2 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+            sampler2 = GL11.glGetInteger(GL33.GL_SAMPLER_BINDING);
+            GL13.glActiveTexture(GL13.GL_TEXTURE3);
+            textureBinding3 = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+            sampler3 = GL11.glGetInteger(GL33.GL_SAMPLER_BINDING);
+            GL13.glActiveTexture(GL13.GL_TEXTURE0);
+
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                IntBuffer viewport = stack.mallocInt(4);
+                GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
+                viewportX = viewport.get(0);
+                viewportY = viewport.get(1);
+                viewportWidth = viewport.get(2);
+                viewportHeight = viewport.get(3);
+                IntBuffer scissor = stack.mallocInt(4);
+                GL11.glGetIntegerv(GL11.GL_SCISSOR_BOX, scissor);
+                scissor.get(scissorBox);
+            }
+
+            readFramebuffer = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+            drawFramebuffer = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
+            depthFunc = GL11.glGetInteger(GL11.GL_DEPTH_FUNC);
+            invariantsCaptured = true;
+        }
+    }
+
     private static final class GLState {
         private final int activeTexture;
         private final int textureBinding;
@@ -2911,6 +2980,10 @@ public final class Shader2DRenderer {
         }
 
         private static GLState capture() {
+            NanoVgFrameState frameState = nanoVgFrameState;
+            if (frameState != null)
+                return capture(frameState);
+
             int activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
             GL13.glActiveTexture(GL13.GL_TEXTURE0);
             int textureBinding = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
@@ -2976,6 +3049,45 @@ public final class Shader2DRenderer {
                     GL11.glIsEnabled(GL11.GL_SCISSOR_TEST),
                     GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK),
                     scissorBox
+            );
+        }
+
+        private static GLState capture(NanoVgFrameState frameState) {
+            frameState.captureInvariants();
+
+            return new GLState(
+                    GL13.GL_TEXTURE0,
+                    GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D),
+                    0,
+                    frameState.textureBinding1,
+                    frameState.sampler1,
+                    frameState.textureBinding2,
+                    frameState.sampler2,
+                    frameState.textureBinding3,
+                    frameState.sampler3,
+                    GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM),
+                    GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING),
+                    GL11.glGetInteger(GL15.GL_ARRAY_BUFFER_BINDING),
+                    GL11.glGetInteger(GL15.GL_ELEMENT_ARRAY_BUFFER_BINDING),
+                    frameState.readFramebuffer,
+                    frameState.drawFramebuffer,
+                    GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB),
+                    GL11.glGetInteger(GL14.GL_BLEND_DST_RGB),
+                    GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA),
+                    GL11.glGetInteger(GL14.GL_BLEND_DST_ALPHA),
+                    GL14.GL_FUNC_ADD,
+                    GL14.GL_FUNC_ADD,
+                    frameState.depthFunc,
+                    frameState.viewportX,
+                    frameState.viewportY,
+                    frameState.viewportWidth,
+                    frameState.viewportHeight,
+                    true,
+                    false,
+                    false,
+                    false,
+                    false,
+                    frameState.scissorBox
             );
         }
 
