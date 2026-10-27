@@ -469,17 +469,20 @@ public class KillAura extends Module {
         boolean antiBotEnabled = ModuleManager.getModuleState(AntiBot.class);
         boolean teamsEnabled = ModuleManager.getModuleState(Teams.class);
 
+        boolean onlyPlayerTargets = onlyPlayers.get();
+        Vec3 playerEyePos = mc.player.getEyePosition();
+
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof LivingEntity livingEntity)
                     || livingEntity.isDeadOrDying()
                     || entity instanceof ArmorStand
                     || entity instanceof LocalPlayer
-                    || BehaviorUtils.isBot(livingEntity, antiBotEnabled)
-                    || BehaviorUtils.isTeammate(livingEntity, teamsEnabled)
-                    || onlyPlayers.get() && !(entity instanceof Player)) continue;
+                    || onlyPlayerTargets && !(entity instanceof Player)) continue;
 
-            double squaredDistance = EntityExtension.squaredBoxedDistanceTo(entity, mc.player);
-            if (squaredDistance > realTargetReachSquared) continue;
+            double squaredDistance = EntityExtension.squaredBoxedDistanceTo(entity, playerEyePos);
+            if (squaredDistance > realTargetReachSquared
+                    || BehaviorUtils.isBot(livingEntity, antiBotEnabled)
+                    || BehaviorUtils.isTeammate(livingEntity, teamsEnabled)) continue;
 
             TargetCandidate candidate = acquireTargetCandidate(
                     entity,

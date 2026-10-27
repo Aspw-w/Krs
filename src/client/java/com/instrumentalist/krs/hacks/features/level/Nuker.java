@@ -102,13 +102,14 @@ public class Nuker extends Module {
     private void collectPotentialBlocks(ClientLevel level, BlockPos playerPos, Vec3 playerPosVec, int startY, int rangeValue, boolean breaking, boolean placing, boolean noteOnly, boolean skipCloseAirPlace) {
         potentialBlocks.clear();
         int rangeSquared = rangeValue * rangeValue;
+        BlockPos.MutableBlockPos targetPos = new BlockPos.MutableBlockPos();
 
         for (int x = -rangeValue; x <= rangeValue; x++) {
             for (int y = startY; y <= rangeValue; y++) {
                 for (int z = -rangeValue; z <= rangeValue; z++) {
                     if (x * x + y * y + z * z > rangeSquared) continue;
 
-                    BlockPos targetPos = playerPos.offset(x, y, z);
+                    targetPos.setWithOffset(playerPos, x, y, z);
                     if (skipCloseAirPlace && placing && !noteOnly && playerPosVec != null) {
                         double dx = playerPosVec.x - (targetPos.getX() + 0.5);
                         double dy = playerPosVec.y - (targetPos.getY() + 0.5);
@@ -117,7 +118,7 @@ public class Nuker extends Module {
                     }
 
                     if (shouldHandleBlock(level, targetPos, breaking, placing, noteOnly))
-                        potentialBlocks.add(targetPos);
+                        potentialBlocks.add(targetPos.immutable());
                 }
             }
         }

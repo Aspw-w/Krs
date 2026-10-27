@@ -6,6 +6,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.world.BlockUtil;
+import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
@@ -13,6 +14,9 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import com.instrumentalist.krs.utils.input.Keys;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.Arrays;
+import java.util.Set;
 
 public class Xray extends Module {
 
@@ -93,87 +97,99 @@ public class Xray extends Module {
         return BlockUtil.INSTANCE.isFullSurroundedBlock(level, pos);
     }
 
+    private static volatile Set<Block> xrayBlocks;
+
     private static boolean isXrayBlock(Block block) {
-        return block == Blocks.COAL_ORE
-                || block == Blocks.COPPER_ORE
-                || block == Blocks.DIAMOND_ORE
-                || block == Blocks.EMERALD_ORE
-                || block == Blocks.GOLD_ORE
-                || block == Blocks.IRON_ORE
-                || block == Blocks.LAPIS_ORE
-                || block == Blocks.REDSTONE_ORE
-                || block == Blocks.DEEPSLATE_COAL_ORE
-                || block == Blocks.DEEPSLATE_COPPER_ORE
-                || block == Blocks.DEEPSLATE_DIAMOND_ORE
-                || block == Blocks.DEEPSLATE_EMERALD_ORE
-                || block == Blocks.DEEPSLATE_GOLD_ORE
-                || block == Blocks.DEEPSLATE_IRON_ORE
-                || block == Blocks.DEEPSLATE_LAPIS_ORE
-                || block == Blocks.DEEPSLATE_REDSTONE_ORE
-                || block == Blocks.COAL_BLOCK
-                || block == Blocks.COPPER_BLOCK.weathering().unaffected()
-                || block == Blocks.DIAMOND_BLOCK
-                || block == Blocks.EMERALD_BLOCK
-                || block == Blocks.GOLD_BLOCK
-                || block == Blocks.IRON_BLOCK
-                || block == Blocks.LAPIS_BLOCK
-                || block == Blocks.REDSTONE_BLOCK
-                || block == Blocks.RAW_COPPER_BLOCK
-                || block == Blocks.RAW_GOLD_BLOCK
-                || block == Blocks.RAW_IRON_BLOCK
-                || block == Blocks.ANCIENT_DEBRIS
-                || block == Blocks.NETHER_GOLD_ORE
-                || block == Blocks.NETHER_QUARTZ_ORE
-                || block == Blocks.NETHERITE_BLOCK
-                || block == Blocks.QUARTZ_BLOCK
-                || block == Blocks.CHEST
-                || block == Blocks.DISPENSER
-                || block == Blocks.DROPPER
-                || block == Blocks.ENDER_CHEST
-                || block == Blocks.HOPPER
-                || block == Blocks.TRAPPED_CHEST
-                || Blocks.DYED_SHULKER_BOX.asList().contains(block)
-                || block == Blocks.SHULKER_BOX
-                || block == Blocks.BEACON
-                || block == Blocks.CRAFTING_TABLE
-                || block == Blocks.ENCHANTING_TABLE
-                || block == Blocks.FURNACE
-                || block == Blocks.FLOWER_POT
-                || block == Blocks.JUKEBOX
-                || block == Blocks.LODESTONE
-                || block == Blocks.RESPAWN_ANCHOR
-                || block == Blocks.ANVIL
-                || block == Blocks.CHIPPED_ANVIL
-                || block == Blocks.DAMAGED_ANVIL
-                || block == Blocks.BARREL
-                || block == Blocks.BLAST_FURNACE
-                || block == Blocks.BREWING_STAND
-                || block == Blocks.CARTOGRAPHY_TABLE
-                || block == Blocks.COMPOSTER
-                || block == Blocks.FLETCHING_TABLE
-                || block == Blocks.GRINDSTONE
-                || block == Blocks.LECTERN
-                || block == Blocks.LOOM
-                || block == Blocks.SMITHING_TABLE
-                || block == Blocks.SMOKER
-                || block == Blocks.STONECUTTER
-                || block == Blocks.CAULDRON
-                || block == Blocks.LAVA_CAULDRON
-                || block == Blocks.WATER_CAULDRON
-                || block == Blocks.LAVA
-                || block == Blocks.WATER
-                || block == Blocks.END_PORTAL
-                || block == Blocks.END_PORTAL_FRAME
-                || block == Blocks.NETHER_PORTAL
-                || block == Blocks.CHAIN_COMMAND_BLOCK
-                || block == Blocks.COMMAND_BLOCK
-                || block == Blocks.REPEATING_COMMAND_BLOCK
-                || block == Blocks.BOOKSHELF
-                || block == Blocks.CLAY
-                || block == Blocks.DRAGON_EGG
-                || block == Blocks.FIRE
-                || block == Blocks.SPAWNER
-                || block == Blocks.TNT;
+        Set<Block> blocks = xrayBlocks;
+        if (blocks == null)
+            xrayBlocks = blocks = createXrayBlocks();
+        return blocks.contains(block);
+    }
+
+    private static Set<Block> createXrayBlocks() {
+        Set<Block> blocks = new ReferenceOpenHashSet<>(Arrays.asList(
+                Blocks.COAL_ORE,
+                Blocks.COPPER_ORE,
+                Blocks.DIAMOND_ORE,
+                Blocks.EMERALD_ORE,
+                Blocks.GOLD_ORE,
+                Blocks.IRON_ORE,
+                Blocks.LAPIS_ORE,
+                Blocks.REDSTONE_ORE,
+                Blocks.DEEPSLATE_COAL_ORE,
+                Blocks.DEEPSLATE_COPPER_ORE,
+                Blocks.DEEPSLATE_DIAMOND_ORE,
+                Blocks.DEEPSLATE_EMERALD_ORE,
+                Blocks.DEEPSLATE_GOLD_ORE,
+                Blocks.DEEPSLATE_IRON_ORE,
+                Blocks.DEEPSLATE_LAPIS_ORE,
+                Blocks.DEEPSLATE_REDSTONE_ORE,
+                Blocks.COAL_BLOCK,
+                Blocks.COPPER_BLOCK.weathering().unaffected(),
+                Blocks.DIAMOND_BLOCK,
+                Blocks.EMERALD_BLOCK,
+                Blocks.GOLD_BLOCK,
+                Blocks.IRON_BLOCK,
+                Blocks.LAPIS_BLOCK,
+                Blocks.REDSTONE_BLOCK,
+                Blocks.RAW_COPPER_BLOCK,
+                Blocks.RAW_GOLD_BLOCK,
+                Blocks.RAW_IRON_BLOCK,
+                Blocks.ANCIENT_DEBRIS,
+                Blocks.NETHER_GOLD_ORE,
+                Blocks.NETHER_QUARTZ_ORE,
+                Blocks.NETHERITE_BLOCK,
+                Blocks.QUARTZ_BLOCK,
+                Blocks.CHEST,
+                Blocks.DISPENSER,
+                Blocks.DROPPER,
+                Blocks.ENDER_CHEST,
+                Blocks.HOPPER,
+                Blocks.TRAPPED_CHEST,
+                Blocks.SHULKER_BOX,
+                Blocks.BEACON,
+                Blocks.CRAFTING_TABLE,
+                Blocks.ENCHANTING_TABLE,
+                Blocks.FURNACE,
+                Blocks.FLOWER_POT,
+                Blocks.JUKEBOX,
+                Blocks.LODESTONE,
+                Blocks.RESPAWN_ANCHOR,
+                Blocks.ANVIL,
+                Blocks.CHIPPED_ANVIL,
+                Blocks.DAMAGED_ANVIL,
+                Blocks.BARREL,
+                Blocks.BLAST_FURNACE,
+                Blocks.BREWING_STAND,
+                Blocks.CARTOGRAPHY_TABLE,
+                Blocks.COMPOSTER,
+                Blocks.FLETCHING_TABLE,
+                Blocks.GRINDSTONE,
+                Blocks.LECTERN,
+                Blocks.LOOM,
+                Blocks.SMITHING_TABLE,
+                Blocks.SMOKER,
+                Blocks.STONECUTTER,
+                Blocks.CAULDRON,
+                Blocks.LAVA_CAULDRON,
+                Blocks.WATER_CAULDRON,
+                Blocks.LAVA,
+                Blocks.WATER,
+                Blocks.END_PORTAL,
+                Blocks.END_PORTAL_FRAME,
+                Blocks.NETHER_PORTAL,
+                Blocks.CHAIN_COMMAND_BLOCK,
+                Blocks.COMMAND_BLOCK,
+                Blocks.REPEATING_COMMAND_BLOCK,
+                Blocks.BOOKSHELF,
+                Blocks.CLAY,
+                Blocks.DRAGON_EGG,
+                Blocks.FIRE,
+                Blocks.SPAWNER,
+                Blocks.TNT
+        ));
+        blocks.addAll(Blocks.DYED_SHULKER_BOX.asList());
+        return blocks;
     }
 
     public static boolean isOpacityMode() {

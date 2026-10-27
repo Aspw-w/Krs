@@ -62,6 +62,7 @@ public class Breaker extends Module {
     private boolean breakerNoKillAura = false;
     private boolean breakerSpoofing = false;
     private static final Set<BlockPos> autoWhitelistedTargets = new HashSet<>();
+    private static final Direction[] DIRECTIONS = Direction.values();
     private static boolean autoWhitelistSearching = false;
     private static boolean autoWhitelistHasBed = false;
     private static long autoWhitelistLastScanTime = 0L;
@@ -287,17 +288,18 @@ public class Breaker extends Module {
         int horizontalRange = 10;
         int verticalRange = 5;
 
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int x = -horizontalRange; x <= horizontalRange; x++) {
             for (int y = -verticalRange; y <= verticalRange; y++) {
                 for (int z = -horizontalRange; z <= horizontalRange; z++) {
-                    BlockPos pos = playerPos.offset(x, y, z);
+                    pos.setWithOffset(playerPos, x, y, z);
                     var blockState = level.getBlockState(pos);
                     if (!isTargetBlock(blockState))
                         continue;
 
                     double distance = pos.distSqr(playerPos);
                     if (distance < closestDistance) {
-                        closest = pos;
+                        closest = pos.immutable();
                         closestDistance = distance;
                     }
                 }
@@ -546,8 +548,9 @@ public class Breaker extends Module {
     }
 
     private boolean hasAdjacentAir(ClientLevel level, BlockPos pos) {
-        for (Direction direction : Direction.values()) {
-            if (level.getBlockState(pos.relative(direction)).isAir())
+        BlockPos.MutableBlockPos adjacentPos = new BlockPos.MutableBlockPos();
+        for (Direction direction : DIRECTIONS) {
+            if (level.getBlockState(adjacentPos.setWithOffset(pos, direction)).isAir())
                 return true;
         }
 
@@ -559,16 +562,23 @@ public class Breaker extends Module {
         BlockPos closest = null;
         double closestDistance = Double.MAX_VALUE;
 
+        double playerX = player.getX();
+        double playerY = player.getY();
+        double playerZ = player.getZ();
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int x = -radius; x <= radius; x++) {
             for (int y = -radius; y <= radius; y++) {
                 for (int z = -radius; z <= radius; z++) {
-                    BlockPos pos = playerPos.offset(x, y, z);
-                    if (!isTargetAvailable(level, pos) || !isWithinRange(player, pos, rangeLimit))
+                    pos.setWithOffset(playerPos, x, y, z);
+                    double dx = pos.getX() + 0.5 - playerX;
+                    double dy = pos.getY() + 0.5 - playerY;
+                    double dz = pos.getZ() + 0.5 - playerZ;
+                    double distance = dx * dx + dy * dy + dz * dz;
+                    if (rangeLimit < distance || !isTargetAvailable(level, pos))
                         continue;
 
-                    double distance = player.distanceToSqr(Vec3.atCenterOf(pos));
                     if (distance < closestDistance) {
-                        closest = pos;
+                        closest = pos.immutable();
                         closestDistance = distance;
                     }
                 }
