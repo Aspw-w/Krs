@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
@@ -47,6 +48,8 @@ public class NVGU {
     public static NVGU INSTANCE = new NVGU();
     private static final int FILTER_CACHE_SIZE = 1024;
     private static final int GRADIENT_TEXT_CACHE_LIMIT = 256;
+    private static final int GLYPH_INSTANCE_FLOATS = 16;
+    private static final float GLYPH_NO_CLIP = 1.0e6f;
     private static final int FORMATTED_SEGMENT_CACHE_SIZE = 256;
     private static final float SHADOW_BRIGHTNESS = 0.25f;
     private static final float SHADOW_OPACITY = 0.5f;
@@ -82,6 +85,22 @@ public class NVGU {
     private Color[] gradientGlyphColours = new Color[64];
     private final Map<String, GradientLayout> gradientLayouts = new HashMap<>();
     private final float[] layoutTransform = new float[6];
+    private final GlyphAtlas glyphAtlas = new GlyphAtlas();
+    private final java.util.Set<String> glyphFallbackReasons = new java.util.HashSet<>();
+    private boolean glyphBatchReported;
+    private final Map<String, Boolean> glyphEmScaleFonts = new HashMap<>();
+    private final float[] glyphTransform = new float[6];
+    private final float[] glyphMetric = new float[1];
+    private float[] glyphShadowInstances = new float[256 * GLYPH_INSTANCE_FLOATS];
+    private float[] glyphTextInstances = new float[256 * GLYPH_INSTANCE_FLOATS];
+    private FloatBuffer glyphInstanceBuffer = BufferUtils.createFloatBuffer(512 * GLYPH_INSTANCE_FLOATS);
+    private int glyphShadowCount;
+    private int glyphTextCount;
+    private boolean glyphBatchActive;
+    private float glyphMinX;
+    private float glyphMinY;
+    private float glyphMaxX;
+    private float glyphMaxY;
     private final float[] textAscender = new float[1];
     private final float[] textDescender = new float[1];
     private final float[] textLineHeight = new float[1];
@@ -269,6 +288,7 @@ public class NVGU {
             for (int imageHandle : textures.values()) {
                 failure = runCleanup(failure, () -> nvgDeleteImage(context, imageHandle));
             }
+            failure = runCleanup(failure, glyphAtlas::destroy);
             failure = runCleanup(failure, Shader2DRenderer.INSTANCE::destroy);
             failure = runCleanup(failure, () -> nvgDelete(context));
         }
@@ -1539,8 +1559,9 @@ public class NVGU {
 
     private GradientLayout gradientLayout(String text, ByteBuffer encodedText, String font, float size) {
         nvgCurrentTransform(handle, layoutTransform);
-        float fontScale = (float) (Math.sqrt(layoutTransform[0] * layoutTransform[0] + layoutTransform[2] * layoutTransform[2])
-                + Math.sqrt(layoutTransform[1] * layoutTransform[1] + layoutTransform[3] * layoutTransform[3])) * 0.5f * frameDevicePixelRatio;
+        float averageScale = (float) (Math.sqrt(layoutTransform[0] * layoutTransform[0] + layoutTransform[2] * layoutTransform[2])
+                + Math.sqrt(layoutTransform[1] * layoutTransform[1] + layoutTransform[3] * layoutTransform[3])) * 0.5f;
+        float fontScale = (int) (averageScale / 0.01f + 0.5f) * 0.01f * frameDevicePixelRatio;
         GradientLayout cached = gradientLayouts.get(text);
         if (cached != null && cached.size == size && cached.fontScale == fontScale && cached.font.equals(font))
             return cached;
@@ -1572,6 +1593,7 @@ public class NVGU {
             layout.starts[count] = glyphStart;
             layout.ends[count] = glyphEnd;
             layout.blank[count] = glyphEnd - glyphStart == 1 && Character.isWhitespace(encodedText.get(glyphStart));
+            layout.codePoints[count] = decodeUtf8(encodedText, glyphStart, glyphEnd);
             minX = Math.min(minX, glyph.minx());
             maxX = Math.max(maxX, glyph.maxx());
             count++;
@@ -1594,6 +1616,7 @@ public class NVGU {
         private final int[] starts;
         private final int[] ends;
         private final boolean[] blank;
+        private final int[] codePoints;
 
         private GradientLayout(String font, float size, float fontScale, int capacity) {
             this.font = font;
@@ -1604,7 +1627,225 @@ public class NVGU {
             this.starts = new int[capacity];
             this.ends = new int[capacity];
             this.blank = new boolean[capacity];
+            this.codePoints = new int[capacity];
         }
+    }
+
+    private static int decodeUtf8(ByteBuffer bytes, int start, int end) {
+        int first = bytes.get(start) & 0xFF;
+        int length = end - start;
+        if (first < 0x80 || length < 2)
+            return first;
+        if (first < 0xE0)
+            return (first & 0x1F) << 6 | bytes.get(start + 1) & 0x3F;
+        if (first < 0xF0 || length < 4)
+            return length < 3 ? -1 : (first & 0x0F) << 12 | (bytes.get(start + 1) & 0x3F) << 6 | bytes.get(start + 2) & 0x3F;
+        return (first & 0x07) << 18 | (bytes.get(start + 1) & 0x3F) << 12 | (bytes.get(start + 2) & 0x3F) << 6 | bytes.get(start + 3) & 0x3F;
+    }
+
+    public boolean beginGlyphBatch() {
+        if (!frameActive || effectBatch != null || glyphBatchActive)
+            return glyphFallback("frame state: active=" + frameActive + ", effectBatch=" + (effectBatch != null) + ", batch=" + glyphBatchActive);
+        if (!Shader2DRenderer.INSTANCE.ensureGlyphRenderer())
+            return glyphFallback("renderer unavailable");
+
+        nvgCurrentTransform(handle, glyphTransform);
+        if (glyphTransform[1] != 0f || glyphTransform[2] != 0f || glyphTransform[0] <= 0f || glyphTransform[3] <= 0f)
+            return glyphFallback("unsupported transform " + Arrays.toString(glyphTransform));
+
+        glyphShadowCount = 0;
+        glyphTextCount = 0;
+        glyphMinX = Float.POSITIVE_INFINITY;
+        glyphMinY = Float.POSITIVE_INFINITY;
+        glyphMaxX = Float.NEGATIVE_INFINITY;
+        glyphMaxY = Float.NEGATIVE_INFINITY;
+        glyphBatchActive = true;
+        return true;
+    }
+
+    public boolean addGlyphRun(String text, float x, float y, String font, float size, GlyphColour colours, Color solidColour,
+                               boolean shadow, float shadowOffsetX, float shadowOffsetY,
+                               float clipX, float clipY, float clipWidth, float clipHeight) {
+        if (!glyphBatchActive || text == null || font == null || colours == null && solidColour == null)
+            return glyphFallback("invalid run");
+        if (text.isEmpty())
+            return true;
+
+        String filteredText = filterRenderableText(text, font);
+        if (filteredText.isEmpty())
+            return true;
+        if (hasMinecraftFormatting(filteredText))
+            return glyphFallback("formatted text");
+
+        STBTTFontinfo fontInfo = displayFonts.get(font);
+        if (fontInfo == null)
+            return glyphFallback("no font info for " + font + " in " + displayFonts.keySet());
+
+        ByteBuffer encodedText = gradientTextBuffer(filteredText);
+        nvgFontFace(handle, font);
+        nvgFontSize(handle, size);
+        nvgTextAlign(handle, Alignment.LEFT_TOP.getTextAlignment());
+        GradientLayout layout = gradientLayout(filteredText, encodedText, font, size);
+        float fontScale = layout.fontScale;
+        float pixelSize = (int) (size * fontScale * 10f) / 10f;
+        if (pixelSize <= 0f || fontScale <= 0f)
+            return true;
+
+        nvgTextMetrics(handle, glyphMetric, null, null);
+        float ascender = glyphMetric[0] * fontScale;
+        float glyphScale = glyphScale(fontInfo, font, pixelSize, fontScale);
+        boolean clipped = Float.isFinite(clipWidth) && Float.isFinite(clipHeight) && clipWidth < GLYPH_NO_CLIP;
+        float frameClipX0 = clipped ? clipX * glyphTransform[0] + glyphTransform[4] : -GLYPH_NO_CLIP;
+        float frameClipY0 = clipped ? clipY * glyphTransform[3] + glyphTransform[5] : -GLYPH_NO_CLIP;
+        float frameClipX1 = clipped ? (clipX + clipWidth) * glyphTransform[0] + glyphTransform[4] : GLYPH_NO_CLIP;
+        float frameClipY1 = clipped ? (clipY + clipHeight) * glyphTransform[3] + glyphTransform[5] : GLYPH_NO_CLIP;
+        float baselineY = y + 1;
+
+        int shadowStart = glyphShadowCount;
+        int textStart = glyphTextCount;
+        for (int i = 0; i < layout.glyphCount; i++) {
+            if (layout.blank[i])
+                continue;
+
+            GlyphAtlas.Glyph glyph = glyphAtlas.glyph(fontInfo, glyphScale, pixelSize, layout.codePoints[i]);
+            if (glyph == null) {
+                boolean atlasFull = glyphAtlas.isFull();
+                if (atlasFull)
+                    glyphAtlas.reset();
+                glyphShadowCount = shadowStart;
+                glyphTextCount = textStart;
+                return glyphFallback(atlasFull ? "atlas full" : "missing glyph U+" + Integer.toHexString(layout.codePoints[i]));
+            }
+            if (glyph.empty())
+                continue;
+
+            Color colour = colours != null ? colours.colourAt(x + layout.centerOffsets[i]) : solidColour;
+            float alpha = colour.getAlpha() / 255f * currentGlobalAlpha;
+            if (alpha <= 0f)
+                continue;
+
+            float red = colour.getRed() / 255f;
+            float green = colour.getGreen() / 255f;
+            float blue = colour.getBlue() / 255f;
+            float pen = layout.penOffsets[i];
+            if (shadow && colour.getAlpha() * SHADOW_OPACITY >= 1f) {
+                glyphShadowInstances = ensureGlyphCapacity(glyphShadowInstances, glyphShadowCount + 1);
+                putGlyphInstance(glyphShadowInstances, glyphShadowCount++, x + shadowOffsetX + pen, baselineY + shadowOffsetY, glyph, fontScale, ascender,
+                        red * SHADOW_BRIGHTNESS, green * SHADOW_BRIGHTNESS, blue * SHADOW_BRIGHTNESS, alpha * SHADOW_OPACITY,
+                        frameClipX0, frameClipY0, frameClipX1, frameClipY1);
+            }
+
+            glyphTextInstances = ensureGlyphCapacity(glyphTextInstances, glyphTextCount + 1);
+            putGlyphInstance(glyphTextInstances, glyphTextCount++, x + pen, baselineY, glyph, fontScale, ascender,
+                    red, green, blue, alpha, frameClipX0, frameClipY0, frameClipX1, frameClipY1);
+        }
+        return true;
+    }
+
+    public NVGU flushGlyphBatch() {
+        if (!glyphBatchActive)
+            return this;
+
+        glyphBatchActive = false;
+        int total = glyphShadowCount + glyphTextCount;
+        if (total == 0)
+            return this;
+
+        int floats = total * GLYPH_INSTANCE_FLOATS;
+        if (glyphInstanceBuffer.capacity() < floats)
+            glyphInstanceBuffer = BufferUtils.createFloatBuffer(Math.max(floats, glyphInstanceBuffer.capacity() * 2));
+        glyphInstanceBuffer.clear();
+        glyphInstanceBuffer.put(glyphShadowInstances, 0, glyphShadowCount * GLYPH_INSTANCE_FLOATS);
+        glyphInstanceBuffer.put(glyphTextInstances, 0, glyphTextCount * GLYPH_INSTANCE_FLOATS);
+        glyphInstanceBuffer.flip();
+
+        nvgCurrentTransform(handle, effectTransform);
+        endNativeFrame();
+
+        Shader2DRenderer.INSTANCE.drawGlyphQuads(frameWidth, frameHeight, frameDevicePixelRatio, glyphAtlas, glyphInstanceBuffer, total,
+                glyphMinX, glyphMinY, glyphMaxX, glyphMaxY);
+        if (!glyphBatchReported) {
+            glyphBatchReported = true;
+            com.mojang.logging.LogUtils.getLogger().info("Batched glyph rendering active ({} glyph quads)", total);
+        }
+
+        beginFrameInternal(frameWidth, frameHeight, frameDevicePixelRatio, false);
+        nvgSave(handle);
+        nvgTransform(handle, effectTransform[0], effectTransform[1], effectTransform[2], effectTransform[3], effectTransform[4], effectTransform[5]);
+        nvgGlobalAlpha(handle, currentGlobalAlpha);
+        return this;
+    }
+
+    private boolean glyphFallback(String reason) {
+        if (glyphFallbackReasons.size() < 32 && glyphFallbackReasons.add(reason))
+            com.mojang.logging.LogUtils.getLogger().warn("Batched glyph rendering fell back to NanoVG text: {}", reason);
+        return false;
+    }
+
+    public void cancelGlyphBatch() {
+        glyphBatchActive = false;
+        glyphShadowCount = 0;
+        glyphTextCount = 0;
+    }
+
+    private float glyphScale(STBTTFontinfo fontInfo, String font, float pixelSize, float fontScale) {
+        Boolean emScale = glyphEmScaleFonts.get(font);
+        if (emScale == null) {
+            float em = stbtt_ScaleForMappingEmToPixels(fontInfo, pixelSize);
+            float height = stbtt_ScaleForPixelHeight(fontInfo, pixelSize);
+            String probe = "HHHHHHHHHHHHHHHH";
+            float measured = nvgTextBounds(handle, 0f, 0f, probe, (float[]) null) * fontScale;
+            float advance;
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                java.nio.IntBuffer advanceWidth = stack.mallocInt(1);
+                java.nio.IntBuffer leftSideBearing = stack.mallocInt(1);
+                stbtt_GetCodepointHMetrics(fontInfo, 'H', advanceWidth, leftSideBearing);
+                advance = advanceWidth.get(0);
+            }
+            float emPredicted = (int) (em * advance * 10f) / 10f * probe.length();
+            float heightPredicted = (int) (height * advance * 10f) / 10f * probe.length();
+            emScale = Math.abs(measured - emPredicted) <= Math.abs(measured - heightPredicted);
+            glyphEmScaleFonts.put(font, emScale);
+        }
+
+        return emScale ? stbtt_ScaleForMappingEmToPixels(fontInfo, pixelSize) : stbtt_ScaleForPixelHeight(fontInfo, pixelSize);
+    }
+
+    private static float[] ensureGlyphCapacity(float[] instances, int count) {
+        int required = count * GLYPH_INSTANCE_FLOATS;
+        return required <= instances.length ? instances : Arrays.copyOf(instances, Math.max(required, instances.length * 2));
+    }
+
+    private void putGlyphInstance(float[] instances, int index, float penX, float baselineY, GlyphAtlas.Glyph glyph, float fontScale, float ascender,
+                                  float red, float green, float blue, float alpha,
+                                  float clipX0, float clipY0, float clipX1, float clipY1) {
+        float quadX = (float) Math.floor(penX * fontScale + glyph.offsetX());
+        float quadY = (float) Math.floor(baselineY * fontScale + ascender + glyph.offsetY());
+        float x0 = quadX / fontScale * glyphTransform[0] + glyphTransform[4];
+        float y0 = quadY / fontScale * glyphTransform[3] + glyphTransform[5];
+        float width = glyph.width() / fontScale * glyphTransform[0];
+        float height = glyph.height() / fontScale * glyphTransform[3];
+        int offset = index * GLYPH_INSTANCE_FLOATS;
+        instances[offset] = x0;
+        instances[offset + 1] = y0;
+        instances[offset + 2] = width;
+        instances[offset + 3] = height;
+        instances[offset + 4] = glyph.u0();
+        instances[offset + 5] = glyph.v0();
+        instances[offset + 6] = glyph.u1();
+        instances[offset + 7] = glyph.v1();
+        instances[offset + 8] = red;
+        instances[offset + 9] = green;
+        instances[offset + 10] = blue;
+        instances[offset + 11] = alpha;
+        instances[offset + 12] = clipX0;
+        instances[offset + 13] = clipY0;
+        instances[offset + 14] = clipX1;
+        instances[offset + 15] = clipY1;
+        glyphMinX = Math.min(glyphMinX, x0);
+        glyphMinY = Math.min(glyphMinY, y0);
+        glyphMaxX = Math.max(glyphMaxX, x0 + width);
+        glyphMaxY = Math.max(glyphMaxY, y0 + height);
     }
 
     private ByteBuffer gradientTextBuffer(String text) {
@@ -1834,6 +2075,8 @@ public class NVGU {
         clearTextFilterCache();
         STBTTFontinfo oldFontInfo = displayFonts.remove(identifier);
         if (oldFontInfo != null) oldFontInfo.free();
+        glyphAtlas.reset();
+        glyphEmScaleFonts.remove(identifier);
 
         STBTTFontinfo fontInfo = STBTTFontinfo.malloc();
         if (stbtt_InitFont(fontInfo, buffer.asReadOnlyBuffer())) {

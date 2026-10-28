@@ -13,7 +13,7 @@ import static org.nvgu.util.TrackedNanoVG.nvgTextBox;
 
 public class NVGFont {
 
-    private static final float SHADOW_OFFSET = 2f;
+    public static final float SHADOW_OFFSET = 2f;
     private static final int WIDTH_CACHE_SIZE = 512;
     private static final int HEIGHT_CACHE_SIZE = 32;
 

@@ -2581,6 +2581,8 @@ public class Interface extends Module {
         if (renderEntries.isEmpty()) return;
 
         NanoVGTheme.renderConnected(vg, renderEntries, NanoVGTheme.RADIUS_HUD, 1f);
+        if (renderModuleListGlyphBatch(vg, renderEntries))
+            return;
 
         for (ModuleListRenderEntry entry : renderEntries) {
             boolean clipAnimatedEntry = entry.alpha != 255;
@@ -2606,6 +2608,36 @@ public class Interface extends Module {
                     vg.popScissor();
             }
         }
+    }
+
+    private boolean renderModuleListGlyphBatch(NVGU vg, List<ModuleListRenderEntry> renderEntries) {
+        if (!vg.beginGlyphBatch())
+            return false;
+
+        String font = NVGFonts.INTER.getIdentifier();
+        for (ModuleListRenderEntry entry : renderEntries) {
+            boolean clip = entry.alpha != 255;
+            float clipX = clip ? entry.x : 0f;
+            float clipY = clip ? entry.y : 0f;
+            float clipWidth = clip ? entry.width : Float.POSITIVE_INFINITY;
+            float clipHeight = clip ? entry.height : Float.POSITIVE_INFINITY;
+            moduleListGlyphColour.update(entry);
+            boolean added = vg.addGlyphRun(entry.entry.text, entry.textX, entry.textY, font, MODULE_LIST_FONT_SIZE,
+                    moduleListGlyphColour, null, true, NVGFont.SHADOW_OFFSET, NVGFont.SHADOW_OFFSET,
+                    clipX, clipY, clipWidth, clipHeight);
+            if (added && entry.entry.tagText != null) {
+                added = vg.addGlyphRun(entry.entry.tagText, entry.textX + entry.entry.textWidth, entry.textY, font, MODULE_LIST_FONT_SIZE,
+                        null, alphaColor(MODULE_LIST_TAG_COLOR.getRed(), MODULE_LIST_TAG_COLOR.getGreen(), MODULE_LIST_TAG_COLOR.getBlue(), entry.alpha),
+                        true, NVGFont.SHADOW_OFFSET, NVGFont.SHADOW_OFFSET, clipX, clipY, clipWidth, clipHeight);
+            }
+            if (!added) {
+                vg.cancelGlyphBatch();
+                return false;
+            }
+        }
+
+        vg.flushGlyphBatch();
+        return true;
     }
 
     private void ensureModuleListBackgroundGeometryCapacity(int rectangleCount) {

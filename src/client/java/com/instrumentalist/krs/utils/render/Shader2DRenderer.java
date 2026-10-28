@@ -12,6 +12,8 @@ import org.lwjgl.opengl.GL31;
 import org.lwjgl.opengl.GL33;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.system.MemoryStack;
+import org.nvgu.util.GlyphAtlas;
+import com.mojang.logging.LogUtils;
 
 import java.awt.Color;
 import java.nio.FloatBuffer;
@@ -110,6 +112,64 @@ public final class Shader2DRenderer {
                     1.0 - aPosition.y / uScreenSize.y * 2.0
                 );
                 gl_Position = vec4(ndc, aPosition.z * uDepthScale + uDepthOffset, 1.0);
+            }
+            """;
+    }
+
+    private static String glyphVertexShader() {
+        return """
+            #version 330 core
+
+            layout(location = 0) in vec4 aRect;
+            layout(location = 1) in vec4 aUv;
+            layout(location = 2) in vec4 aColor;
+            layout(location = 3) in vec4 aClip;
+
+            uniform vec2 uScreenSize;
+
+            out vec2 vPosition;
+            out vec2 vUv;
+            out vec4 vColor;
+            out vec4 vClip;
+
+            const vec2 CORNERS[6] = vec2[](
+                vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0),
+                vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 1.0)
+            );
+
+            void main() {
+                vec2 corner = CORNERS[gl_VertexID];
+                vec2 position = aRect.xy + aRect.zw * corner;
+                vPosition = position;
+                vUv = mix(aUv.xy, aUv.zw, corner);
+                vColor = aColor;
+                vClip = aClip;
+                gl_Position = vec4(position.x / uScreenSize.x * 2.0 - 1.0, 1.0 - position.y / uScreenSize.y * 2.0, 0.0, 1.0);
+            }
+            """;
+    }
+
+    private static String glyphFragmentShader() {
+        return """
+            #version 330 core
+
+            uniform sampler2D uAtlas;
+            uniform float uPixelRatio;
+
+            in vec2 vPosition;
+            in vec2 vUv;
+            in vec4 vColor;
+            in vec4 vClip;
+            out vec4 fragColor;
+
+            void main() {
+                vec2 inside = min(vPosition - vClip.xy, vClip.zw - vPosition) * uPixelRatio + 0.5;
+                float clip = clamp(inside.x, 0.0, 1.0) * clamp(inside.y, 0.0, 1.0);
+                float alpha = texture(uAtlas, vUv).r * vColor.a * clip;
+                if (alpha <= 0.0) {
+                    discard;
+                }
+                fragColor = vec4(vColor.rgb * alpha, alpha);
             }
             """;
     }
@@ -1007,6 +1067,13 @@ public final class Shader2DRenderer {
     private int maskProgram = 0;
     private int occludedMaskProgram = 0;
     private int silhouetteCompositeProgram = 0;
+    private int glyphProgram = 0;
+    private int glyphVertexArray = 0;
+    private int glyphInstanceBuffer = 0;
+    private int glyphScreenSizeUniform = -1;
+    private int glyphAtlasUniform = -1;
+    private int glyphPixelRatioUniform = -1;
+    private boolean glyphRendererFailed = false;
 
     private int blurTextureUniform = -1;
     private int blurTexelSizeUniform = -1;
@@ -2261,7 +2328,90 @@ public final class Shader2DRenderer {
         }
     }
 
+    public boolean ensureGlyphRenderer() {
+        if (glyphRendererFailed)
+            return false;
+        if (glyphProgram != 0)
+            return true;
+
+        int previousVertexArray = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
+        int previousArrayBuffer = GL11.glGetInteger(GL15.GL_ARRAY_BUFFER_BINDING);
+        int previousProgram = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
+        try {
+            glyphProgram = createProgram(glyphVertexShader(), glyphFragmentShader());
+            glyphScreenSizeUniform = uniform(glyphProgram, "uScreenSize");
+            glyphAtlasUniform = uniform(glyphProgram, "uAtlas");
+            glyphPixelRatioUniform = uniform(glyphProgram, "uPixelRatio");
+            glyphVertexArray = GL30.glGenVertexArrays();
+            glyphInstanceBuffer = GL15.glGenBuffers();
+            GL30.glBindVertexArray(glyphVertexArray);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, glyphInstanceBuffer);
+            for (int attribute = 0; attribute < 4; attribute++) {
+                GL20.glEnableVertexAttribArray(attribute);
+                GL20.glVertexAttribPointer(attribute, 4, GL11.GL_FLOAT, false, 16 * Float.BYTES, attribute * 4L * Float.BYTES);
+                GL33.glVertexAttribDivisor(attribute, 1);
+            }
+            return true;
+        } catch (RuntimeException exception) {
+            glyphRendererFailed = true;
+            LogUtils.getLogger().warn("Batched glyph renderer is unavailable, falling back to NanoVG text", exception);
+            destroyGlyphRenderer();
+            return false;
+        } finally {
+            GL30.glBindVertexArray(previousVertexArray);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, previousArrayBuffer);
+            GL20.glUseProgram(previousProgram);
+        }
+    }
+
+    public void drawGlyphQuads(float frameWidth, float frameHeight, float pixelRatio, GlyphAtlas atlas, FloatBuffer instances, int instanceCount,
+                               float minX, float minY, float maxX, float maxY) {
+        if (frameWidth <= 0f || frameHeight <= 0f || instanceCount <= 0 || atlas == null || !ensureGlyphRenderer())
+            return;
+
+        GLState state = GLState.capture();
+        try {
+            prepareCommonState();
+            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, state.drawFramebuffer);
+            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, state.readFramebuffer);
+            GL11.glViewport(state.viewportX, state.viewportY, state.viewportWidth, state.viewportHeight);
+            GL13.glActiveTexture(GL13.GL_TEXTURE0);
+            atlas.bindForDraw();
+            GL11.glEnable(GL11.GL_BLEND);
+            GL20.glBlendEquationSeparate(GL14.GL_FUNC_ADD, GL14.GL_FUNC_ADD);
+            GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+            GL20.glUseProgram(glyphProgram);
+            GL20.glUniform2f(glyphScreenSizeUniform, frameWidth, frameHeight);
+            GL20.glUniform1i(glyphAtlasUniform, 0);
+            GL20.glUniform1f(glyphPixelRatioUniform, Math.max(0.001f, pixelRatio));
+            GL30.glBindVertexArray(glyphVertexArray);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, glyphInstanceBuffer);
+            GL15.glBufferData(GL15.GL_ARRAY_BUFFER, instances, GL15.GL_STREAM_DRAW);
+            GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, instanceCount);
+            markLayerRect(frameWidth, frameHeight, minX, minY, maxX - minX, maxY - minY);
+        } finally {
+            state.restore();
+        }
+    }
+
+    private void destroyGlyphRenderer() {
+        if (glyphProgram != 0) {
+            GL20.glDeleteProgram(glyphProgram);
+            glyphProgram = 0;
+        }
+        if (glyphVertexArray != 0) {
+            GL30.glDeleteVertexArrays(glyphVertexArray);
+            glyphVertexArray = 0;
+        }
+        if (glyphInstanceBuffer != 0) {
+            GL15.glDeleteBuffers(glyphInstanceBuffer);
+            glyphInstanceBuffer = 0;
+        }
+    }
+
     public void destroy() {
+        destroyGlyphRenderer();
+        glyphRendererFailed = false;
         if (blurProgram != 0) {
             GL20.glDeleteProgram(blurProgram);
             blurProgram = 0;
