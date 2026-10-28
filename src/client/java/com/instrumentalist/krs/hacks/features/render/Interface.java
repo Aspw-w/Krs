@@ -84,7 +84,7 @@ public class Interface extends Module {
     private static final float MODULE_LIST_FONT_SIZE = 15f;
     private static final float HUD_FONT_SIZE = 15f;
     private static final float INFO_HUD_ICON_GAP = 4f;
-    private static final Color MODULE_LIST_TAG_COLOR = new Color(128, 128, 128);
+    private static final Color MODULE_LIST_TAG_COLOR = new Color(170, 170, 170);
     private static final float MODULE_LIST_HORIZONTAL_GRADIENT_SPAN = 300f;
     private static final int FADE_LUT_SIZE = 2048;
     private static final int[] FADE_RGB = new int[FADE_LUT_SIZE];
