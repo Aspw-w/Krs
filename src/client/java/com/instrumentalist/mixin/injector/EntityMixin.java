@@ -5,6 +5,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.combat.TargetStrafe;
 import com.instrumentalist.krs.hacks.features.movement.EntityControl;
 import com.instrumentalist.krs.hacks.features.movement.MovementFix;
+import com.instrumentalist.krs.hacks.features.level.NoBlockEffects;
 import com.instrumentalist.krs.hacks.features.movement.NoPush;
 import com.instrumentalist.krs.hacks.features.level.AlwaysRiptide;
 import com.instrumentalist.krs.hacks.features.movement.Step;
@@ -50,6 +51,21 @@ public abstract class EntityMixin implements IMinecraft {
     @Shadow public boolean needsSync;
 
     @Shadow public abstract void setDeltaMovement(double x, double y, double z);
+
+    @ModifyReturnValue(method = "getBlockSpeedFactor", at = @At("RETURN"))
+    private float noBlockEffectsSpeedFactorHook(float original) {
+        return NoBlockEffects.shouldIgnore(this) ? 1.0f : original;
+    }
+
+    @ModifyReturnValue(method = "getBlockJumpFactor", at = @At("RETURN"))
+    private float noBlockEffectsJumpFactorHook(float original) {
+        return NoBlockEffects.shouldIgnore(this) ? 1.0f : original;
+    }
+
+    @ModifyReturnValue(method = "getBlockBounciness", at = @At("RETURN"))
+    private double noBlockEffectsBouncinessHook(double original) {
+        return NoBlockEffects.shouldIgnore(this) ? 0.0 : original;
+    }
 
     @ModifyReturnValue(method = "isSwimming", at = @At("RETURN"))
     public boolean freeCamHook3(boolean original) {

@@ -6,6 +6,7 @@ import com.instrumentalist.krs.hacks.features.combat.TargetStrafe;
 import com.instrumentalist.krs.hacks.features.level.ItemDropChanger;
 import com.instrumentalist.krs.hacks.features.movement.ElytraFly;
 import com.instrumentalist.krs.hacks.features.movement.MovementFix;
+import com.instrumentalist.krs.hacks.features.level.NoBlockEffects;
 import com.instrumentalist.krs.hacks.features.level.AlwaysRiptide;
 import com.instrumentalist.krs.hacks.features.movement.Sprint;
 import com.instrumentalist.krs.hacks.features.movement.Step;
@@ -33,6 +34,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class LivingEntityMixin extends EntityMixin {
 
     @Shadow protected abstract float getJumpPower();
+
+    @ModifyExpressionValue(method = "travelInAir", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;getFriction()F"))
+    private float noBlockEffectsFrictionHook(float original) {
+        return NoBlockEffects.shouldIgnore(this) ? NoBlockEffects.normalFriction() : original;
+    }
 
     @Inject(method = "jumpFromGround", at = @At("HEAD"), cancellable = true)
     public void jumpEvent(CallbackInfo ci) {
