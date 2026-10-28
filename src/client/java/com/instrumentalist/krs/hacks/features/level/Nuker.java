@@ -9,6 +9,7 @@ import com.instrumentalist.krs.hacks.features.player.AutoTool;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.utils.math.MSTimer;
 import com.instrumentalist.krs.utils.math.ToolUtil;
+import com.instrumentalist.krs.utils.render.BlockHighlight;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
@@ -51,6 +52,7 @@ public class Nuker extends Module {
     private static boolean wasBreaking = false;
 
     private final MSTimer nukeTimer = new MSTimer();
+    private final BlockHighlight blockHighlight = new BlockHighlight(0.45f);
     private BlockPos currentBlock = null;
     private final ArrayDeque<BlockPos> blockQueue = new ArrayDeque<>(256);
     private final ArrayList<BlockPos> potentialBlocks = new ArrayList<>(256);
@@ -75,6 +77,7 @@ public class Nuker extends Module {
             restoreOriginalSlot(mc.player);
         originalSlot = -1;
         PlayerUtil.INSTANCE.stopSpoof();
+        blockHighlight.release();
     }
 
     @Override
@@ -168,6 +171,7 @@ public class Nuker extends Module {
         }
 
         potentialBlocks.sort((a, b) -> Double.compare(a.distSqr(playerPos), b.distSqr(playerPos)));
+        blockHighlight.setTargets(potentialBlocks);
         blockQueue.clear();
         blockQueue.addAll(potentialBlocks);
 
@@ -213,6 +217,7 @@ public class Nuker extends Module {
         var player = mc.player;
         var level = mc.level;
         var gameMode = mc.gameMode;
+        blockHighlight.setTarget(null);
         if (player == null || level == null || gameMode == null) return;
 
         if (wasBreaking)
@@ -265,6 +270,7 @@ public class Nuker extends Module {
 
         wasBreaking = true;
         PlayerUtil.INSTANCE.doSpoof(originalSlot);
+        blockHighlight.setTarget(current);
 
         if (single && rotations.get())
             Client.rotationManager.faceBlock(current, 180f);

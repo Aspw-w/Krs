@@ -14,6 +14,7 @@ import com.instrumentalist.krs.utils.math.BehaviorUtils;
 import com.instrumentalist.krs.utils.math.MSTimer;
 import com.instrumentalist.krs.utils.math.ToolUtil;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
+import com.instrumentalist.krs.utils.render.BlockHighlight;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.IntValue;
@@ -44,6 +45,7 @@ public class CivBreak extends Module {
     private static boolean wasBreaking = false;
 
     private final MSTimer rotateTimer = new MSTimer();
+    private final BlockHighlight blockHighlight = new BlockHighlight();
     private int originalSlot = -1;
     private BlockPos pos = null;
     private Direction direction = null;
@@ -72,6 +74,7 @@ public class CivBreak extends Module {
         pos = null;
         direction = null;
         stage = 0;
+        blockHighlight.release();
     }
 
     @Override
@@ -105,6 +108,7 @@ public class CivBreak extends Module {
         var player = mc.player;
         var level = mc.level;
         var gameMode = mc.gameMode;
+        blockHighlight.setTarget(null);
         if (player == null || level == null || gameMode == null || gameMode.getPlayerMode() == GameType.ADVENTURE || gameMode.getPlayerMode() == GameType.SPECTATOR) return;
         if (ModuleManager.getModuleState(Scaffold.class)) return;
 
@@ -151,6 +155,7 @@ public class CivBreak extends Module {
             stage = 1;
 
         wasBreaking = true;
+        blockHighlight.setTarget(targetPos);
 
         switch (stage) {
             case 0 -> PlayerUtil.INSTANCE.destroyBlock(targetPos);

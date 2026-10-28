@@ -166,6 +166,37 @@ public final class RenderUtil {
         );
     }
 
+    public boolean renderedWorldToClip(double worldX, double worldY, double worldZ, Vector4f output) {
+        if (!projectionReady)
+            beginWorldProjection();
+        if (!projectionReady)
+            return false;
+
+        output.set(
+                (float) (worldX - projectionCameraX),
+                (float) (worldY - projectionCameraY),
+                (float) (worldZ - projectionCameraZ),
+                1.0f
+        ).mul(renderedWorldProjectionReady ? renderedWorldScreenMatrix : screenMatrix);
+        return true;
+    }
+
+    public boolean isAabInRenderedWorldFrustum(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        if (!projectionReady)
+            beginWorldProjection();
+        if (!projectionReady)
+            return false;
+
+        return (renderedWorldProjectionReady ? renderedWorldFrustum : screenFrustum).testAab(
+                (float) (minX - projectionCameraX),
+                (float) (minY - projectionCameraY),
+                (float) (minZ - projectionCameraZ),
+                (float) (maxX - projectionCameraX),
+                (float) (maxY - projectionCameraY),
+                (float) (maxZ - projectionCameraZ)
+        );
+    }
+
     private boolean worldToScreen(double worldX, double worldY, double worldZ, Matrix4fc projectionMatrix, float[] output) {
         if (output == null || output.length < 3)
             throw new IllegalArgumentException("World projection output must contain at least three floats");

@@ -13,6 +13,7 @@ import com.instrumentalist.krs.hacks.features.player.Scaffold;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.utils.math.BehaviorUtils;
 import com.instrumentalist.krs.utils.math.ToolUtil;
+import com.instrumentalist.krs.utils.render.BlockHighlight;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.ListValue;
@@ -56,6 +57,7 @@ public class Breaker extends Module {
     private int hypTick = 0;
     private BlockPos cachedBedPos = null;
     private BlockPos cachedSecondPos = null;
+    private final BlockHighlight blockHighlight = new BlockHighlight();
     private int originalSlot = -1;
     private boolean progress = false;
     private boolean secondProgress = false;
@@ -79,6 +81,7 @@ public class Breaker extends Module {
     @Override
     public void onDisable() {
         resetBreakingState(mc.player);
+        blockHighlight.release();
     }
 
     @Override
@@ -190,6 +193,7 @@ public class Breaker extends Module {
         progress = false;
         secondProgress = false;
         wasBreaking = false;
+        blockHighlight.setTarget(null);
     }
 
     private void resetAutoToolState() {
@@ -342,6 +346,7 @@ public class Breaker extends Module {
             cachedBedPos = findNearbyTargets(level, player, (int) Math.ceil(rangeValue), rangeLimit);
 
         BlockPos bedPos = cachedBedPos;
+        BlockPos highlightPos = null;
         if (bedPos != null && isTargetAvailable(level, bedPos) && isWithinRange(player, bedPos, rangeLimit)) {
             wasBreaking = true;
             switch (mode.get().toLowerCase(Locale.ROOT)) {
@@ -349,6 +354,7 @@ public class Breaker extends Module {
                     blockKillAura();
                     selectBestTool(player, bedPos);
                     Client.rotationManager.faceBlock(bedPos, 180f);
+                    highlightPos = bedPos;
                     BlockHitResult hitResult = hitResult(bedPos);
                     switch (clickMode.get().toLowerCase(Locale.ROOT)) {
                         case "break" -> {
@@ -375,6 +381,7 @@ public class Breaker extends Module {
                         progress = false;
                         hypTick = 0;
                     } else if (!bedTouchingAir && secondPos != null && !level.getBlockState(secondPos).isAir() && isWithinRange(player, secondPos, rangeLimit)) {
+                        highlightPos = secondPos;
                         selectBestTool(player, secondPos);
                         BlockHitResult hitResult = hitResult(secondPos);
                         hypTick++;
@@ -400,6 +407,7 @@ public class Breaker extends Module {
                             secondProgress = false;
                             hypTick = 0;
                         }
+                        highlightPos = bedPos;
                         selectBestTool(player, bedPos);
                         BlockHitResult hitResult = hitResult(bedPos);
                         hypTick++;
@@ -428,6 +436,7 @@ public class Breaker extends Module {
                         secondProgress = false;
                         progress = false;
                     } else if (secondPos != null && !level.getBlockState(secondPos).isAir() && isWithinRange(player, secondPos, rangeLimit)) {
+                        highlightPos = secondPos;
                         selectBestTool(player, secondPos);
                         Client.rotationManager.faceBlock(secondPos, 180f);
                         BlockHitResult hitResult = hitResult(secondPos);
@@ -446,6 +455,7 @@ public class Breaker extends Module {
                             cachedSecondPos = null;
                             secondProgress = false;
                         }
+                        highlightPos = bedPos;
                         Client.rotationManager.faceBlock(bedPos, 180f);
                         BlockHitResult hitResult = hitResult(bedPos);
                         if (gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hitResult).consumesAction())
@@ -515,6 +525,18 @@ public class Breaker extends Module {
                 } else hypTick = 0;
             }
         }
+
+        updateHighlight(level, highlightPos);
+    }
+
+    private void updateHighlight(ClientLevel level, BlockPos highlightPos) {
+        if (highlightPos == null) {
+            blockHighlight.setTarget(null);
+            return;
+        }
+
+        BlockState blockState = level.getBlockState(highlightPos);
+        blockHighlight.setTarget(highlightPos, blockState.getBlock() instanceof BedBlock ? findOtherBedPart(level, highlightPos, blockState) : null);
     }
 
     private boolean isBedTouchingAir(ClientLevel level, BlockPos bedPos) {

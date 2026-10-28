@@ -18,6 +18,7 @@ import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.utils.move.InputUtil;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
+import com.instrumentalist.krs.utils.render.BlockHighlight;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.IntValue;
@@ -193,6 +194,8 @@ public class Scaffold extends Module {
     private final ArrayList<BlockPos> scaffoldCandidates = new ArrayList<>(64);
     private final ArrayList<BlockPos> scaffoldDistanceCandidates = new ArrayList<>(32);
     private final HashSet<BlockPos> scaffoldCandidateSet = new HashSet<>(64);
+    private static final long HIGHLIGHT_HOLD_MILLIS = 900L;
+    private final BlockHighlight blockHighlight = new BlockHighlight(0.45f);
 
     private record PlacementTarget(BlockPos pos, BlockPos neighbour, Vec3 hitPos, Direction side, int searchDistance) {
     }
@@ -269,6 +272,7 @@ public class Scaffold extends Module {
         resetRotationHumanization();
         updateAutoSneak(false);
         PlayerUtil.INSTANCE.stopSpoof();
+        blockHighlight.release();
     }
 
     @Override
@@ -1712,6 +1716,8 @@ public class Scaffold extends Module {
     }
 
     private static boolean isScaffoldReplaceable(BlockState state) {
+        if (state.getBlock() instanceof SnowLayerBlock)
+            return state.getValue(SnowLayerBlock.LAYERS) == 1;
         return state.canBeReplaced();
     }
 
@@ -2339,6 +2345,7 @@ public class Scaffold extends Module {
             if (placed) {
                 placedScaffoldBlock = true;
                 lastPlacedScaffoldBlock = new BlockPos(target.pos().getX(), target.pos().getY(), target.pos().getZ());
+                blockHighlight.flash(lastPlacedScaffoldBlock, HIGHLIGHT_HOLD_MILLIS);
                 startedScaffold = true;
                 if (shouldActivateTellyAfterPlaceNoHitCheck(player))
                     tellyAfterPlaceNoHitCheckActive = true;
@@ -2763,10 +2770,17 @@ public class Scaffold extends Module {
     }
 
     private boolean isMatchingPlacementHit(BlockHitResult hit, BlockPos neighbour, Direction side) {
-        return hit != null
-                && hit.getType() == HitResult.Type.BLOCK
-                && hit.getBlockPos().equals(neighbour)
-                && hit.getDirection() == side;
+        if (hit == null || hit.getType() != HitResult.Type.BLOCK)
+            return false;
+
+        BlockPos hitPos = hit.getBlockPos();
+        if (hitPos.equals(neighbour))
+            return hit.getDirection() == side;
+
+        var level = mc.level;
+        return level != null
+                && hitPos.equals(neighbour.relative(side))
+                && isScaffoldReplaceable(level.getBlockState(hitPos));
     }
 
     private void facePlacementTarget(PlacementTarget target) {
