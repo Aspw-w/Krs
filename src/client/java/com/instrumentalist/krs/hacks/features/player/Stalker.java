@@ -11,6 +11,7 @@ import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.pathfinder.MainPathFinder;
 import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.instrumentalist.krs.utils.input.Keys;
+import com.instrumentalist.krs.utils.render.PathLines;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -75,6 +76,8 @@ public class Stalker extends Module {
         if (EntityExtension.boundingDistanceTo(mc.player, currentTarget) >= 1.2f) {
             ArrayList<Vec3> paths = MainPathFinder.computePath(mc.player.position(), currentTarget.position());
             if (paths == null || paths.isEmpty()) return;
+
+            PathLines.show(this, mc.player.position(), paths);
 
             for (Vec3 path : paths) {
                 PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(path.x, path.y, path.z, true, mc.player.horizontalCollision));

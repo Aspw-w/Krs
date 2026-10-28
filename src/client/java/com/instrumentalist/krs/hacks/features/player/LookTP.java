@@ -15,6 +15,7 @@ import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.network.protocol.Packet;
 import com.instrumentalist.krs.utils.input.Keys;
+import com.instrumentalist.krs.utils.render.PathLines;
 
 import java.util.ArrayList;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
@@ -131,6 +132,8 @@ public class LookTP extends Module {
                 tpTimer.reset();
                 return;
             }
+
+            PathLines.show(this, mc.player.position(), paths);
 
             if (clientsideTeleport.get()) {
                 clientsidePath = new ArrayList<>(paths);

@@ -37,6 +37,7 @@ import net.minecraft.server.commands.data.EntityDataAccessor;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import com.instrumentalist.krs.utils.input.Keys;
+import com.instrumentalist.krs.utils.render.PathLines;
 import xyz.breadloaf.imguimc.config.WindowConfigManager;
 import xyz.breadloaf.imguimc.config.WindowState;
 import xyz.breadloaf.imguimc.interfaces.Renderable;
@@ -639,6 +640,8 @@ public class ModuleRenderable implements Renderable, IMinecraft {
 
                             if (paths == null || paths.isEmpty()) return;
 
+                            PathLines.show(ModuleRenderable.class, mc.player.position(), paths);
+
                             for (Vec3 path : paths) {
                                 PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(path.x, path.y, path.z, true, mc.player.horizontalCollision));
                             }
@@ -692,6 +695,8 @@ public class ModuleRenderable implements Renderable, IMinecraft {
                         paths = MainPathFinder.computePath(mc.player.position(), new Vec3(xPos, yPos, zPos));
 
                         if (paths == null || paths.isEmpty()) return;
+
+                        PathLines.show(ModuleRenderable.class, mc.player.position(), paths);
 
                         for (Vec3 path : paths) {
                             PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(path.x, path.y, path.z, true, mc.player.horizontalCollision));

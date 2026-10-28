@@ -42,6 +42,7 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import com.instrumentalist.krs.utils.input.Keys;
+import com.instrumentalist.krs.utils.render.PathLines;
 
 import java.util.*;
 
@@ -340,6 +341,7 @@ public class KillAura extends Module {
         private final boolean onGround;
         private final boolean horizontalCollision;
         private Vec3 lastSentPosition;
+        private Entity pathTarget;
         private int nextStep;
         private int sentMovePackets;
         private int elapsedTicks;
@@ -1615,6 +1617,8 @@ public class KillAura extends Module {
             return;
         }
 
+        sequence.pathTarget = goStep.target();
+        PathLines.show(this, goStep.target(), from, path);
         sequence.totalMovePackets += path.size() - plannedCount;
         for (int i = 0; i < path.size(); i++)
             sequence.steps.add(sequence.nextStep + i, new TeleportMoveStep(path.get(i)));
@@ -1637,6 +1641,8 @@ public class KillAura extends Module {
             sequence.nextStep++;
             return true;
         }
+
+        PathLines.show(this, sequence.pathTarget != null ? sequence.pathTarget : this, sequence.lastSentPosition, path);
 
         for (Vec3 position : path) {
             if (!lastTick && sequence.sentMovePackets >= movePacketTarget)
@@ -1851,6 +1857,7 @@ public class KillAura extends Module {
                 return;
 
             if (resolvedPath != null) {
+                PathLines.show(this, target, mc.player.position(), resolvedPath.positions());
                 for (Vec3 path : resolvedPath.positions()) {
                     PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(path.x, path.y, path.z, tpOnGroundPacket.get(), mc.player.horizontalCollision));
                 }
@@ -1867,6 +1874,7 @@ public class KillAura extends Module {
                     ? resolvedPath.arrivalPosition()
                     : resolvedPath.positions().getLast();
             ArrayList<Vec3> returnPath = resolveReturnPath(lastSent, mc.player.position());
+            PathLines.show(this, target, lastSent, returnPath);
             for (Vec3 path : returnPath) {
                 PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(
                         path.x,
