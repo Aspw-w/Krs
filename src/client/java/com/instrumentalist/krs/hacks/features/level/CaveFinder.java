@@ -2,11 +2,13 @@ package com.instrumentalist.krs.hacks.features.level;
 
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
 import com.instrumentalist.krs.utils.input.Keys;
 
 public class CaveFinder extends Module {
@@ -53,7 +55,16 @@ public class CaveFinder extends Module {
     }
 
     private static boolean isCaveSpace(BlockAndTintGetter level, BlockPos pos) {
-        return !level.getBlockState(pos).canOcclude() && level.getBrightness(LightLayer.SKY, pos) == 0;
+        BlockState state = level.getBlockState(pos);
+        if (state.canOcclude())
+            return false;
+
+        return level.getBrightness(LightLayer.SKY, pos) == 0 || state.getFluidState().isEmpty() && isBelowSurface(pos);
+    }
+
+    private static boolean isBelowSurface(BlockPos pos) {
+        ClientLevel world = mc.level;
+        return world != null && pos.getY() < world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, pos.getX(), pos.getZ());
     }
 
     private void reloadChunks() {
