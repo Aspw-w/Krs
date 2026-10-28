@@ -4,6 +4,7 @@ import com.instrumentalist.krs.events.features.TickEvent;
 import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
+import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.mojang.math.Transformation;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -24,6 +25,13 @@ public final class Imposter extends Module {
     private static final AtomicInteger NEXT_ENTITY_ID = new AtomicInteger(Integer.MIN_VALUE);
     private static final float HEIGHT_ABOVE_PLAYER = 0.25f;
     private static final int PART_COUNT = 9;
+    private static final float SPIN_DEGREES_PER_TICK = 18.0f;
+    private static final float SPIN_WRAP_DEGREES = 360.0f * 1024.0f;
+
+    @Setting
+    private static final BooleanValue spin = new BooleanValue("Spin", true);
+
+    private static float spinYaw;
 
     private final List<FollowingBlockDisplay> parts = new ArrayList<>(PART_COUNT);
     private ClientLevel spawnedLevel;
@@ -40,16 +48,19 @@ public final class Imposter extends Module {
     @Override
     public void onEnable() {
         spawnIfPossible();
+        spinYaw = 0f;
     }
 
     @Override
     public void onDisable() {
         removeImposter();
+        spinYaw = 0f;
     }
 
     @Override
     public void onWorld(WorldEvent event) {
         removeImposter();
+        spinYaw = 0f;
     }
 
     @Override
@@ -61,6 +72,8 @@ public final class Imposter extends Module {
 
         if (spawnedLevel != mc.level || !hasCompleteImposter())
             spawnIfPossible();
+
+        spinYaw = (spinYaw + SPIN_DEGREES_PER_TICK) % SPIN_WRAP_DEGREES;
     }
 
     private void spawnIfPossible() {
@@ -161,7 +174,7 @@ public final class Imposter extends Module {
         private void followPlayer() {
             Vec3 position = player.position();
             setPos(position.x, position.y + player.getBbHeight() + HEIGHT_ABOVE_PLAYER, position.z);
-            setYRot(player.getYRot());
+            setYRot(spin.get() ? spinYaw : player.getYRot());
             setXRot(0.0f);
         }
     }
