@@ -36,6 +36,10 @@ public class ViewModel extends Module {
     @Setting
     public static final BooleanValue noEquipAnimation = new BooleanValue("No Equip Animation", false);
 
+    public static boolean shouldSkipEquipAnimation() {
+        return ModuleManager.getModuleState(ViewModel.class) && noEquipAnimation.get() || OldHitting.shouldSkipEquipAnimation();
+    }
+
     @Setting
     public static final BooleanValue fluxSwing = new BooleanValue("Flux Swing", false);
 

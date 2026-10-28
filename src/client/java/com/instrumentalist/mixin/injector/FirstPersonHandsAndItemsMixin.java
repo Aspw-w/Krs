@@ -75,7 +75,7 @@ public abstract class FirstPersonHandsAndItemsMixin {
 
     @Unique
     private void replaceVisibleItemsWithoutEquipAnimation(LocalPlayer player) {
-        if (player == null || !ModuleManager.getModuleState(ViewModel.class) || !ViewModel.noEquipAnimation.get())
+        if (player == null || !ViewModel.shouldSkipEquipAnimation())
             return;
 
         this.mainHandItem = getMainHandTarget(player);

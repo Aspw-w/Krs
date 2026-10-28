@@ -45,7 +45,7 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
         float realEquipProgress = equipProgress;
         float sizeModifier = getItemModelScale();
 
-        if (ModuleManager.getModuleState(ViewModel.class) && ViewModel.noEquipAnimation.get())
+        if (ViewModel.shouldSkipEquipAnimation())
             realEquipProgress = 0f;
 
         matrices.translate(direction * 0.56F, -0.52F, -0.71999997F);
@@ -267,7 +267,7 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
         float realEquipProgress = equipProgress;
         float sizeModifier = getItemModelScale();
 
-        if (ModuleManager.getModuleState(ViewModel.class) && ViewModel.noEquipAnimation.get())
+        if (ViewModel.shouldSkipEquipAnimation())
             realEquipProgress = 0f;
 
         int i = arm == HumanoidArm.RIGHT ? 1 : -1;
@@ -300,7 +300,7 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
 
         float realEquipProgress = equipProgress;
 
-        if (ModuleManager.getModuleState(ViewModel.class) && ViewModel.noEquipAnimation.get())
+        if (ViewModel.shouldSkipEquipAnimation())
             realEquipProgress = 0f;
 
         boolean bl = arm != HumanoidArm.LEFT;
@@ -477,7 +477,7 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
 
     @Unique
     private boolean shouldUseCustomEquipOffset() {
-        return ModuleManager.getModuleState(ViewModel.class) && (ViewModel.noEquipAnimation.get() || getItemModelScale() != 1.0F || hasCustomItemPosition());
+        return ViewModel.shouldSkipEquipAnimation() || ModuleManager.getModuleState(ViewModel.class) && (getItemModelScale() != 1.0F || hasCustomItemPosition());
     }
 
     @Unique
