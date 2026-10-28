@@ -52,13 +52,11 @@ import java.io.InputStream;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.WeakHashMap;
 
 public class ESP extends Module {
@@ -72,10 +70,9 @@ public class ESP extends Module {
     private static final SilhouetteVertexConsumer SILHOUETTE_CONSUMER = new SilhouetteVertexConsumer();
     private static final Map<NativeImage, AlphaMask> IMAGE_ALPHA_MASKS = new WeakHashMap<>();
     private static final Map<TextureAtlasSprite, AlphaMask> SPRITE_ALPHA_MASKS = new WeakHashMap<>();
-    private static final Map<Identifier, AlphaMask> TEXTURE_ALPHA_MASKS = new HashMap<>();
+    private static final Map<Identifier, TextureAlphaMask> TEXTURE_ALPHA_MASKS = new HashMap<>();
     private static final Map<RenderType, ArmorRenderKind> ARMOR_RENDER_TYPES = new IdentityHashMap<>();
     private static final Map<RenderType, Identifier> RENDER_TYPE_TEXTURES = new IdentityHashMap<>();
-    private static final Set<Identifier> UNMASKED_TEXTURES = new HashSet<>();
     private static final int CELL_PATTERN_CACHE_LIMIT = 8192;
     private static final Map<CellPatternKey, int[]> CELL_PATTERNS = new HashMap<>();
     private static int captureWidth = 0;
@@ -413,7 +410,6 @@ public class ESP extends Module {
         TEXTURE_ALPHA_MASKS.clear();
         ARMOR_RENDER_TYPES.clear();
         RENDER_TYPE_TEXTURES.clear();
-        UNMASKED_TEXTURES.clear();
         CELL_PATTERNS.clear();
         captureOpen = false;
         projectionReady = false;
@@ -433,15 +429,7 @@ public class ESP extends Module {
         if (!(model instanceof PlayerModel) || !(entity instanceof AbstractClientPlayer player))
             return null;
 
-        AbstractTexture texture = mc.getTextureManager().getTexture(player.getSkin().body().texturePath());
-        if (!(texture instanceof DynamicTexture dynamicTexture))
-            return null;
-
-        NativeImage image = dynamicTexture.getPixels();
-        if (image.isClosed() || image.getWidth() <= 0 || image.getHeight() <= 0)
-            return null;
-
-        return IMAGE_ALPHA_MASKS.computeIfAbsent(image, NativeImageAlphaMask::new);
+        return alphaMaskForTexture(player.getSkin().body().texturePath());
     }
 
     private static ArmorRenderKind armorRenderKind(RenderType renderType) {
@@ -452,32 +440,36 @@ public class ESP extends Module {
     }
 
     private static ArmorRenderKind detectArmorRenderKind(RenderType renderType) {
-        String name = renderType.toString().toLowerCase(Locale.ROOT);
-        if (name.contains("armor_entity_glint")
-                || name.contains("armor_trims")
-                || name.contains("textures/atlas/armor_trims")) {
+        String description = renderType.toString().toLowerCase(Locale.ROOT);
+        String name = renderTypeName(description);
+        if (name.startsWith("armor_trim")
+                || name.equals("trimmed_armor_glint")
+                || name.equals("armor_entity_glint")) {
             return ArmorRenderKind.OVERLAY;
         }
 
-        if (name.contains("armor_cutout_no_cull")
-                || name.contains("armor_decal_cutout_no_cull")
-                || name.contains("armor_translucent")
-                || name.contains("textures/models/armor")) {
+        if (name.startsWith("armor_cutout_no_cull")
+                || name.startsWith("armor_decal_cutout_no_cull")
+                || name.startsWith("armor_translucent")
+                || description.contains("textures/models/armor")
+                || description.contains("textures/entity/equipment/humanoid")) {
             return ArmorRenderKind.ARMOR;
         }
 
         return ArmorRenderKind.NONE;
     }
 
+    private static String renderTypeName(String description) {
+        String prefix = "rendertype[";
+        if (!description.startsWith(prefix))
+            return description;
+
+        int end = description.indexOf(':', prefix.length());
+        return end < 0 ? description.substring(prefix.length()) : description.substring(prefix.length(), end);
+    }
+
     private static AlphaMask alphaMaskFor(Identifier texture) {
-        if (texture == null || !(mc.getTextureManager().getTexture(texture) instanceof DynamicTexture dynamicTexture))
-            return null;
-
-        NativeImage image = dynamicTexture.getPixels();
-        if (image == null || image.isClosed() || image.getWidth() <= 0 || image.getHeight() <= 0)
-            return null;
-
-        return IMAGE_ALPHA_MASKS.computeIfAbsent(image, NativeImageAlphaMask::new);
+        return alphaMaskForTexture(texture);
     }
 
     private static AlphaMask alphaMaskFor(BakedQuad quad) {
@@ -495,22 +487,39 @@ public class ESP extends Module {
     }
 
     private static AlphaMask alphaMaskFor(RenderType renderType) {
-        Identifier texture = textureIdentifierFor(renderType);
-        if (texture == null || UNMASKED_TEXTURES.contains(texture))
+        return alphaMaskForTexture(textureIdentifierFor(renderType));
+    }
+
+    private static AlphaMask alphaMaskForTexture(Identifier texture) {
+        if (texture == null)
             return null;
 
-        AlphaMask cached = TEXTURE_ALPHA_MASKS.get(texture);
-        if (cached != null)
-            return cached;
+        AbstractTexture boundTexture = mc.getTextureManager().getTexture(texture);
+        if (boundTexture instanceof DynamicTexture dynamicTexture) {
+            NativeImage image = dynamicTexture.getPixels();
+            if (image == null || image.isClosed() || image.getWidth() <= 0 || image.getHeight() <= 0)
+                return null;
 
-        AlphaMask loaded = loadTextureAlphaMask(texture);
-        if (loaded == null) {
-            UNMASKED_TEXTURES.add(texture);
+            return IMAGE_ALPHA_MASKS.computeIfAbsent(image, NativeImageAlphaMask::new);
+        }
+
+        Object gpuTexture;
+        try {
+            gpuTexture = boundTexture.getTexture();
+        } catch (IllegalStateException exception) {
             return null;
         }
 
-        TEXTURE_ALPHA_MASKS.put(texture, loaded);
+        TextureAlphaMask cached = TEXTURE_ALPHA_MASKS.get(texture);
+        if (cached != null && cached.gpuTexture() == gpuTexture)
+            return cached.mask();
+
+        AlphaMask loaded = loadTextureAlphaMask(texture);
+        TEXTURE_ALPHA_MASKS.put(texture, new TextureAlphaMask(gpuTexture, loaded));
         return loaded;
+    }
+
+    private record TextureAlphaMask(Object gpuTexture, AlphaMask mask) {
     }
 
     private static Identifier textureIdentifierFor(RenderType renderType) {
@@ -530,7 +539,7 @@ public class ESP extends Module {
             int candidateStart = findTextureIdentifierStart(name, extension);
             if (candidateStart >= 0) {
                 Identifier texture = Identifier.tryParse(name.substring(candidateStart, extension + 4));
-                if (texture != null) {
+                if (texture != null && !texture.getPath().contains("glint")) {
                     RENDER_TYPE_TEXTURES.put(renderType, texture);
                     return texture;
                 }
