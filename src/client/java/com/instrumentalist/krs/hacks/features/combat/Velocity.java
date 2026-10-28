@@ -13,9 +13,11 @@ import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+import net.minecraft.world.phys.Vec3;
 import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class Velocity extends Module {
@@ -87,21 +89,37 @@ public class Velocity extends Module {
         var player = mc.player;
         if (player == null) return;
 
-        var packet = event.packet;
+        if (event.packet instanceof ClientboundSetEntityMotionPacket motionPacket && motionPacket.id() == player.getId()
+                && shouldDropKnockback(motionPacket.movement()))
+            event.cancel();
+    }
+
+    public static Optional<Vec3> hookExplosionKnockback(Optional<Vec3> knockback) {
+        Velocity velocity = ModuleManager.getModule(Velocity.class);
+        if (velocity == null || !velocity.tempEnabled || mc.player == null || knockback.isEmpty())
+            return knockback;
+
+        return velocity.shouldDropKnockback(knockback.get()) ? Optional.empty() : knockback;
+    }
+
+    private boolean shouldDropKnockback(Vec3 motion) {
+        var player = mc.player;
         switch (mode.get().toLowerCase(Locale.ROOT)) {
             case "standard" -> {
-                if (packet instanceof ClientboundSetEntityMotionPacket motionPacket && motionPacket.id() == player.getId())
-                    event.cancel();
+                return true;
             }
             case "hypixel ncp" -> {
-                if (!ModuleManager.getModuleState(FlyModule.class) && packet instanceof ClientboundSetEntityMotionPacket motionPacket && motionPacket.id() == player.getId()) {
-                    if (!ModuleManager.getModuleState(SpeedModule.class) || MovementUtil.fallTicks >= 10 || player.onGround())
-                        MovementUtil.setVelocityY(motionPacket.movement().y / 8000.0);
-                    event.cancel();
-                }
+                if (ModuleManager.getModuleState(FlyModule.class))
+                    return false;
+
+                if (!ModuleManager.getModuleState(SpeedModule.class) || MovementUtil.fallTicks >= 10 || player.onGround())
+                    MovementUtil.setVelocityY(motion.y);
+                return true;
             }
-            case "jump reset" -> updateJumpResetFallDamage(packet, player.getId());
+            case "jump reset" -> jumpResetFallDamage = motion.x == 0.0 && motion.z == 0.0 && motion.y < 0.0;
         }
+
+        return false;
     }
 
     private boolean isJumpResetMode() {
@@ -140,12 +158,5 @@ public class Velocity extends Module {
 
         if (jumpResetCooldown.get().equalsIgnoreCase("delay"))
             jumpResetLimitUntilJump++;
-    }
-
-    private void updateJumpResetFallDamage(Object packet, int playerId) {
-        if (packet instanceof ClientboundSetEntityMotionPacket motionPacket && motionPacket.id() == playerId) {
-            var motion = motionPacket.movement();
-            jumpResetFallDamage = motion.x == 0.0 && motion.z == 0.0 && motion.y < 0.0;
-        }
     }
 }

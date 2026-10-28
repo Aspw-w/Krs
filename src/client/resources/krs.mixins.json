@@ -19,6 +19,7 @@
     "ChunkOcclusionGraphBuilderMixin",
     "ClientClockManagerMixin",
     "ClientLevelMixin",
+    "ClientPacketListenerMixin",
     "ClientConnectionMixin",
     "ClientPlayerEntityMixin",
     "ClientPlayerInteractionManagerMixin",
