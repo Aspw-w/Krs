@@ -3,12 +3,16 @@ package com.instrumentalist.krs.hacks.features.combat;
 import com.instrumentalist.krs.events.features.AttackEvent;
 import com.instrumentalist.krs.events.features.MotionEvent;
 import com.instrumentalist.krs.events.features.ReceivedPacketEvent;
+import com.instrumentalist.krs.events.features.Render3DEvent;
 import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.entity.FakePlayerEntity;
 import com.instrumentalist.krs.utils.math.MSTimer;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
+import com.instrumentalist.krs.utils.packet.ServerPositionTracker;
+import com.instrumentalist.krs.utils.render.PathLines;
+import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.instrumentalist.krs.utils.value.IntValue;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
@@ -23,11 +27,15 @@ import net.minecraft.world.phys.Vec3;
 import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Optional;
 
 public class Backtrack extends Module {
     private static final int MAX_STORED_PACKETS = 512;
+    private static final double MIN_LINE_DISTANCE_SQUARED = 0.05D * 0.05D;
+    private static final Object TARGET_LINE = new Object();
+    private static final Object SELF_LINE = new Object();
 
     @Setting
     private final IntValue trackDelay = new IntValue("Track Delay", 200, 0, 2000, "ms");
@@ -37,6 +45,7 @@ public class Backtrack extends Module {
     private final Object storageLock = new Object();
     private final VecDeltaCodec simulatedPositionCodec = new VecDeltaCodec();
     private final MSTimer timer = new MSTimer();
+    private final ArrayList<Vec3> lineScratch = new ArrayList<>(1);
 
     private Entity lastAttackedEntity = null;
     private int lastAttackedEntityId = -1;
@@ -67,10 +76,38 @@ public class Backtrack extends Module {
     public void onDisable() {
         releasePackets();
         clearTracking();
+        PathLines.hide(this, TARGET_LINE);
+        PathLines.hide(this, SELF_LINE);
+    }
+
+    @Override
+    public void onRender3D(Render3DEvent event) {
+        if (mc.player == null || mc.level == null)
+            return;
+
+        Entity target = lastAttackedEntity;
+        Vec3 serverTarget = needFreeze && target != null ? getTrackedPosition(target) : null;
+        if (serverTarget != null && serverTarget.distanceToSqr(target.position()) > MIN_LINE_DISTANCE_SQUARED)
+            showLine(TARGET_LINE, RenderUtil.INSTANCE.getLerpedPos(target, event.partialTicks), serverTarget);
+        else
+            PathLines.hide(this, TARGET_LINE);
+
+        Vec3 serverSelf = ServerPositionTracker.lastSentPosition();
+        if (serverSelf != null && serverSelf.distanceToSqr(mc.player.position()) > MIN_LINE_DISTANCE_SQUARED)
+            showLine(SELF_LINE, RenderUtil.INSTANCE.getLerpedPos(mc.player, event.partialTicks), serverSelf);
+        else
+            PathLines.hide(this, SELF_LINE);
+    }
+
+    private void showLine(Object key, Vec3 from, Vec3 to) {
+        lineScratch.clear();
+        lineScratch.add(to);
+        PathLines.show(this, key, from, lineScratch);
     }
 
     @Override
     public void onWorld(WorldEvent event) {
+        ServerPositionTracker.reset();
         synchronized (storageLock) {
             storagePackets.clear();
             storageEntityMove.clear();

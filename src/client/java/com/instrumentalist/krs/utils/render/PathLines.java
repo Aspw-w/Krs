@@ -56,6 +56,15 @@ public final class PathLines implements EventListener {
         INSTANCE.put(owner, key, from, path);
     }
 
+    public static void hide(Object owner, Object key) {
+        long now = System.nanoTime();
+        for (int i = 0; i < INSTANCE.lineCount; i++) {
+            Line line = INSTANCE.lines[i];
+            if (line.owner == owner && line.key == key && line.holdUntilNanos - now > 0L)
+                line.holdUntilNanos = now;
+        }
+    }
+
     private void put(Object owner, Object key, Vec3 from, List<Vec3> path) {
         if (owner == null || key == null || path == null || path.isEmpty())
             return;
