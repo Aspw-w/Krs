@@ -214,6 +214,12 @@ public class KillAura extends Module {
     );
 
     @Setting
+    private final BooleanValue extraParticles = new BooleanValue(
+            "Extra Particles",
+            false
+    );
+
+    @Setting
     public static final BooleanValue tpReach = new BooleanValue(
             "TP Reach",
             false
@@ -923,9 +929,11 @@ public class KillAura extends Module {
     }
 
     private void renderParticles(Entity target) {
-        mc.player.magicCrit(target);
-        if (mc.player.getDeltaMovement().y < -0.08)
-            mc.player.crit(target);
+        if (extraParticles.get()) {
+            mc.player.magicCrit(target);
+            if (mc.player.getDeltaMovement().y < -0.08)
+                mc.player.crit(target);
+        }
     }
 
     private boolean attackCooldownMath(Entity target) {
