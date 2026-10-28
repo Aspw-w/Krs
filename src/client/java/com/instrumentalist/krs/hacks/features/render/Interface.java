@@ -86,6 +86,8 @@ public class Interface extends Module {
     private static final float INFO_HUD_ICON_GAP = 4f;
     private static final Color MODULE_LIST_TAG_COLOR = new Color(170, 170, 170);
     private static final float MODULE_LIST_HORIZONTAL_GRADIENT_SPAN = 300f;
+    private static final float WATERMARK_FADE_LENGTH = 0.7f;
+    private static final int WATERMARK_SOFT_WHITE = 232;
     private static final int FADE_LUT_SIZE = 2048;
     private static final int[] FADE_RGB = new int[FADE_LUT_SIZE];
     private static final Color[] FADE_OPAQUE_COLORS = new Color[FADE_LUT_SIZE];
@@ -2577,6 +2579,46 @@ public class Interface extends Module {
 
     private final ModuleListGlyphColour moduleListGlyphColour = new ModuleListGlyphColour();
 
+    private static final class WatermarkGlyphColour implements NVGU.GlyphColour {
+        private long timeMillis;
+        private float originX;
+        private float startX;
+        private float endX;
+        private int fadeTarget = 255;
+
+        private void update(String text, float x, float size, int fadeTarget) {
+            this.fadeTarget = fadeTarget;
+            this.timeMillis = System.currentTimeMillis();
+            this.originX = x;
+            if (text.isEmpty()) {
+                this.startX = x;
+                this.endX = x;
+                return;
+            }
+
+            int firstEnd = text.offsetByCodePoints(0, 1);
+            int lastStart = text.offsetByCodePoints(text.length(), -1);
+            float width = NVGFonts.INTER.getWidth(text, size);
+            this.startX = x + NVGFonts.INTER.getWidth(text.substring(0, firstEnd), size) * 0.5f;
+            this.endX = x + width - NVGFonts.INTER.getWidth(text.substring(lastStart), size) * 0.5f;
+        }
+
+        @Override
+        public Color colourAt(float glyphCenterX) {
+            Color rainbow = getFadedColor(0, 1, 255, timeMillis, (originX - glyphCenterX) / MODULE_LIST_HORIZONTAL_GRADIENT_SPAN);
+            float progress = endX > startX ? Math.clamp((glyphCenterX - startX) / ((endX - startX) * WATERMARK_FADE_LENGTH), 0f, 1f) : 0f;
+            float fade = progress * progress * (3f - 2f * progress);
+            return new Color(
+                    Math.round(rainbow.getRed() + (fadeTarget - rainbow.getRed()) * fade),
+                    Math.round(rainbow.getGreen() + (fadeTarget - rainbow.getGreen()) * fade),
+                    Math.round(rainbow.getBlue() + (fadeTarget - rainbow.getBlue()) * fade),
+                    255
+            );
+        }
+    }
+
+    private final WatermarkGlyphColour watermarkGlyphColour = new WatermarkGlyphColour();
+
     private void renderModuleListBody(NVGU vg, List<ModuleListRenderEntry> renderEntries) {
         if (renderEntries.isEmpty()) return;
 
@@ -2670,19 +2712,15 @@ public class Interface extends Module {
 
     private void renderWatermark(NVGU vg) {
         String waterText;
-        String first;
-        String after;
 
         switch (waterMarkMode.get().toLowerCase(Locale.ROOT)) {
             case "simple":
                 waterText = waterMarkText.get() + " " + Client.clientVersion + " | " + mc.getFps() + " fps";
-                first = waterText.substring(0, 1);
-                after = waterText.substring(1);
                 float boxWidth = NVGFonts.INTER.getWidth(waterText, 20f) + 21f;
                 float boxHeight = NVGFonts.INTER.getHeight(20f) + 13f;
                 NanoVGTheme.renderPanel(vg, 16f, 16f, boxWidth, boxHeight, NanoVGTheme.RADIUS_PANEL, 1f);
-                NVGFonts.INTER.drawText(first, 26f, 22f, 20f, NanoVGTheme.ACCENT, Alignment.LEFT_TOP, true);
-                NVGFonts.INTER.drawText(after, NVGFonts.INTER.getWidth(first, 20f) + 26f, 22f, 20f, new Color(255, 255, 255, 255), Alignment.LEFT_TOP, true);
+                watermarkGlyphColour.update(waterText, 26f, 20f, WATERMARK_SOFT_WHITE);
+                NVGFonts.INTER.drawGradientText(waterText, 26f, 22f, 20f, Alignment.LEFT_TOP, true, watermarkGlyphColour);
                 break;
 
             case "bullshit":
@@ -2696,11 +2734,9 @@ public class Interface extends Module {
                 float width = Math.max(titleWidth, fpsWidth) + padding * 2;
                 float height = NVGFonts.INTER.getHeight(20f) + NVGFonts.INTER.getHeight(18f) + padding * 3;
                 NanoVGTheme.renderPanel(vg, x, y, width, height - 6f, NanoVGTheme.RADIUS_MENU, 1f);
-                first = waterText.substring(0, 1);
-                after = waterText.substring(1);
-                NVGFonts.INTER.drawText(first, x + padding, y + padding, 20f, NanoVGTheme.ACCENT, Alignment.LEFT_TOP, true);
-                NVGFonts.INTER.drawText(after, x + padding + NVGFonts.INTER.getWidth(first, 20f), y + padding, 20f, new Color(255, 255, 255, 255), Alignment.LEFT_TOP, true);
-                NVGFonts.INTER.drawText(fpsText, x + padding, y + padding + NVGFonts.INTER.getHeight(20f) + 6f, 18f, new Color(200, 200, 200, 180), Alignment.LEFT_TOP, true);
+                watermarkGlyphColour.update(waterText, x + padding, 20f, 255);
+                NVGFonts.INTER.drawGradientText(waterText, x + padding, y + padding, 20f, Alignment.LEFT_TOP, true, watermarkGlyphColour);
+                NVGFonts.INTER.drawText(fpsText, x + padding, y + padding + NVGFonts.INTER.getHeight(20f) + 6f, 18f, new Color(WATERMARK_SOFT_WHITE, WATERMARK_SOFT_WHITE, WATERMARK_SOFT_WHITE), Alignment.LEFT_TOP, true);
                 break;
         }
     }
