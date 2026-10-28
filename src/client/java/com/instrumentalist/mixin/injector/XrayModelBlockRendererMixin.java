@@ -1,5 +1,6 @@
 package com.instrumentalist.mixin.injector;
 
+import com.instrumentalist.krs.hacks.features.level.CaveFinder;
 import com.instrumentalist.krs.hacks.features.level.Xray;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -31,6 +32,8 @@ public abstract class XrayModelBlockRendererMixin {
                                              BlockAndTintGetter level, BlockState currentState, Direction currentSide, BlockPos neighborPos) {
         if (!Xray.isActive()) {
             krs$currentOpacity.get()[0] = 1.0F;
+            if (CaveFinder.isActive() && Boolean.FALSE.equals(CaveFinder.shouldDrawFace(level, state, neighborPos.relative(side.getOpposite()), side)))
+                return false;
             return original.call(state, otherState, side);
         }
 
@@ -46,6 +49,9 @@ public abstract class XrayModelBlockRendererMixin {
         if (shouldDrawSide != null) {
             return shouldDrawSide;
         }
+
+        if (Boolean.FALSE.equals(CaveFinder.shouldDrawFace(level, state, pos, side)))
+            return false;
 
         return original.call(state, otherState, side);
     }
@@ -90,6 +96,10 @@ public abstract class XrayModelBlockRendererMixin {
                                                       BlockQuadOutput output, float x, float y, float z, List<BlockStateModelPart> parts,
                                                       BlockAndTintGetter level, BlockState state, BlockPos pos) {
         if (Xray.isActive() && Boolean.FALSE.equals(Xray.shouldDrawSide(state, pos, level))) {
+            return List.of();
+        }
+
+        if (CaveFinder.isActive() && Boolean.FALSE.equals(CaveFinder.shouldDrawFace(level, state, pos, null))) {
             return List.of();
         }
 
