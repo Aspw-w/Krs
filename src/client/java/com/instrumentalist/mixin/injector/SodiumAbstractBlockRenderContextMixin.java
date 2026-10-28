@@ -2,6 +2,7 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.features.level.Xray;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
@@ -23,6 +24,10 @@ public abstract class SodiumAbstractBlockRenderContextMixin {
     private boolean krs$xrayIsFaceCulled(boolean original, Direction face) {
         Boolean shouldDrawSide = Xray.shouldDrawSide(state, pos);
         return shouldDrawSide != null ? !shouldDrawSide : original;
+    }
+
+    protected boolean krs$shouldApplyXrayFullBright() {
+        return Xray.shouldFullBright(state, pos, Minecraft.getInstance().level);
     }
 
     protected boolean krs$shouldApplyXrayOpacity() {

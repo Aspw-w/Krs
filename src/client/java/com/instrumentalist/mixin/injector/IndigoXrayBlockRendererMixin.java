@@ -3,6 +3,7 @@ package com.instrumentalist.mixin.injector;
 import com.instrumentalist.krs.hacks.features.level.Xray;
 import net.fabricmc.fabric.api.client.renderer.v1.mesh.MutableQuadView;
 import net.fabricmc.fabric.api.client.renderer.v1.mesh.QuadEmitter;
+import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
@@ -34,6 +35,9 @@ public abstract class IndigoXrayBlockRendererMixin {
     @Unique
     private int krs$opacityAlpha;
 
+    @Unique
+    private boolean krs$fullBright;
+
     @Inject(method = "tesselateBlock", at = @At("HEAD"))
     private void krs$prepareXrayBlock(QuadEmitter output, float x, float y, float z,
                                       BlockAndTintGetter level, BlockPos pos, BlockState blockState,
@@ -42,6 +46,7 @@ public abstract class IndigoXrayBlockRendererMixin {
         krs$hideBlock = Boolean.FALSE.equals(shouldDrawSide);
         krs$applyOpacity = !krs$hideBlock && shouldDrawSide == null && Xray.isOpacityMode();
         krs$opacityAlpha = Math.round(Xray.getOpacityFloat() * 255.0F);
+        krs$fullBright = Xray.shouldFullBright(blockState, pos, level);
     }
 
     @Inject(method = "transform", at = @At("HEAD"), cancellable = true)
@@ -49,6 +54,11 @@ public abstract class IndigoXrayBlockRendererMixin {
         if (krs$hideBlock) {
             cir.setReturnValue(false);
             return;
+        }
+
+        if (krs$fullBright) {
+            quad.emissive(true);
+            quad.ambientOcclusion(TriState.FALSE);
         }
 
         if (!krs$applyOpacity)

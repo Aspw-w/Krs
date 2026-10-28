@@ -12,6 +12,7 @@ import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -54,7 +55,14 @@ public abstract class XrayModelBlockRendererMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/block/BlockQuadOutput;put(FFFLnet/minecraft/client/resources/model/geometry/BakedQuad;Lcom/mojang/blaze3d/vertex/QuadInstance;)V")
     )
     private void krs$xrayModifyOpacity(BlockQuadOutput output, float x, float y, float z, BakedQuad quad, QuadInstance instance,
-                                       Operation<Void> original) {
+                                       Operation<Void> original, BlockQuadOutput outerOutput, float outerX, float outerY, float outerZ,
+                                       BlockAndTintGetter level, BlockState state, BlockPos pos) {
+        if (Xray.shouldFullBright(state, pos, level)) {
+            instance.setLightCoords(LightCoordsUtil.FULL_BRIGHT);
+            for (int i = 0; i < 4; i++)
+                instance.setColor(i, ARGB.color(ARGB.alpha(instance.getColor(i)), 255, 255, 255));
+        }
+
         float opacity = krs$currentOpacity.get()[0];
         if (opacity < 1.0F) {
             for (int i = 0; i < 4; i++) {

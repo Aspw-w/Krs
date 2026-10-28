@@ -87,6 +87,10 @@ public class Xray extends Module {
         return false;
     }
 
+    public static boolean shouldFullBright(BlockState blockState, BlockPos pos, BlockGetter level) {
+        return enabled && blockState != null && isVisible(blockState, pos, level);
+    }
+
     public static boolean isVisible(BlockState blockState, BlockPos pos) {
         return isVisible(blockState, pos, mc.level);
     }
