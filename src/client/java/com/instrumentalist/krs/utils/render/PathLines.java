@@ -30,7 +30,6 @@ public final class PathLines implements EventListener {
     private static final float EDGE_ALPHA = 0.95f;
     private static final float GLOW_WIDTH = 4.5f;
     private static final float EDGE_WIDTH = 1.35f;
-    private static final float NODE_RADIUS = 2.2f;
 
     private final Minecraft mc = Minecraft.getInstance();
     private final Line[] lines = new Line[MAX_LINES];
@@ -106,7 +105,6 @@ public final class PathLines implements EventListener {
         if (fresh)
             line.alpha = 0f;
         line.commandCount = 0;
-        line.nodeCount = 0;
         setRegistered(true);
     }
 
@@ -186,7 +184,6 @@ public final class PathLines implements EventListener {
 
     private boolean project(Line line, float screenWidth, float screenHeight) {
         line.commandCount = 0;
-        line.nodeCount = 0;
         if (line.alpha <= 0f)
             return false;
 
@@ -201,10 +198,6 @@ public final class PathLines implements EventListener {
             } else {
                 clipPoints[offset + 2] = -1f;
             }
-
-            if (i > 0 && clipPoints[offset + 2] >= NEAR_W)
-                line.addNode(toScreenX(clipPoints[offset], clipPoints[offset + 2], screenWidth),
-                        toScreenY(clipPoints[offset + 1], clipPoints[offset + 2], screenHeight));
         }
 
         boolean connected = false;
@@ -239,7 +232,7 @@ public final class PathLines implements EventListener {
             connected = !toClipped;
         }
 
-        return line.commandCount > 0 || line.nodeCount > 0;
+        return line.commandCount > 0;
     }
 
     private static float toScreenX(float clipX, float clipW, float screenWidth) {
@@ -257,7 +250,7 @@ public final class PathLines implements EventListener {
         long handle = vg.getHandle();
         nvgSave(handle);
         nvgLineJoin(handle, NVG_ROUND);
-        nvgLineCap(handle, NVG_ROUND);
+        nvgLineCap(handle, NVG_BUTT);
 
         float colorAlpha = color.getAlpha() / 255f;
         for (int i = 0; i < lineCount; i++)
@@ -287,15 +280,6 @@ public final class PathLines implements EventListener {
             nvgStrokeColor(handle, vg.createAndStoreColour(color).a(EDGE_ALPHA * opacity));
             nvgStroke(handle);
         }
-
-        if (line.nodeCount > 0) {
-            nvgBeginPath(handle);
-            float[] nodes = line.nodes;
-            for (int i = 0; i < line.nodeCount; i++)
-                nvgCircle(handle, nodes[i * 2], nodes[i * 2 + 1], NODE_RADIUS);
-            nvgFillColor(handle, vg.createAndStoreColour(color).a(EDGE_ALPHA * opacity));
-            nvgFill(handle);
-        }
     }
 
     private static final class Line {
@@ -309,8 +293,6 @@ public final class PathLines implements EventListener {
         private int commandCount;
         private final boolean[] moveCommands = new boolean[MAX_POINTS * 2];
         private final float[] commands = new float[MAX_POINTS * 4];
-        private int nodeCount;
-        private final float[] nodes = new float[MAX_POINTS * 2];
 
         private void add(Vec3 position) {
             if (position == null || !Double.isFinite(position.x) || !Double.isFinite(position.y) || !Double.isFinite(position.z))
@@ -334,12 +316,6 @@ public final class PathLines implements EventListener {
             commands[commandCount * 2] = x;
             commands[commandCount * 2 + 1] = y;
             commandCount++;
-        }
-
-        private void addNode(float x, float y) {
-            nodes[nodeCount * 2] = x;
-            nodes[nodeCount * 2 + 1] = y;
-            nodeCount++;
         }
     }
 }
