@@ -536,6 +536,7 @@ public final class Shader2DRenderer {
             uniform vec4 uBoxes[%d];
             uniform vec4 uRadii[%d];
             uniform int uBoxCount;
+            uniform int uSorted;
             uniform vec4 uBoundRect;
             uniform vec4 uGlass0;
             uniform vec4 uGlass1;
@@ -560,52 +561,128 @@ public final class Shader2DRenderer {
                 return rrSdf(local, halfSize, rad);
             }
 
+            float bridgeSdf(vec2 pos, int i) {
+                vec4 a = uBoxes[i];
+                vec4 b = uBoxes[i + 1];
+                float left = max(a.x, b.x);
+                float right = min(a.x + a.z, b.x + b.z);
+                float width = right - left;
+                if (width <= 1.0) {
+                    return 1.0e6;
+                }
+                bool aUpper = a.y <= b.y;
+                vec4 upper = aUpper ? a : b;
+                vec4 upperRadii = aUpper ? uRadii[i] : uRadii[i + 1];
+                bool aLower = a.y + a.w >= b.y + b.w;
+                vec4 lower = aLower ? a : b;
+                vec4 lowerRadii = aLower ? uRadii[i] : uRadii[i + 1];
+                float top = upper.y;
+                float bottom = lower.y + lower.w;
+                vec4 bridgeRadii = max(vec4(
+                    upperRadii.x - (left - upper.x),
+                    upperRadii.y - (upper.x + upper.z - right),
+                    lowerRadii.z - (lower.x + lower.z - right),
+                    lowerRadii.w - (left - lower.x)
+                ), vec4(0.0));
+                return rrVarying(pos, vec4(left, top, width, max(bottom - top, 1.0)), bridgeRadii);
+            }
+
+            float verticalGap(float y, vec4 box) {
+                float halfHeight = max(box.w * 0.5, 0.5);
+                return max(abs(y - (box.y + halfHeight)) - halfHeight, 0.0);
+            }
+
+            int findRow(float y) {
+                int low = 0;
+                int high = uBoxCount - 1;
+                for (int step = 0; step < 8; step++) {
+                    if (low >= high) {
+                        break;
+                    }
+                    int mid = (low + high + 1) / 2;
+                    if (uBoxes[mid].y <= y) {
+                        low = mid;
+                    } else {
+                        high = mid - 1;
+                    }
+                }
+                return low;
+            }
+
             float unionSdf(vec2 pos) {
                 float sdf = 1.0e6;
-                for (int i = 0; i < %d; i++) {
-                    if (i >= uBoxCount) {
-                        break;
+                if (uSorted == 0) {
+                    for (int i = 0; i < %d; i++) {
+                        if (i >= uBoxCount) {
+                            break;
+                        }
+                        sdf = min(sdf, rrVarying(pos, uBoxes[i], uRadii[i]));
                     }
-                    sdf = min(sdf, rrVarying(pos, uBoxes[i], uRadii[i]));
+                    for (int i = 0; i < %d; i++) {
+                        if (i + 1 >= uBoxCount) {
+                            break;
+                        }
+                        sdf = min(sdf, bridgeSdf(pos, i));
+                    }
+                    return sdf;
                 }
-                for (int i = 0; i < %d; i++) {
-                    if (i + 1 >= uBoxCount) {
+
+                int start = findRow(pos.y);
+                for (int j = start; j >= 0; j--) {
+                    if (verticalGap(pos.y, uBoxes[j]) > max(sdf, 0.0)) {
                         break;
                     }
-                    vec4 a = uBoxes[i];
-                    vec4 b = uBoxes[i + 1];
-                    float left = max(a.x, b.x);
-                    float right = min(a.x + a.z, b.x + b.z);
-                    float width = right - left;
-                    if (width <= 1.0) {
-                        continue;
+                    sdf = min(sdf, rrVarying(pos, uBoxes[j], uRadii[j]));
+                    if (j >= 1) {
+                        sdf = min(sdf, bridgeSdf(pos, j - 1));
                     }
-                    bool aUpper = a.y <= b.y;
-                    vec4 upper = aUpper ? a : b;
-                    vec4 upperRadii = aUpper ? uRadii[i] : uRadii[i + 1];
-                    bool aLower = a.y + a.w >= b.y + b.w;
-                    vec4 lower = aLower ? a : b;
-                    vec4 lowerRadii = aLower ? uRadii[i] : uRadii[i + 1];
-                    float top = upper.y;
-                    float bottom = lower.y + lower.w;
-                    vec4 bridgeRadii = max(vec4(
-                        upperRadii.x - (left - upper.x),
-                        upperRadii.y - (upper.x + upper.z - right),
-                        lowerRadii.z - (lower.x + lower.z - right),
-                        lowerRadii.w - (left - lower.x)
-                    ), vec4(0.0));
-                    sdf = min(sdf, rrVarying(pos, vec4(left, top, width, max(bottom - top, 1.0)), bridgeRadii));
+                    if (j + 1 < uBoxCount) {
+                        sdf = min(sdf, bridgeSdf(pos, j));
+                    }
+                }
+                for (int j = start + 1; j < uBoxCount; j++) {
+                    if (verticalGap(pos.y, uBoxes[j]) > max(sdf, 0.0)) {
+                        break;
+                    }
+                    sdf = min(sdf, rrVarying(pos, uBoxes[j], uRadii[j]));
+                    sdf = min(sdf, bridgeSdf(pos, j - 1));
+                    if (j + 1 < uBoxCount) {
+                        sdf = min(sdf, bridgeSdf(pos, j));
+                    }
                 }
                 return sdf;
             }
 
             float rowThickness(vec2 pos) {
                 float thickness = -1.0;
-                for (int i = 0; i < %d; i++) {
-                    if (i >= uBoxCount) {
+                if (uSorted == 0) {
+                    for (int i = 0; i < %d; i++) {
+                        if (i >= uBoxCount) {
+                            break;
+                        }
+                        vec4 box = uBoxes[i];
+                        if (all(greaterThanEqual(pos, box.xy)) && all(lessThanEqual(pos, box.xy + box.zw))) {
+                            thickness = max(thickness, min(box.z, box.w));
+                        }
+                    }
+                    return thickness < 0.0 ? 1.0e6 : thickness;
+                }
+
+                int start = findRow(pos.y);
+                for (int j = start; j >= 0; j--) {
+                    vec4 box = uBoxes[j];
+                    if (box.y + box.w < pos.y) {
                         break;
                     }
-                    vec4 box = uBoxes[i];
+                    if (all(greaterThanEqual(pos, box.xy)) && all(lessThanEqual(pos, box.xy + box.zw))) {
+                        thickness = max(thickness, min(box.z, box.w));
+                    }
+                }
+                for (int j = start + 1; j < uBoxCount; j++) {
+                    vec4 box = uBoxes[j];
+                    if (box.y > pos.y) {
+                        break;
+                    }
                     if (all(greaterThanEqual(pos, box.xy)) && all(lessThanEqual(pos, box.xy + box.zw))) {
                         thickness = max(thickness, min(box.z, box.w));
                     }
@@ -961,6 +1038,7 @@ public final class Shader2DRenderer {
     private int connectedGlassBoxesUniform = -1;
     private int connectedGlassRadiiUniform = -1;
     private int connectedGlassBoxCountUniform = -1;
+    private int connectedGlassSortedUniform = -1;
     private int connectedGlassRadiusUniform = -1;
     private int connectedGlassBoundRectUniform = -1;
     private int connectedGlass0Uniform = -1;
@@ -1032,6 +1110,16 @@ public final class Shader2DRenderer {
     private final FloatBuffer indicatorColors = BufferUtils.createFloatBuffer(INDICATOR_BATCH_SIZE * 4);
     private boolean sourceCaptured = false;
     private boolean blurCacheValid = false;
+    private boolean silhouetteClearFull = true;
+    private int silhouetteClearX;
+    private int silhouetteClearY;
+    private int silhouetteClearWidth;
+    private int silhouetteClearHeight;
+    private boolean silhouetteDirtyValid = false;
+    private int silhouetteDirtyX0;
+    private int silhouetteDirtyY0;
+    private int silhouetteDirtyX1;
+    private int silhouetteDirtyY1;
     private int cachedBlurWidth = 0;
     private int cachedBlurHeight = 0;
     private float cachedBlurRadius = -1f;
@@ -1252,6 +1340,7 @@ public final class Shader2DRenderer {
             int pingY1 = Math.min(textureHeight, pongY1 + radiusTexels);
 
             ensureSilhouetteTextures(viewportWidth, viewportHeight, textureWidth, textureHeight);
+            prepareSilhouetteClearRegion(bounds, frameWidth, frameHeight, viewportWidth, viewportHeight);
             uploadTriangleBuffer(vertices, vertexCount, triangleVertexBuffer);
             uploadTriangleBuffer(armorVertices, armorVertexCount, triangleArmorVertexBuffer);
             renderSilhouetteMask(frameWidth, frameHeight, triangleVertexBuffer, vertexCount, viewportWidth, viewportHeight, silhouetteMaskTexture);
@@ -1345,6 +1434,7 @@ public final class Shader2DRenderer {
                 && silhouetteBlurPongTexture.width == blurWidth && silhouetteBlurPongTexture.height == blurHeight)
             return;
 
+        silhouetteDirtyValid = false;
         silhouetteMaskTexture.resize(maskWidth, maskHeight);
         silhouetteArmorMaskTexture.resize(maskWidth, maskHeight);
         silhouetteOccludedMaskTexture.resize(maskWidth, maskHeight);
@@ -1358,11 +1448,52 @@ public final class Shader2DRenderer {
         renderSilhouetteMask(frameWidth, frameHeight, vertexBuffer, vertexCount, viewportWidth, viewportHeight, targetTexture, true);
     }
 
+    private void prepareSilhouetteClearRegion(float[] bounds, float frameWidth, float frameHeight, int viewportWidth, int viewportHeight) {
+        int x0 = 0;
+        int y0 = 0;
+        int x1 = viewportWidth;
+        int y1 = viewportHeight;
+        if (bounds != null) {
+            float scaleX = viewportWidth / frameWidth;
+            float scaleY = viewportHeight / frameHeight;
+            x0 = Math.clamp((int) Math.floor(bounds[0] * scaleX) - 2, 0, viewportWidth);
+            x1 = Math.clamp((int) Math.ceil(bounds[2] * scaleX) + 2, 0, viewportWidth);
+            y0 = Math.clamp((int) Math.floor((frameHeight - bounds[3]) * scaleY) - 2, 0, viewportHeight);
+            y1 = Math.clamp((int) Math.ceil((frameHeight - bounds[1]) * scaleY) + 2, 0, viewportHeight);
+        }
+
+        if (silhouetteDirtyValid) {
+            int clearX0 = Math.min(x0, silhouetteDirtyX0);
+            int clearY0 = Math.min(y0, silhouetteDirtyY0);
+            int clearX1 = Math.max(x1, silhouetteDirtyX1);
+            int clearY1 = Math.max(y1, silhouetteDirtyY1);
+            silhouetteClearFull = false;
+            silhouetteClearX = clearX0;
+            silhouetteClearY = clearY0;
+            silhouetteClearWidth = Math.max(0, clearX1 - clearX0);
+            silhouetteClearHeight = Math.max(0, clearY1 - clearY0);
+        } else {
+            silhouetteClearFull = true;
+        }
+
+        silhouetteDirtyValid = true;
+        silhouetteDirtyX0 = x0;
+        silhouetteDirtyY0 = y0;
+        silhouetteDirtyX1 = x1;
+        silhouetteDirtyY1 = y1;
+    }
+
+    private void applySilhouetteClearScissor() {
+        if (!silhouetteClearFull)
+            enableScissor(silhouetteClearX, silhouetteClearY, silhouetteClearWidth, silhouetteClearHeight);
+    }
+
     private void renderSilhouetteMask(float frameWidth, float frameHeight, int vertexBuffer, int vertexCount, int viewportWidth, int viewportHeight, RenderTexture targetTexture, boolean clear) {
         prepareCommonState();
         GL11.glDisable(GL11.GL_BLEND);
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, targetTexture.framebuffer);
         GL11.glViewport(0, 0, viewportWidth, viewportHeight);
+        applySilhouetteClearScissor();
         if (clear)
             clearColorAttachment();
 
@@ -1380,6 +1511,7 @@ public final class Shader2DRenderer {
         GL11.glDisable(GL11.GL_BLEND);
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, silhouetteSelfDepthTexture.framebuffer);
         GL11.glViewport(0, 0, viewportWidth, viewportHeight);
+        applySilhouetteClearScissor();
         clearColorAttachment();
         clearDepthAttachment(reversedDepth ? 0f : 1f);
 
@@ -1400,6 +1532,7 @@ public final class Shader2DRenderer {
         GL11.glDisable(GL11.GL_BLEND);
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, silhouetteArmorDepthTexture.framebuffer);
         GL11.glViewport(0, 0, viewportWidth, viewportHeight);
+        applySilhouetteClearScissor();
         clearColorAttachment();
         clearDepthAttachment(reversedDepth ? 0f : 1f);
 
@@ -1420,6 +1553,7 @@ public final class Shader2DRenderer {
         GL11.glDisable(GL11.GL_BLEND);
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, silhouetteOccludedMaskTexture.framebuffer);
         GL11.glViewport(0, 0, viewportWidth, viewportHeight);
+        applySilhouetteClearScissor();
         clearColorAttachment();
 
         if (sceneDepthTexture <= 0 || vertexCount < 3 && armorVertexCount < 3)
@@ -1624,6 +1758,7 @@ public final class Shader2DRenderer {
     }
 
     private void clearDepthAttachment(float depth) {
+        GL11.glDepthMask(true);
         try (MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer clearDepth = stack.floats(depth);
             GL30.glClearBufferfv(GL11.GL_DEPTH, 0, clearDepth);
@@ -1942,6 +2077,7 @@ public final class Shader2DRenderer {
             GL20.glUniform4fv(connectedGlassBoxesUniform, connectedBoxes);
             GL20.glUniform4fv(connectedGlassRadiiUniform, connectedRadii);
             GL20.glUniform1i(connectedGlassBoxCountUniform, boxCount);
+            GL20.glUniform1i(connectedGlassSortedUniform, isVerticallySorted(request.boxes, boxCount) ? 1 : 0);
             GL20.glUniform4f(connectedGlassBoundRectUniform, request.minX, request.minY, boundWidth, boundHeight);
 
             float zRadius = style.zRadius > 0f
@@ -1955,6 +2091,20 @@ public final class Shader2DRenderer {
         }
 
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
+    }
+
+    private static boolean isVerticallySorted(float[] boxes, int count) {
+        for (int i = 0; i + 1 < count; i++) {
+            int offset = i * 4;
+            int next = offset + 4;
+            float height = boxes[offset + 3];
+            float nextHeight = boxes[next + 3];
+            if (boxes[next + 1] < boxes[offset + 1]
+                    || boxes[next + 1] + nextHeight < boxes[offset + 1] + height
+                    || boxes[next + 1] + Math.max(nextHeight, 1f) < boxes[offset + 1] + Math.max(height, 1f))
+                return false;
+        }
+        return true;
     }
 
     private static float glassShadowOpacity(GlassRequest request) {
@@ -2297,6 +2447,7 @@ public final class Shader2DRenderer {
         connectedGlassBoxesUniform = uniform(connectedLiquidGlassProgram, "uBoxes[0]");
         connectedGlassRadiiUniform = uniform(connectedLiquidGlassProgram, "uRadii[0]");
         connectedGlassBoxCountUniform = uniform(connectedLiquidGlassProgram, "uBoxCount");
+        connectedGlassSortedUniform = uniform(connectedLiquidGlassProgram, "uSorted");
         connectedGlassBoundRectUniform = uniform(connectedLiquidGlassProgram, "uBoundRect");
         connectedGlass0Uniform = uniform(connectedLiquidGlassProgram, "uGlass0");
         connectedGlass1Uniform = uniform(connectedLiquidGlassProgram, "uGlass1");
@@ -2369,6 +2520,7 @@ public final class Shader2DRenderer {
         connectedGlassBoxesUniform = -1;
         connectedGlassRadiiUniform = -1;
         connectedGlassBoxCountUniform = -1;
+        connectedGlassSortedUniform = -1;
         connectedGlassRadiusUniform = -1;
         connectedGlassBoundRectUniform = -1;
         connectedGlass0Uniform = -1;

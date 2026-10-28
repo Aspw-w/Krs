@@ -36,6 +36,7 @@ public final class NanoVGTheme {
     private static final float[] CONNECTED_BOXES = new float[256];
     private static final float[] CONNECTED_RADII = new float[256];
     private static final float[] CORNER_SCRATCH = new float[4];
+    private static float[] connectedGeometry = new float[32 * 8];
 
     private NanoVGTheme() {
     }
@@ -102,25 +103,31 @@ public final class NanoVGTheme {
         if (opacity <= 0.001f)
             return;
 
-        for (int i = 0, n = entries.size(); i < n; i++) {
+        int count = entries.size();
+        if (connectedGeometry.length < count * 8)
+            connectedGeometry = new float[Math.max(count * 8, connectedGeometry.length * 2)];
+
+        int written = 0;
+        for (int i = 0; i < count; i++) {
             ConnectedGlassRect entry = entries.get(i);
             if (entry == null || entry.width() <= 0f || entry.height() <= 0f)
                 continue;
 
             writeCorners(entries, i, radius, CORNER_SCRATCH);
-            renderCompact(
-                    vg,
-                    entry.x(),
-                    entry.y(),
-                    entry.width(),
-                    entry.height(),
-                    CORNER_SCRATCH[0],
-                    CORNER_SCRATCH[1],
-                    CORNER_SCRATCH[2],
-                    CORNER_SCRATCH[3],
-                    opacity
-            );
+            int offset = written * 8;
+            connectedGeometry[offset] = entry.x();
+            connectedGeometry[offset + 1] = entry.y();
+            connectedGeometry[offset + 2] = entry.width();
+            connectedGeometry[offset + 3] = entry.height();
+            connectedGeometry[offset + 4] = CORNER_SCRATCH[0];
+            connectedGeometry[offset + 5] = CORNER_SCRATCH[1];
+            connectedGeometry[offset + 6] = CORNER_SCRATCH[2];
+            connectedGeometry[offset + 7] = CORNER_SCRATCH[3];
+            written++;
         }
+
+        if (written > 0)
+            vg.roundedRectangles(connectedGeometry, written, scaledAlpha(COMPACT_BACKGROUND, opacity, 0));
     }
 
     private static int packConnected(List<? extends ConnectedGlassRect> entries, float radius) {

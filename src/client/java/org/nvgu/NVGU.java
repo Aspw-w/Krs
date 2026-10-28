@@ -80,6 +80,8 @@ public class NVGU {
     private final Map<String, ByteBuffer> gradientTextBuffers = new HashMap<>();
     private NVGGlyphPosition.Buffer gradientGlyphPositions = NVGGlyphPosition.create(64);
     private Color[] gradientGlyphColours = new Color[64];
+    private final Map<String, GradientLayout> gradientLayouts = new HashMap<>();
+    private final float[] layoutTransform = new float[6];
     private final float[] textAscender = new float[1];
     private final float[] textDescender = new float[1];
     private final float[] textLineHeight = new float[1];
@@ -1487,9 +1489,6 @@ public class NVGU {
 
         ByteBuffer encodedText = gradientTextBuffer(filteredText);
         int textEnd = encodedText.limit();
-        if (gradientGlyphPositions.capacity() < textEnd)
-            gradientGlyphPositions = NVGGlyphPosition.create(Math.max(textEnd, gradientGlyphPositions.capacity() * 2));
-
         float drawX = getAlignedTextStartX(filteredText, x, font, size, alignment);
         float drawY = y + 1;
 
@@ -1499,26 +1498,35 @@ public class NVGU {
         nvgFontSize(handle, size);
         nvgTextAlign(handle, leftAligned(alignment).getTextAlignment());
 
-        NVGGlyphPosition.Buffer glyphs = gradientGlyphPositions;
-        glyphs.clear();
-        int glyphCount = nvgTextGlyphPositions(handle, drawX, drawY, encodedText, glyphs);
+        GradientLayout layout = gradientLayout(filteredText, encodedText, font, size);
+        int glyphCount = layout.glyphCount;
         if (gradientGlyphColours.length < glyphCount)
             gradientGlyphColours = new Color[Math.max(glyphCount, gradientGlyphColours.length * 2)];
 
-        boolean drawShadow = false;
         for (int i = 0; i < glyphCount; i++) {
-            NVGGlyphPosition glyph = glyphs.get(i);
-            Color colour = colours.colourAt((glyph.minx() + glyph.maxx()) * 0.5f);
-            gradientGlyphColours[i] = colour;
-            drawShadow |= shadow && hasVisibleShadow(colour);
+            if (!layout.blank[i])
+                gradientGlyphColours[i] = colours.colourAt(drawX + layout.centerOffsets[i]);
         }
 
-        long textAddress = MemoryUtil.memAddress(encodedText);
+        Color shadowColour = shadow && glyphCount > 0 ? colours.colourAt(drawX + layout.middleOffset) : null;
+        boolean drawShadow = shadowColour != null && hasVisibleShadow(shadowColour);
+
         try {
             TrackedNanoVG.markTextRegion(handle, drawX, drawY, encodedText, drawShadow ? shadowOffsetX : 0f, drawShadow ? shadowOffsetY : 0f);
-            if (drawShadow)
-                drawGradientGlyphs(glyphs, glyphCount, encodedText, textAddress, textEnd, drawY, shadowOffsetX, shadowOffsetY, true);
-            drawGradientGlyphs(glyphs, glyphCount, encodedText, textAddress, textEnd, drawY, 0f, 0f, false);
+            if (drawShadow) {
+                nvgFillColor(handle, createAndStoreShadowColour(shadowColour));
+                TrackedNanoVG.nvgTextUntracked(handle, drawX + shadowOffsetX, drawY + shadowOffsetY, encodedText);
+            }
+
+            for (int i = 0; i < glyphCount; i++) {
+                if (layout.blank[i])
+                    continue;
+
+                nvgFillColor(handle, createAndStoreColour(gradientGlyphColours[i]));
+                encodedText.limit(layout.ends[i]).position(layout.starts[i]);
+                TrackedNanoVG.nvgTextUntracked(handle, drawX + layout.penOffsets[i], drawY, encodedText);
+                encodedText.limit(textEnd).position(0);
+            }
         } finally {
             encodedText.limit(textEnd).position(0);
             Arrays.fill(gradientGlyphColours, 0, glyphCount, null);
@@ -1529,8 +1537,29 @@ public class NVGU {
         return this;
     }
 
-    private void drawGradientGlyphs(NVGGlyphPosition.Buffer glyphs, int glyphCount, ByteBuffer encodedText, long textAddress, int textEnd,
-                                    float drawY, float offsetX, float offsetY, boolean shadow) {
+    private GradientLayout gradientLayout(String text, ByteBuffer encodedText, String font, float size) {
+        nvgCurrentTransform(handle, layoutTransform);
+        float fontScale = (float) (Math.sqrt(layoutTransform[0] * layoutTransform[0] + layoutTransform[2] * layoutTransform[2])
+                + Math.sqrt(layoutTransform[1] * layoutTransform[1] + layoutTransform[3] * layoutTransform[3])) * 0.5f * frameDevicePixelRatio;
+        GradientLayout cached = gradientLayouts.get(text);
+        if (cached != null && cached.size == size && cached.fontScale == fontScale && cached.font.equals(font))
+            return cached;
+
+        if (gradientLayouts.size() >= GRADIENT_TEXT_CACHE_LIMIT)
+            gradientLayouts.clear();
+
+        int textEnd = encodedText.limit();
+        if (gradientGlyphPositions.capacity() < textEnd)
+            gradientGlyphPositions = NVGGlyphPosition.create(Math.max(textEnd, gradientGlyphPositions.capacity() * 2));
+
+        NVGGlyphPosition.Buffer glyphs = gradientGlyphPositions;
+        glyphs.clear();
+        int glyphCount = nvgTextGlyphPositions(handle, 0f, 0f, encodedText, glyphs);
+        long textAddress = MemoryUtil.memAddress(encodedText);
+        GradientLayout layout = new GradientLayout(font, size, fontScale, glyphCount);
+        int count = 0;
+        float minX = Float.POSITIVE_INFINITY;
+        float maxX = Float.NEGATIVE_INFINITY;
         for (int i = 0; i < glyphCount; i++) {
             NVGGlyphPosition glyph = glyphs.get(i);
             int glyphStart = (int) (glyph.str() - textAddress);
@@ -1538,14 +1567,43 @@ public class NVGU {
             if (glyphStart < 0 || glyphEnd > textEnd || glyphEnd <= glyphStart)
                 continue;
 
-            Color colour = gradientGlyphColours[i];
-            if (shadow && !hasVisibleShadow(colour))
-                continue;
+            layout.penOffsets[count] = glyph.x();
+            layout.centerOffsets[count] = (glyph.minx() + glyph.maxx()) * 0.5f;
+            layout.starts[count] = glyphStart;
+            layout.ends[count] = glyphEnd;
+            layout.blank[count] = glyphEnd - glyphStart == 1 && Character.isWhitespace(encodedText.get(glyphStart));
+            minX = Math.min(minX, glyph.minx());
+            maxX = Math.max(maxX, glyph.maxx());
+            count++;
+        }
+        encodedText.limit(textEnd).position(0);
+        layout.glyphCount = count;
+        layout.middleOffset = count > 0 ? (minX + maxX) * 0.5f : 0f;
+        gradientLayouts.put(text, layout);
+        return layout;
+    }
 
-            nvgFillColor(handle, shadow ? createAndStoreShadowColour(colour) : createAndStoreColour(colour));
-            encodedText.limit(glyphEnd).position(glyphStart);
-            TrackedNanoVG.nvgTextUntracked(handle, glyph.x() + offsetX, drawY + offsetY, encodedText);
-            encodedText.limit(textEnd).position(0);
+    private static final class GradientLayout {
+        private final String font;
+        private final float size;
+        private final float fontScale;
+        private int glyphCount;
+        private float middleOffset;
+        private final float[] penOffsets;
+        private final float[] centerOffsets;
+        private final int[] starts;
+        private final int[] ends;
+        private final boolean[] blank;
+
+        private GradientLayout(String font, float size, float fontScale, int capacity) {
+            this.font = font;
+            this.size = size;
+            this.fontScale = fontScale;
+            this.penOffsets = new float[capacity];
+            this.centerOffsets = new float[capacity];
+            this.starts = new int[capacity];
+            this.ends = new int[capacity];
+            this.blank = new boolean[capacity];
         }
     }
 

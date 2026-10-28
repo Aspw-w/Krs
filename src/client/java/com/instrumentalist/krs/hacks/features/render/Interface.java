@@ -86,6 +86,17 @@ public class Interface extends Module {
     private static final float INFO_HUD_ICON_GAP = 4f;
     private static final Color MODULE_LIST_TAG_COLOR = new Color(128, 128, 128);
     private static final float MODULE_LIST_HORIZONTAL_GRADIENT_SPAN = 300f;
+    private static final int FADE_LUT_SIZE = 2048;
+    private static final int[] FADE_RGB = new int[FADE_LUT_SIZE];
+    private static final Color[] FADE_OPAQUE_COLORS = new Color[FADE_LUT_SIZE];
+
+    static {
+        for (int i = 0; i < FADE_LUT_SIZE; i++) {
+            int rgb = computeFadedRgb(i / (float) FADE_LUT_SIZE);
+            FADE_RGB[i] = rgb;
+            FADE_OPAQUE_COLORS[i] = new Color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, 255);
+        }
+    }
     private static long cachedTimeSecond = -1L;
     private static String cachedTimeText = "00:00:00";
 
@@ -511,11 +522,20 @@ public class Interface extends Module {
         float progress = ((currentTimeMillis % (long) cycleDuration) / cycleDuration + (float) index / totalModules + phaseOffset) % 1.0f;
         if (progress < 0f)
             progress += 1.0f;
-        progress = 0.5f - 0.5f * (float) Math.cos(progress * 2 * Math.PI);
 
+        int lutIndex = (int) (progress * FADE_LUT_SIZE + 0.5f) & (FADE_LUT_SIZE - 1);
+        int clampedAlpha = Math.clamp(alpha, 0, 255);
+        if (clampedAlpha == 255)
+            return FADE_OPAQUE_COLORS[lutIndex];
+
+        int rgb = FADE_RGB[lutIndex];
+        return new Color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, clampedAlpha);
+    }
+
+    private static int computeFadedRgb(float progress) {
+        progress = 0.5f - 0.5f * (float) Math.cos(progress * 2 * Math.PI);
         float saturation = 0.8f - 0.22f * (float) Math.sin(progress * Math.PI);
-        int rgb = Color.HSBtoRGB((180f + 120f * progress) / 360f, saturation, 1f);
-        return new Color((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, Math.clamp(alpha, 0, 255));
+        return Color.HSBtoRGB((180f + 120f * progress) / 360f, saturation, 1f) & 0xFFFFFF;
     }
 
     private static String getCachedTimeText() {
