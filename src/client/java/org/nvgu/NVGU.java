@@ -8,6 +8,7 @@ import org.lwjgl.nanovg.NVGGlyphPosition;
 import org.lwjgl.nanovg.NVGPaint;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.stb.STBTTFontinfo;
+import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 import org.nvgu.util.*;
 
@@ -46,6 +47,9 @@ public class NVGU {
     public static NVGU INSTANCE = new NVGU();
     private static final int FILTER_CACHE_SIZE = 1024;
     private static final int GRADIENT_TEXT_CACHE_LIMIT = 256;
+    private static final int FORMATTED_SEGMENT_CACHE_SIZE = 256;
+    private static final float SHADOW_BRIGHTNESS = 0.25f;
+    private static final float SHADOW_OPACITY = 0.5f;
 
     private long handle = -1;
     private final List<NVGColor> colourPool = new ArrayList<>();
@@ -75,6 +79,7 @@ public class NVGU {
     private final float[] textBounds = new float[4];
     private final Map<String, ByteBuffer> gradientTextBuffers = new HashMap<>();
     private NVGGlyphPosition.Buffer gradientGlyphPositions = NVGGlyphPosition.create(64);
+    private Color[] gradientGlyphColours = new Color[64];
     private final float[] textAscender = new float[1];
     private final float[] textDescender = new float[1];
     private final float[] textLineHeight = new float[1];
@@ -88,6 +93,10 @@ public class NVGU {
     private final String[] filterCacheText = new String[FILTER_CACHE_SIZE];
     private final String[] filterCacheFont = new String[FILTER_CACHE_SIZE];
     private final String[] filterCacheResult = new String[FILTER_CACHE_SIZE];
+    private final String[] formattedSegmentCacheText = new String[FORMATTED_SEGMENT_CACHE_SIZE];
+    private final int[] formattedSegmentCacheColour = new int[FORMATTED_SEGMENT_CACHE_SIZE];
+    @SuppressWarnings("unchecked")
+    private final List<TextSegment>[] formattedSegmentCacheResult = new List[FORMATTED_SEGMENT_CACHE_SIZE];
 
     /**
      * Creates the instance of NanoVG
@@ -1410,22 +1419,42 @@ public class NVGU {
      * @param alignment how the text should be aligned in accordance with the coordinates
      */
     public NVGU text(String text, float x, float y, Color colour, String font, float size, Alignment alignment) {
+        return drawText(text, x, y, colour, font, size, alignment, false, 0f, 0f);
+    }
+
+    public NVGU textWithShadow(String text, float x, float y, Color colour, String font, float size, Alignment alignment,
+                               float shadowOffsetX, float shadowOffsetY) {
+        return drawText(text, x, y, colour, font, size, alignment, true, shadowOffsetX, shadowOffsetY);
+    }
+
+    private NVGU drawText(String text, float x, float y, Color colour, String font, float size, Alignment alignment,
+                          boolean shadow, float shadowOffsetX, float shadowOffsetY) {
         if (text == null || text.isEmpty()) return this;
 
         String filteredText = filterRenderableText(text, font);
         if (filteredText.isEmpty()) return this;
 
-        if (hasMinecraftFormatting(filteredText)) {
-            return formattedText(filteredText, x, y, colour, font, size, alignment);
-        }
+        if (hasMinecraftFormatting(filteredText))
+            return formattedText(filteredText, x, y, colour, font, size, alignment, shadow, shadowOffsetX, shadowOffsetY);
+
+        boolean drawShadow = shadow && hasVisibleShadow(colour);
+        float drawY = y + 1;
 
         nvgBeginPath(handle);
 
-        nvgFillColor(handle, createAndStoreColour(colour));
         nvgFontFace(handle, font);
         nvgFontSize(handle, size);
         nvgTextAlign(handle, alignment.getTextAlignment());
-        nvgText(handle, x, y + 1, filteredText);
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            ByteBuffer encodedText = stack.UTF8(filteredText, false);
+            TrackedNanoVG.markTextRegion(handle, x, drawY, encodedText, drawShadow ? shadowOffsetX : 0f, drawShadow ? shadowOffsetY : 0f);
+            if (drawShadow) {
+                nvgFillColor(handle, createAndStoreShadowColour(colour));
+                TrackedNanoVG.nvgTextUntracked(handle, x + shadowOffsetX, drawY + shadowOffsetY, encodedText);
+            }
+            nvgFillColor(handle, createAndStoreColour(colour));
+            TrackedNanoVG.nvgTextUntracked(handle, x, drawY, encodedText);
+        }
 
         nvgClosePath(handle);
 
@@ -1437,13 +1466,24 @@ public class NVGU {
     }
 
     public NVGU gradientText(String text, float x, float y, String font, float size, Alignment alignment, GlyphColour colours) {
+        return drawGradientText(text, x, y, font, size, alignment, colours, false, 0f, 0f);
+    }
+
+    public NVGU gradientTextWithShadow(String text, float x, float y, String font, float size, Alignment alignment, GlyphColour colours,
+                                       float shadowOffsetX, float shadowOffsetY) {
+        return drawGradientText(text, x, y, font, size, alignment, colours, true, shadowOffsetX, shadowOffsetY);
+    }
+
+    private NVGU drawGradientText(String text, float x, float y, String font, float size, Alignment alignment, GlyphColour colours,
+                                  boolean shadow, float shadowOffsetX, float shadowOffsetY) {
         if (text == null || text.isEmpty()) return this;
 
         String filteredText = filterRenderableText(text, font);
         if (filteredText.isEmpty()) return this;
 
         if (colours == null || hasMinecraftFormatting(filteredText))
-            return text(filteredText, x, y, colours == null ? Color.WHITE : colours.colourAt(x), font, size, alignment);
+            return drawText(filteredText, x, y, colours == null ? Color.WHITE : colours.colourAt(x), font, size, alignment,
+                    shadow, shadowOffsetX, shadowOffsetY);
 
         ByteBuffer encodedText = gradientTextBuffer(filteredText);
         int textEnd = encodedText.limit();
@@ -1462,27 +1502,51 @@ public class NVGU {
         NVGGlyphPosition.Buffer glyphs = gradientGlyphPositions;
         glyphs.clear();
         int glyphCount = nvgTextGlyphPositions(handle, drawX, drawY, encodedText, glyphs);
+        if (gradientGlyphColours.length < glyphCount)
+            gradientGlyphColours = new Color[Math.max(glyphCount, gradientGlyphColours.length * 2)];
+
+        boolean drawShadow = false;
+        for (int i = 0; i < glyphCount; i++) {
+            NVGGlyphPosition glyph = glyphs.get(i);
+            Color colour = colours.colourAt((glyph.minx() + glyph.maxx()) * 0.5f);
+            gradientGlyphColours[i] = colour;
+            drawShadow |= shadow && hasVisibleShadow(colour);
+        }
+
         long textAddress = MemoryUtil.memAddress(encodedText);
         try {
-            for (int i = 0; i < glyphCount; i++) {
-                NVGGlyphPosition glyph = glyphs.get(i);
-                int glyphStart = (int) (glyph.str() - textAddress);
-                int glyphEnd = i + 1 < glyphCount ? (int) (glyphs.get(i + 1).str() - textAddress) : textEnd;
-                if (glyphStart < 0 || glyphEnd > textEnd || glyphEnd <= glyphStart)
-                    continue;
-
-                nvgFillColor(handle, createAndStoreColour(colours.colourAt((glyph.minx() + glyph.maxx()) * 0.5f)));
-                encodedText.limit(glyphEnd).position(glyphStart);
-                nvgText(handle, glyph.x(), drawY, encodedText);
-                encodedText.limit(textEnd).position(0);
-            }
+            TrackedNanoVG.markTextRegion(handle, drawX, drawY, encodedText, drawShadow ? shadowOffsetX : 0f, drawShadow ? shadowOffsetY : 0f);
+            if (drawShadow)
+                drawGradientGlyphs(glyphs, glyphCount, encodedText, textAddress, textEnd, drawY, shadowOffsetX, shadowOffsetY, true);
+            drawGradientGlyphs(glyphs, glyphCount, encodedText, textAddress, textEnd, drawY, 0f, 0f, false);
         } finally {
             encodedText.limit(textEnd).position(0);
+            Arrays.fill(gradientGlyphColours, 0, glyphCount, null);
         }
 
         nvgClosePath(handle);
 
         return this;
+    }
+
+    private void drawGradientGlyphs(NVGGlyphPosition.Buffer glyphs, int glyphCount, ByteBuffer encodedText, long textAddress, int textEnd,
+                                    float drawY, float offsetX, float offsetY, boolean shadow) {
+        for (int i = 0; i < glyphCount; i++) {
+            NVGGlyphPosition glyph = glyphs.get(i);
+            int glyphStart = (int) (glyph.str() - textAddress);
+            int glyphEnd = i + 1 < glyphCount ? (int) (glyphs.get(i + 1).str() - textAddress) : textEnd;
+            if (glyphStart < 0 || glyphEnd > textEnd || glyphEnd <= glyphStart)
+                continue;
+
+            Color colour = gradientGlyphColours[i];
+            if (shadow && !hasVisibleShadow(colour))
+                continue;
+
+            nvgFillColor(handle, shadow ? createAndStoreShadowColour(colour) : createAndStoreColour(colour));
+            encodedText.limit(glyphEnd).position(glyphStart);
+            TrackedNanoVG.nvgTextUntracked(handle, glyph.x() + offsetX, drawY + offsetY, encodedText);
+            encodedText.limit(textEnd).position(0);
+        }
     }
 
     private ByteBuffer gradientTextBuffer(String text) {
@@ -1500,11 +1564,13 @@ public class NVGU {
         return buffer;
     }
 
-    private NVGU formattedText(String text, float x, float y, Color colour, String font, float size, Alignment alignment) {
-        List<TextSegment> segments = parseMinecraftFormattedText(text, colour);
+    private NVGU formattedText(String text, float x, float y, Color colour, String font, float size, Alignment alignment,
+                               boolean shadow, float shadowOffsetX, float shadowOffsetY) {
+        List<TextSegment> segments = formattedSegments(text, colour);
         if (segments.isEmpty()) return this;
 
-        float drawX = getAlignedTextStartX(text, x, font, size, alignment);
+        float startX = getAlignedTextStartX(text, x, font, size, alignment);
+        float drawY = y + 1;
         Alignment drawAlignment = leftAligned(alignment);
 
         nvgBeginPath(handle);
@@ -1513,14 +1579,35 @@ public class NVGU {
         nvgFontSize(handle, size);
         nvgTextAlign(handle, drawAlignment.getTextAlignment());
 
+        if (shadow) {
+            float drawX = startX + shadowOffsetX;
+            for (TextSegment segment : segments) {
+                nvgFillColor(handle, createAndStoreShadowColour(segment.colour));
+                drawX = nvgText(handle, drawX, drawY + shadowOffsetY, segment.text);
+            }
+        }
+
+        float drawX = startX;
         for (TextSegment segment : segments) {
             nvgFillColor(handle, createAndStoreColour(segment.colour));
-            drawX = nvgText(handle, drawX, y + 1, segment.text);
+            drawX = nvgText(handle, drawX, drawY, segment.text);
         }
 
         nvgClosePath(handle);
 
         return this;
+    }
+
+    private static boolean hasVisibleShadow(Color colour) {
+        return colour.getAlpha() * SHADOW_OPACITY >= 1f;
+    }
+
+    private NVGColor createAndStoreShadowColour(Color colour) {
+        NVGColor nvgColour = createAndStoreColour(colour);
+        return nvgColour.r(nvgColour.r() * SHADOW_BRIGHTNESS)
+                .g(nvgColour.g() * SHADOW_BRIGHTNESS)
+                .b(nvgColour.b() * SHADOW_BRIGHTNESS)
+                .a(nvgColour.a() * SHADOW_OPACITY);
     }
 
     public String getCurrentFont() {
@@ -1579,7 +1666,7 @@ public class NVGU {
 
         if (hasMinecraftFormatting(filteredText)) {
             float width = 0f;
-            for (TextSegment segment : parseMinecraftFormattedText(filteredText, Color.WHITE)) {
+            for (TextSegment segment : formattedSegments(filteredText, Color.WHITE)) {
                 width += rawTextWidth(segment.text, font, size);
             }
             return width;
@@ -1741,6 +1828,21 @@ public class NVGU {
         }
 
         return false;
+    }
+
+    private List<TextSegment> formattedSegments(String text, Color defaultColour) {
+        int colour = defaultColour.getRGB();
+        int hash = 31 * text.hashCode() + colour;
+        int cacheIndex = (hash ^ hash >>> 16) & (FORMATTED_SEGMENT_CACHE_SIZE - 1);
+        String cachedText = formattedSegmentCacheText[cacheIndex];
+        if (cachedText != null && formattedSegmentCacheColour[cacheIndex] == colour && cachedText.equals(text))
+            return formattedSegmentCacheResult[cacheIndex];
+
+        List<TextSegment> segments = parseMinecraftFormattedText(text, defaultColour);
+        formattedSegmentCacheText[cacheIndex] = text;
+        formattedSegmentCacheColour[cacheIndex] = colour;
+        formattedSegmentCacheResult[cacheIndex] = segments;
+        return segments;
     }
 
     private static List<TextSegment> parseMinecraftFormattedText(String text, Color defaultColour) {

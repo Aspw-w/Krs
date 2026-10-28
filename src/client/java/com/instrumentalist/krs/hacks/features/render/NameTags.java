@@ -16,6 +16,7 @@ import com.instrumentalist.krs.utils.nanovg.NanoVGTextFormatter;
 import com.instrumentalist.krs.utils.render.NanoVGTheme;
 import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
@@ -37,6 +38,8 @@ import java.util.PriorityQueue;
 public class NameTags extends Module {
     private static final int MAX_RENDERED_NAME_TAGS = 256;
     private static final int MAX_VISIBLE_REGIONS = 64;
+    private static final long NAME_REFRESH_NANOS = 1_000_000_000L;
+    private static final long NAME_CACHE_EXPIRY_NANOS = 10_000_000_000L;
     private static final Color NAME_COLOR = new Color(235, 240, 244, 230);
     private static final Color TAG_COLOR = new Color(255, 30, 30, 200);
     private static final Comparator<NameTagRenderData> DEPTH_ORDER = Comparator.comparingDouble(NameTagRenderData::depthSquared);
@@ -53,12 +56,13 @@ public class NameTags extends Module {
     private final PriorityQueue<NameTagRenderData> nearestData = new PriorityQueue<>(MAX_RENDERED_NAME_TAGS, FARTHEST_FIRST);
     private final ArrayList<NameTagRenderEntry> renderEntryBuffer = new ArrayList<>(MAX_RENDERED_NAME_TAGS);
     private final ArrayList<NameTagRenderEntry> renderEntryPool = new ArrayList<>(MAX_RENDERED_NAME_TAGS);
-    private final ArrayList<NameTagRenderEntry> frontToBackBuffer = new ArrayList<>(MAX_RENDERED_NAME_TAGS);
     private final ArrayList<NameTagRenderEntry> visibleEntryBuffer = new ArrayList<>(MAX_RENDERED_NAME_TAGS);
     private final float[] clipScratchA = new float[MAX_VISIBLE_REGIONS * 4];
     private final float[] clipScratchB = new float[MAX_VISIBLE_REGIONS * 4];
     private final float[] projectedPosition = new float[3];
     private final float[] backgroundGeometry = new float[MAX_RENDERED_NAME_TAGS * 8];
+    private final Int2ObjectOpenHashMap<CachedEntityName> nameCache = new Int2ObjectOpenHashMap<>();
+    private long lastNameCachePrune;
 
     public NameTags() {
         super("Name Tags", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, true);
@@ -82,8 +86,8 @@ public class NameTags extends Module {
         data.clear();
         nearestData.clear();
         renderEntryBuffer.clear();
-        frontToBackBuffer.clear();
         visibleEntryBuffer.clear();
+        nameCache.clear();
     }
 
     @Override
@@ -111,6 +115,7 @@ public class NameTags extends Module {
                 tag.updateTextMeasurements();
                 float entityWidth = tag.entityWidth;
                 float tagWidth = tag.tagWidth;
+                float tagTextWidth = tag.tagTextWidth;
                 float nameWidth = Math.max(entityWidth, tagWidth);
                 float tagExtended = entityTag != null ? tagHeight : 0f;
 
@@ -127,6 +132,8 @@ public class NameTags extends Module {
                         nameWidth + 10f,
                         nameHeight + 6f + tagExtended,
                         tagExtended,
+                        entityWidth,
+                        tagTextWidth,
                         tag.depthSquared
                 );
                 entries.add(entry);
@@ -141,46 +148,40 @@ public class NameTags extends Module {
             }
             vg.flushEffectBatch();
 
-            boolean allFullyVisible = true;
+            int backgroundCount = 0;
             for (NameTagRenderEntry entry : visibleEntries) {
                 if (!entry.fullyVisible) {
-                    allFullyVisible = false;
-                    break;
+                    renderVisibleRegions(vg, entry);
+                    continue;
                 }
+
+                int offset = backgroundCount++ * 8;
+                backgroundGeometry[offset] = entry.rectX;
+                backgroundGeometry[offset + 1] = entry.rectY;
+                backgroundGeometry[offset + 2] = entry.width;
+                backgroundGeometry[offset + 3] = entry.height;
+                backgroundGeometry[offset + 4] = NanoVGTheme.RADIUS_LABEL;
+                backgroundGeometry[offset + 5] = NanoVGTheme.RADIUS_LABEL;
+                backgroundGeometry[offset + 6] = NanoVGTheme.RADIUS_LABEL;
+                backgroundGeometry[offset + 7] = NanoVGTheme.RADIUS_LABEL;
             }
 
-            if (allFullyVisible) {
-                int backgroundCount = 0;
-                for (NameTagRenderEntry entry : visibleEntries) {
-                    int offset = backgroundCount++ * 8;
-                    backgroundGeometry[offset] = entry.rectX;
-                    backgroundGeometry[offset + 1] = entry.rectY;
-                    backgroundGeometry[offset + 2] = entry.width;
-                    backgroundGeometry[offset + 3] = entry.height;
-                    backgroundGeometry[offset + 4] = 6f;
-                    backgroundGeometry[offset + 5] = 6f;
-                    backgroundGeometry[offset + 6] = 6f;
-                    backgroundGeometry[offset + 7] = 6f;
-                }
+            if (backgroundCount > 0) {
                 vg.roundedRectangles(backgroundGeometry, backgroundCount, NanoVGTheme.COMPACT_BACKGROUND);
-                for (NameTagRenderEntry entry : visibleEntries)
-                    drawNameTagText(entry);
-            } else {
-                for (NameTagRenderEntry entry : visibleEntries)
-                    renderVisibleRegions(vg, entry);
+                for (NameTagRenderEntry entry : visibleEntries) {
+                    if (entry.fullyVisible)
+                        drawNameTagText(entry);
+                }
             }
         });
     }
 
-    private List<NameTagRenderEntry> buildVisibleEntries(List<NameTagRenderEntry> entries) {
-        frontToBackBuffer.clear();
-        frontToBackBuffer.addAll(entries);
-        frontToBackBuffer.sort((a, b) -> Double.compare(a.depthSquared, b.depthSquared));
+    private List<NameTagRenderEntry> buildVisibleEntries(List<NameTagRenderEntry> frontToBack) {
         visibleEntryBuffer.clear();
 
-        for (int index = 0, size = frontToBackBuffer.size(); index < size; index++) {
-            NameTagRenderEntry entry = frontToBackBuffer.get(index);
-            if (buildVisibleRegions(entry, index) > 0)
+        for (int index = 0, size = frontToBack.size(); index < size; index++) {
+            NameTagRenderEntry entry = frontToBack.get(index);
+            if (buildVisibleRegions(frontToBack, entry, index) > 0)
                 visibleEntryBuffer.add(entry);
         }
 
@@ -188,7 +189,7 @@ public class NameTags extends Module {
         return visibleEntryBuffer;
     }
 
-    private int buildVisibleRegions(NameTagRenderEntry entry, int entryIndex) {
+    private int buildVisibleRegions(List<NameTagRenderEntry> frontToBack, NameTagRenderEntry entry, int entryIndex) {
         float[] current = clipScratchA;
         float[] next = clipScratchB;
         current[0] = entry.rectX;
@@ -198,7 +199,7 @@ public class NameTags extends Module {
         int currentCount = 1;
 
         for (int occluderIndex = 0; occluderIndex < entryIndex && currentCount > 0; occluderIndex++) {
-            NameTagRenderEntry occluder = frontToBackBuffer.get(occluderIndex);
+            NameTagRenderEntry occluder = frontToBack.get(occluderIndex);
             if (!intersects(entry.rectX, entry.rectY, entry.width, entry.height, occluder))
                 continue;
 
@@ -288,9 +289,9 @@ public class NameTags extends Module {
     }
 
     private void drawNameTagText(NameTagRenderEntry entry) {
-        NVGFonts.INTER.drawText(entry.entityName, entry.screenX, entry.screenY, 16f, NAME_COLOR, Alignment.CENTER_MIDDLE, false);
+        NVGFonts.INTER.drawText(entry.entityName, entry.screenX - entry.nameTextWidth / 2f, entry.screenY, 16f, NAME_COLOR, Alignment.LEFT_MIDDLE, false);
         if (entry.entityTag != null)
-            NVGFonts.INTER.drawText(entry.entityTag, entry.screenX, entry.screenY - entry.tagExtended, 15f, TAG_COLOR, Alignment.CENTER_MIDDLE, false);
+            NVGFonts.INTER.drawText(entry.entityTag, entry.screenX - entry.tagTextWidth / 2f, entry.screenY - entry.tagExtended, 15f, TAG_COLOR, Alignment.LEFT_MIDDLE, false);
     }
 
     @Override
@@ -319,6 +320,8 @@ public class NameTags extends Module {
         data.clear();
         nearestData.clear();
         int pooledDataCount = 0;
+        long now = System.nanoTime();
+        pruneNameCache(now);
 
         for (Entity entity : renderSource) {
             boolean murderer = murdererDetectorActive && MurdererDetector.isMurderer(entity);
@@ -350,7 +353,7 @@ public class NameTags extends Module {
             }
 
             renderData.update(
-                    getEntityName(entity),
+                    getCachedEntityName(entity, now),
                     murderer ? "Murderer" : null,
                     projectedPosition[0] * framebufferToScaledX,
                     projectedPosition[1] * framebufferToScaledY,
@@ -362,6 +365,32 @@ public class NameTags extends Module {
         data.addAll(nearestData);
         nearestData.clear();
         data.sort(DEPTH_ORDER);
+    }
+
+    private String getCachedEntityName(Entity entity, long now) {
+        int id = entity.getId();
+        CachedEntityName cached = nameCache.get(id);
+        if (cached == null) {
+            cached = new CachedEntityName();
+            nameCache.put(id, cached);
+        } else if (cached.entity == entity && now - cached.refreshedAt < NAME_REFRESH_NANOS) {
+            cached.lastUsedAt = now;
+            return cached.name;
+        }
+
+        cached.entity = entity;
+        cached.name = getEntityName(entity);
+        cached.refreshedAt = now;
+        cached.lastUsedAt = now;
+        return cached.name;
+    }
+
+    private void pruneNameCache(long now) {
+        if (now - lastNameCachePrune < NAME_CACHE_EXPIRY_NANOS)
+            return;
+
+        lastNameCachePrune = now;
+        nameCache.values().removeIf(cached -> now - cached.lastUsedAt > NAME_CACHE_EXPIRY_NANOS);
     }
 
     private static String getEntityName(Entity entity) {
@@ -380,6 +409,13 @@ public class NameTags extends Module {
                 && (local.get() && (!mc.options.getCameraType().isFirstPerson() || ModuleManager.getModuleState(Freecam.class)) || !(entity instanceof LocalPlayer));
     }
 
+    private static final class CachedEntityName {
+        private Entity entity;
+        private String name;
+        private long refreshedAt;
+        private long lastUsedAt;
+    }
+
     private static final class NameTagRenderData {
         private String entityName;
         private String entityTag;
@@ -390,6 +426,7 @@ public class NameTags extends Module {
         private String measuredEntityTag;
         private float entityWidth;
         private float tagWidth;
+        private float tagTextWidth;
 
         private void update(String entityName, String entityTag, float screenX, float screenY, double depthSquared) {
             this.entityName = entityName;
@@ -407,6 +444,7 @@ public class NameTags extends Module {
             if (!Objects.equals(measuredEntityTag, entityTag)) {
                 measuredEntityTag = entityTag;
                 tagWidth = entityTag != null ? NVGFonts.INTER.getWidth(entityTag, 16f) : 0f;
+                tagTextWidth = entityTag != null ? NVGFonts.INTER.getWidth(entityTag, 15f) : 0f;
             }
         }
 
@@ -425,6 +463,8 @@ public class NameTags extends Module {
         private float width;
         private float height;
         private float tagExtended;
+        private float nameTextWidth;
+        private float tagTextWidth;
         private double depthSquared;
         private final float[] visibleRects = new float[MAX_VISIBLE_REGIONS * 4];
         private int visibleRectCount;
@@ -432,7 +472,7 @@ public class NameTags extends Module {
 
         private void update(String entityName, String entityTag, float screenX, float screenY,
                             float rectX, float rectY, float width, float height,
-                            float tagExtended, double depthSquared) {
+                            float tagExtended, float nameTextWidth, float tagTextWidth, double depthSquared) {
             this.entityName = entityName;
             this.entityTag = entityTag;
             this.screenX = screenX;
@@ -442,6 +482,8 @@ public class NameTags extends Module {
             this.width = width;
             this.height = height;
             this.tagExtended = tagExtended;
+            this.nameTextWidth = nameTextWidth;
+            this.tagTextWidth = tagTextWidth;
             this.depthSquared = depthSquared;
             this.visibleRectCount = 0;
             this.fullyVisible = false;

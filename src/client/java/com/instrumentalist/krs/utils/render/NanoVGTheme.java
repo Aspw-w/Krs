@@ -9,14 +9,14 @@ import java.util.List;
 public final class NanoVGTheme {
     public static final Color BASE = new Color(0x16, 0x16, 0x16);
     public static final Color TEXT = new Color(0xF6, 0xF6, 0xF1);
-    public static final Color MUTED = new Color(0xC8, 0xC8, 0xC2);
+    public static final Color MUTED = new Color(0x9C, 0x9C, 0x97);
     public static final Color DANGER = new Color(0xFF, 0x45, 0x3A);
     public static final Color WARNING = new Color(0xFF, 0x9F, 0x0A);
-    public static final Color ACCENT = new Color(0x00, 0xFF, 0xFF);
-    public static final float RADIUS_LABEL = 6f;
-    public static final float RADIUS_HUD = 8f;
-    public static final float RADIUS_PANEL = 12f;
-    public static final float RADIUS_MENU = 16f;
+    public static final Color ACCENT = new Color(0x7F, 0xB4, 0xBF);
+    public static final float RADIUS_LABEL = 4f;
+    public static final float RADIUS_HUD = 6f;
+    public static final float RADIUS_PANEL = 10f;
+    public static final float RADIUS_MENU = 12f;
     public static final float RADIUS_CONTROL = RADIUS_HUD;
     private static final Shader2DRenderer.GlassRequest PANEL_GLASS = Shader2DRenderer.GlassRequest.panel();
     private static final Shader2DRenderer.GlassRequest COMPACT_GLASS = Shader2DRenderer.GlassRequest.compact();
@@ -27,7 +27,7 @@ public final class NanoVGTheme {
 
     public static final Color COMPACT_BACKGROUND = new Color(0x16, 0x16, 0x16, 78);
     public static final Color SWITCH_ON = ACCENT;
-    public static final Color SLIDER_FILL = new Color(0x64, 0xD2, 0xFF);
+    public static final Color SLIDER_FILL = ACCENT;
     public static final Color INPUT_FOCUS = new Color(0xEE, 0xF2, 0xF7);
     public static final Color SCROLLBAR_THUMB = new Color(0xEE, 0xF2, 0xF7);
     public static final Color CONTROL_TRACK = new Color(255, 255, 255, 190);

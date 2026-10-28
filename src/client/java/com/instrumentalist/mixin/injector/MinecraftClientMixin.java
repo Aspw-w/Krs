@@ -2,6 +2,7 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.features.player.AirPlace;
 import com.instrumentalist.krs.utils.IMinecraft;
+import com.instrumentalist.krs.utils.GuiInputBlocker;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.HandleInputEvent;
 import com.instrumentalist.krs.events.features.TickEvent;
@@ -146,6 +147,7 @@ public abstract class MinecraftClientMixin implements IMinecraft {
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
     private void tickEvent(CallbackInfo ci) {
         krs$syncAllowCursorChanges();
+        GuiInputBlocker.syncNanoVGClickGuiMovementKeys();
 
         if (Client.eventManager == null || !Client.eventManager.hasListeners(TickEvent.class))
             return;

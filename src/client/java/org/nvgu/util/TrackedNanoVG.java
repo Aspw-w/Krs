@@ -129,6 +129,22 @@ public final class TrackedNanoVG {
         return NanoVG.nvgText(ctx, x, y, string);
     }
 
+    public static void markTextRegion(long ctx, float x, float y, ByteBuffer string, float shadowOffsetX, float shadowOffsetY) {
+        if (!GraphicsApiCompatibility.isRegionTrackingActive())
+            return;
+
+        NanoVG.nvgTextBounds(ctx, x, y, string, TEXT_BOUNDS);
+        TEXT_BOUNDS[0] += Math.min(0f, shadowOffsetX);
+        TEXT_BOUNDS[1] += Math.min(0f, shadowOffsetY);
+        TEXT_BOUNDS[2] += Math.max(0f, shadowOffsetX);
+        TEXT_BOUNDS[3] += Math.max(0f, shadowOffsetY);
+        markText(ctx);
+    }
+
+    public static float nvgTextUntracked(long ctx, float x, float y, ByteBuffer string) {
+        return NanoVG.nvgText(ctx, x, y, string);
+    }
+
     public static void nvgTextBox(long ctx, float x, float y, float breakRowWidth, CharSequence string) {
         if (GraphicsApiCompatibility.isRegionTrackingActive()) {
             NanoVG.nvgTextBoxBounds(ctx, x, y, breakRowWidth, string, TEXT_BOUNDS);

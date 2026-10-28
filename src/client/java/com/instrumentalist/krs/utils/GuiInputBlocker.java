@@ -2,6 +2,7 @@ package com.instrumentalist.krs.utils;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.screen.NanoVGClickGuiScreen;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.screens.ChatScreen;
@@ -10,6 +11,7 @@ import xyz.breadloaf.imguimc.imgui.ImguiLoader;
 
 public final class GuiInputBlocker implements IMinecraft {
     private static boolean closingDebugScreen;
+    private static boolean physicalSneakDown;
 
     private GuiInputBlocker() {
     }
@@ -45,6 +47,24 @@ public final class GuiInputBlocker implements IMinecraft {
 
     public static boolean shouldSyncNanoVGClickGuiMovementKeys() {
         return mc.gui.screen() instanceof NanoVGClickGuiScreen screen && screen.shouldSyncGameMovementKeys();
+    }
+
+    public static void syncNanoVGClickGuiMovementKeys() {
+        Options options = mc.options;
+        if (options == null) return;
+
+        KeyMapping sneakKey = options.keyShift;
+        if (!shouldSyncNanoVGClickGuiMovementKeys()) {
+            physicalSneakDown = InputConstants.isKeyDown(sneakKey.key.getValue());
+            return;
+        }
+
+        boolean sneakDown = sneakKey.isDown();
+        KeyMapping.setAll();
+        boolean sneakPressed = sneakKey.isDown();
+        if (sneakPressed && physicalSneakDown)
+            sneakKey.setDown(sneakDown);
+        physicalSneakDown = sneakPressed;
     }
 
     public static boolean shouldBlockMinecraftKeyEvent(int keyCode) {

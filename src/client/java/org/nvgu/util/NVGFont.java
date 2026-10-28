@@ -13,7 +13,7 @@ import static org.nvgu.util.TrackedNanoVG.nvgTextBox;
 
 public class NVGFont {
 
-    private static final Color SHADOW_COLOUR = new Color(0, 0, 0, 77);
+    private static final float SHADOW_OFFSET = 2f;
     private static final int WIDTH_CACHE_SIZE = 512;
     private static final int HEIGHT_CACHE_SIZE = 32;
 
@@ -35,25 +35,19 @@ public class NVGFont {
     public void drawText(String text, final float x, final float y, float size, Color color, Alignment alignment, boolean fontShadow) {
         NVGU vg = NVGU.INSTANCE;
 
-        if (fontShadow) {
-            float shadowOffsetX = 2f;
-            float shadowOffsetY = 2f;
-            vg.text(text, x + shadowOffsetX, y + shadowOffsetY, SHADOW_COLOUR, identifier, size, alignment);
-        }
-
-        vg.text(text, x, y, color, identifier, size, alignment);
+        if (fontShadow)
+            vg.textWithShadow(text, x, y, color, identifier, size, alignment, SHADOW_OFFSET, SHADOW_OFFSET);
+        else
+            vg.text(text, x, y, color, identifier, size, alignment);
     }
 
     public void drawGradientText(String text, final float x, final float y, float size, Alignment alignment, boolean fontShadow, NVGU.GlyphColour colours) {
         NVGU vg = NVGU.INSTANCE;
 
-        if (fontShadow) {
-            float shadowOffsetX = 2f;
-            float shadowOffsetY = 2f;
-            vg.text(text, x + shadowOffsetX, y + shadowOffsetY, SHADOW_COLOUR, identifier, size, alignment);
-        }
-
-        vg.gradientText(text, x, y, identifier, size, alignment, colours);
+        if (fontShadow)
+            vg.gradientTextWithShadow(text, x, y, identifier, size, alignment, colours, SHADOW_OFFSET, SHADOW_OFFSET);
+        else
+            vg.gradientText(text, x, y, identifier, size, alignment, colours);
     }
 
     public void drawTextBox(String text, final float x, final float y, float width, float size, Color color, Alignment alignment) {

@@ -1095,7 +1095,7 @@ public class NanoVGClickGuiScreen extends Screen {
                                 headerFont,
                                 NanoVGTheme.TEXT,
                                 Alignment.LEFT_TOP,
-                                false
+                                true
                         );
                         if (settingsPanelModule != null)
                             addControl(ControlType.MODULE_ENABLED, enableRect.expand(u(4f), u(6f)), module, null, 0);
@@ -1118,7 +1118,7 @@ public class NanoVGClickGuiScreen extends Screen {
                                 headerFont,
                                 NanoVGTheme.TEXT,
                                 Alignment.LEFT_TOP,
-                                false
+                                true
                         );
                     }
 
@@ -1139,7 +1139,7 @@ public class NanoVGClickGuiScreen extends Screen {
                             font(12f),
                             mix(alpha(176, 186, 196, 230), alpha(255, 195, 195, 245), closeProgress),
                             Alignment.CENTER_MIDDLE,
-                            false
+                            true
                     );
 
                     NanoVGTheme.renderCompact(vg, settingsListX, settingsListY, settingsListWidth, settingsListHeight, u(NanoVGTheme.RADIUS_HUD), 1f, COMPACT_BACKGROUND_ALPHA_OFFSET);
@@ -1232,7 +1232,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
         boolean closeHovered = closeRect.contains(scaledMouseX, scaledMouseY);
         vg.roundedRectangle(closeRect.x, closeRect.y, closeRect.width, closeRect.height, u(4f), closeHovered ? alpha(255, 90, 90, 120) : alpha(255, 255, 255, 18));
-        NVGFonts.ICON.drawText(MaterialIcon.CLOSE, closeRect.centerX(), closeRect.centerY() - u(1f), font(14f), closeHovered ? NanoVGTheme.TEXT : NanoVGTheme.muted(220), Alignment.CENTER_MIDDLE, false);
+        NVGFonts.ICON.drawText(MaterialIcon.CLOSE, closeRect.centerX(), closeRect.centerY() - u(1f), font(14f), closeHovered ? NanoVGTheme.TEXT : NanoVGTheme.muted(220), Alignment.CENTER_MIDDLE, true);
 
         vg.rectangle(x + u(10f), y + PANEL_HEADER_HEIGHT - u(1f), width - u(20f), u(1f), alpha(255, 255, 255, 40));
     }
@@ -1242,7 +1242,7 @@ public class NanoVGClickGuiScreen extends Screen {
         boolean hovered = rect.contains(scaledMouseX, scaledMouseY);
         vg.roundedRectangle(rect.x, rect.y, rect.width, rect.height, u(5f), alpha(255, 255, 255, focused ? 30 : hovered ? 23 : 16));
         vg.roundedRectangleBorder(rect.x, rect.y, rect.width, rect.height, u(5f), u(1f), focused ? NanoVGTheme.inputFocus(120) : alpha(255, 255, 255, 30), Border.INSIDE);
-        NVGFonts.ICON.drawText(MaterialIcon.SEARCH, rect.x + u(7f), rect.y + u(3f), font(12f), focused ? NanoVGTheme.INPUT_FOCUS : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, false);
+        NVGFonts.ICON.drawText(MaterialIcon.SEARCH, rect.x + u(7f), rect.y + u(3f), font(12f), focused ? NanoVGTheme.INPUT_FOCUS : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, true);
 
         String text = inputText(searchQuery, focused, "Search");
         Color color = searchQuery.isBlank() && !focused ? alpha(120, 130, 140, 205) : alpha(255, 255, 255, 235);
@@ -1251,7 +1251,7 @@ public class NanoVGClickGuiScreen extends Screen {
         String visibleText = fitText(text, NVGFonts.INTER, searchFont, rect.width - textReserve);
         rememberTextField(TextFocus.SEARCH, null, rect.x + u(24f), searchFont, rect.width - textReserve);
         renderSelectionHighlight(vg, focused, NVGFonts.INTER, searchFont, rect.x + u(24f), rect.y + u(5f), rect.width - textReserve);
-        NVGFonts.INTER.drawText(visibleText, rect.x + u(24f), rect.y + u(4.5f), searchFont, color, Alignment.LEFT_TOP, false);
+        NVGFonts.INTER.drawText(visibleText, rect.x + u(24f), rect.y + u(4.5f), searchFont, color, Alignment.LEFT_TOP, true);
         renderInlineCaret(vg, focused, NVGFonts.INTER, searchFont, rect.x + u(24f), rect.y + u(4.5f), color);
 
         if (searchQuery.isBlank()) {
@@ -1264,7 +1264,7 @@ public class NanoVGClickGuiScreen extends Screen {
         vg.roundedRectangle(searchClearRect.x, searchClearRect.y, searchClearRect.width, searchClearRect.height, u(4f),
                 clearHovered ? alpha(255, 255, 255, 28) : alpha(255, 255, 255, 10));
         NVGFonts.ICON.drawText(MaterialIcon.CLOSE, searchClearRect.centerX(), searchClearRect.centerY() - u(1f), font(11f),
-                clearHovered ? NanoVGTheme.TEXT : NanoVGTheme.muted(210), Alignment.CENTER_MIDDLE, false);
+                clearHovered ? NanoVGTheme.TEXT : NanoVGTheme.muted(210), Alignment.CENTER_MIDDLE, true);
     }
 
     private void renderFooter(NVGU vg, float x, float y, float width, int visibleCount) {
@@ -1283,7 +1283,7 @@ public class NanoVGClickGuiScreen extends Screen {
             countLabel = visibleCount + (visibleCount == 1 ? " module" : " modules");
         NVGFonts.INTER.drawText(countLabel, x + width - u(2f), y + u(5f), font(10f),
                 searchQuery.isBlank() ? NanoVGTheme.muted(220) : NanoVGTheme.text(230),
-                Alignment.RIGHT_TOP, false);
+                Alignment.RIGHT_TOP, true);
     }
 
     private void renderTabs(NVGU vg, float x, float y, float width, float height) {
@@ -1309,7 +1309,7 @@ public class NanoVGClickGuiScreen extends Screen {
                 selectedRect = rect;
 
             NVGFont categoryFont = selected ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
-            categoryFont.drawText(fitText(category.name(), categoryFont, tabFont, rect.width - u(20f)), rect.x + u(12f), rect.y + textOffset, tabFont, selected ? NanoVGTheme.ACCENT : NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+            categoryFont.drawText(fitText(category.name(), categoryFont, tabFont, rect.width - u(20f)), rect.x + u(12f), rect.y + textOffset, tabFont, selected ? NanoVGTheme.TEXT : NanoVGTheme.MUTED, Alignment.LEFT_TOP, true);
         }
 
         float dividerY = y + u(5f) + categories.length * (tabHeight + gap) + u(2f) * fit;
@@ -1321,10 +1321,12 @@ public class NanoVGClickGuiScreen extends Screen {
             Rect rect = new Rect(x, configStartY + i * (tabHeight + gap), width, tabHeight);
             tabBounds.add(new TabBounds(null, tab, null, rect));
 
-            if (configView && searchQuery.isBlank() && selectedConfigTab == tab)
+            boolean selected = configView && searchQuery.isBlank() && selectedConfigTab == tab;
+            if (selected)
                 selectedRect = rect;
 
-            NVGFonts.INTER.drawText(fitText(tab.sidebarLabel, NVGFonts.INTER, tabFont, rect.width - u(20f)), rect.x + u(12f), rect.y + textOffset, tabFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+            NVGFont tabLabelFont = selected ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
+            tabLabelFont.drawText(fitText(tab.sidebarLabel, tabLabelFont, tabFont, rect.width - u(20f)), rect.x + u(12f), rect.y + textOffset, tabFont, selected ? NanoVGTheme.TEXT : NanoVGTheme.MUTED, Alignment.LEFT_TOP, true);
         }
 
         float commandDividerY = configStartY + configTabs.length * (tabHeight + gap) + u(2f) * fit;
@@ -1336,10 +1338,12 @@ public class NanoVGClickGuiScreen extends Screen {
             Rect rect = new Rect(x, commandStartY + i * (tabHeight + gap), width, tabHeight);
             tabBounds.add(new TabBounds(null, null, tab, rect));
 
-            if (commandView && searchQuery.isBlank() && selectedCommandTab == tab)
+            boolean selected = commandView && searchQuery.isBlank() && selectedCommandTab == tab;
+            if (selected)
                 selectedRect = rect;
 
-            NVGFonts.INTER.drawText(fitText(tab.sidebarLabel, NVGFonts.INTER, tabFont, rect.width - u(20f)), rect.x + u(12f), rect.y + textOffset, tabFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+            NVGFont tabLabelFont = selected ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
+            tabLabelFont.drawText(fitText(tab.sidebarLabel, tabLabelFont, tabFont, rect.width - u(20f)), rect.x + u(12f), rect.y + textOffset, tabFont, selected ? NanoVGTheme.TEXT : NanoVGTheme.MUTED, Alignment.LEFT_TOP, true);
         }
 
         if (selectedRect == null)
@@ -1493,7 +1497,7 @@ public class NanoVGClickGuiScreen extends Screen {
                     vg.roundedRectangle(listViewport.x + u(6f), rowY + u(1f), listViewport.width - u(12f), blockHeight - u(3f), u(4f), alpha(255, 255, 255, 12));
                     List<String> lines = commandLogLines(log, textWidth);
                     for (int i = 0; i < lines.size(); i++)
-                        NVGFonts.INTER.drawText(lines.get(i), listViewport.x + u(14f), rowY + u(5f) + i * lineHeight, logFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+                        NVGFonts.INTER.drawText(lines.get(i), listViewport.x + u(14f), rowY + u(5f) + i * lineHeight, logFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
                 }
                 rowY += blockHeight;
             }
@@ -1520,8 +1524,8 @@ public class NanoVGClickGuiScreen extends Screen {
         Color textColor = commandInput.isBlank() && !active ? NanoVGTheme.muted(180) : NanoVGTheme.TEXT;
         rememberTextField(TextFocus.COMMAND, null, input.x + u(26f), inputFont, input.width - u(32f));
         renderSelectionHighlight(vg, active, NVGFonts.INTER, inputFont, input.x + u(26f), input.y + u(6f), input.width - u(32f));
-        NVGFonts.ICON.drawText(MaterialIcon.FORWARD_IOS, input.x + u(8f), input.y + u(5f), font(12f), active ? NanoVGTheme.INPUT_FOCUS : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, false);
-        NVGFonts.INTER.drawText(visibleText, input.x + u(26f), input.y + u(6f), inputFont, textColor, Alignment.LEFT_TOP, false);
+        NVGFonts.ICON.drawText(MaterialIcon.FORWARD_IOS, input.x + u(8f), input.y + u(5f), font(12f), active ? NanoVGTheme.INPUT_FOCUS : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, true);
+        NVGFonts.INTER.drawText(visibleText, input.x + u(26f), input.y + u(6f), inputFont, textColor, Alignment.LEFT_TOP, true);
         renderInlineCaret(vg, active, NVGFonts.INTER, inputFont, input.x + u(26f), input.y + u(6f), textColor);
 
         renderCommandButton(vg, button, "command-run", "Run", !commandInput.isBlank(), false);
@@ -1591,12 +1595,12 @@ public class NanoVGClickGuiScreen extends Screen {
         float nameRight = kill.x - u(10f);
         String pingLabel = player.ping() >= 0 ? player.ping() + "ms" : "-";
         float pingFont = font(10f);
-        NVGFonts.INTER.drawText(pingLabel, nameRight, row.y + u(8f), pingFont, NanoVGTheme.MUTED, Alignment.RIGHT_TOP, false);
+        NVGFonts.INTER.drawText(pingLabel, nameRight, row.y + u(8f), pingFont, NanoVGTheme.MUTED, Alignment.RIGHT_TOP, true);
         nameRight -= NVGFonts.INTER.getWidth(pingLabel, pingFont) + u(8f);
 
         String name = player.self() ? player.name() + " (You)" : player.name();
         NVGFont nameFont = player.self() ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
-        nameFont.drawText(fitText(name, nameFont, font(14f), Math.max(u(28f), nameRight - nameX)), nameX, row.y + u(7f), font(14f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+        nameFont.drawText(fitText(name, nameFont, font(14f), Math.max(u(28f), nameRight - nameX)), nameX, row.y + u(7f), font(14f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
 
         String key = "player:" + player.name() + ":";
         renderCommandButton(vg, kill, key + "kill", "Kill", true, false);
@@ -1625,7 +1629,7 @@ public class NanoVGClickGuiScreen extends Screen {
         float labelFont = font(11f);
         vg.roundedRectangle(button.x, button.y, button.width, button.height, u(5f), fill);
         vg.roundedRectangleBorder(button.x, button.y, button.width, button.height, u(5f), u(1f), border, Border.INSIDE);
-        NVGFonts.INTER.drawText(fitText(label, NVGFonts.INTER, labelFont, button.width - u(8f)), button.centerX(), button.centerY() - labelFont / 2f, labelFont, text, Alignment.CENTER_TOP, false);
+        NVGFonts.INTER.drawText(fitText(label, NVGFonts.INTER, labelFont, button.width - u(8f)), button.centerX(), button.centerY() - labelFont / 2f, labelFont, text, Alignment.CENTER_TOP, true);
     }
 
     private List<String> visibleCommandLogs() {
@@ -1723,7 +1727,7 @@ public class NanoVGClickGuiScreen extends Screen {
     private static void renderEmptyState(NVGU vg, Rect viewport, String icon, String title, String detail) {
         float centerX = viewport.centerX();
         float centerY = viewport.centerY() - u(7f);
-        NVGFonts.ICON.drawText(icon, centerX, centerY - u(20f), font(16f), NanoVGTheme.muted(200), Alignment.CENTER_MIDDLE, false);
+        NVGFonts.ICON.drawText(icon, centerX, centerY - u(20f), font(16f), NanoVGTheme.muted(200), Alignment.CENTER_MIDDLE, true);
         NVGFonts.INTER.drawText(
                 fitText(title, NVGFonts.INTER, font(14f), Math.max(u(40f), viewport.width - u(32f))),
                 centerX,
@@ -1731,7 +1735,7 @@ public class NanoVGClickGuiScreen extends Screen {
                 font(14f),
                 NanoVGTheme.TEXT,
                 Alignment.CENTER_TOP,
-                false
+                true
         );
         NVGFonts.INTER.drawText(
                 fitText(detail, NVGFonts.INTER, font(11f), Math.max(u(40f), viewport.width - u(32f))),
@@ -1740,7 +1744,7 @@ public class NanoVGClickGuiScreen extends Screen {
                 font(11f),
                 NanoVGTheme.MUTED,
                 Alignment.CENTER_TOP,
-                false
+                true
         );
     }
 
@@ -1762,8 +1766,8 @@ public class NanoVGClickGuiScreen extends Screen {
         Color nameColor = newConfigName.isBlank() && !active ? NanoVGTheme.muted(180) : NanoVGTheme.TEXT;
         rememberTextField(TextFocus.CONFIG_NAME, null, input.x + u(26f), createFont, input.width - u(32f));
         renderSelectionHighlight(vg, active, NVGFonts.INTER, createFont, input.x + u(26f), input.y + u(6f), input.width - u(32f));
-        NVGFonts.ICON.drawText(MaterialIcon.ADD, input.x + u(8f), input.y + u(5f), font(12f), active ? NanoVGTheme.INPUT_FOCUS : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, false);
-        NVGFonts.INTER.drawText(visibleText, input.x + u(26f), input.y + u(6f), createFont, nameColor, Alignment.LEFT_TOP, false);
+        NVGFonts.ICON.drawText(MaterialIcon.ADD, input.x + u(8f), input.y + u(5f), font(12f), active ? NanoVGTheme.INPUT_FOCUS : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, true);
+        NVGFonts.INTER.drawText(visibleText, input.x + u(26f), input.y + u(6f), createFont, nameColor, Alignment.LEFT_TOP, true);
         renderInlineCaret(vg, active, NVGFonts.INTER, createFont, input.x + u(26f), input.y + u(6f), nameColor);
 
         boolean canCreate = !cleanConfigName(newConfigName).isBlank();
@@ -1771,7 +1775,7 @@ public class NanoVGClickGuiScreen extends Screen {
         float progress = animate("config-create", canCreate && hovered, 0.18f);
         vg.roundedRectangle(button.x, button.y, button.width, button.height, u(5f), alpha(255, 255, 255, canCreate ? (int) (22 + 16 * progress) : 14));
         vg.roundedRectangleBorder(button.x, button.y, button.width, button.height, u(5f), u(1f), canCreate ? NanoVGTheme.inputFocus(88) : alpha(255, 255, 255, 24), Border.INSIDE);
-        NVGFonts.INTER.drawText("Create", button.centerX(), button.y + u(6f), font(11f), canCreate ? NanoVGTheme.TEXT : NanoVGTheme.muted(180), Alignment.CENTER_TOP, false);
+        NVGFonts.INTER.drawText("Create", button.centerX(), button.y + u(6f), font(11f), canCreate ? NanoVGTheme.TEXT : NanoVGTheme.muted(180), Alignment.CENTER_TOP, true);
     }
 
     private void renderConfigRow(NVGU vg, ConfigEntry config, int index, int visibleCount, float x, float y, float width) {
@@ -1798,7 +1802,7 @@ public class NanoVGClickGuiScreen extends Screen {
         if (!updatedLabel.isBlank()) {
             float updatedFont = font(10f);
             float updatedWidth = NVGFonts.INTER.getWidth(updatedLabel, updatedFont);
-            NVGFonts.INTER.drawText(updatedLabel, nameRight, row.y + u(8f), updatedFont, NanoVGTheme.MUTED, Alignment.RIGHT_TOP, false);
+            NVGFonts.INTER.drawText(updatedLabel, nameRight, row.y + u(8f), updatedFont, NanoVGTheme.MUTED, Alignment.RIGHT_TOP, true);
             nameRight -= updatedWidth + u(8f);
         }
         float nameWidth = Math.max(u(28f), nameRight - nameX);
@@ -1806,7 +1810,7 @@ public class NanoVGClickGuiScreen extends Screen {
             renderConfigRenameField(vg, config, nameX, row.y, nameWidth, row.height);
         else {
             NVGFont nameFont = config.current ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
-            nameFont.drawText(fitText(config.name, nameFont, font(14f), nameWidth), nameX, row.y + u(7f), font(14f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+            nameFont.drawText(fitText(config.name, nameFont, font(14f), nameWidth), nameX, row.y + u(7f), font(14f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
         }
 
         if (delete != null) {
@@ -1815,7 +1819,7 @@ public class NanoVGClickGuiScreen extends Screen {
             vg.roundedRectangle(delete.x, delete.y, delete.width, delete.height, u(5f), deletable ? mix(alpha(255, 255, 255, 12), alpha(255, 74, 74, 52), deleteProgress) : alpha(255, 255, 255, 8));
             vg.roundedRectangleBorder(delete.x, delete.y, delete.width, delete.height, u(5f), u(1f), deletable ? mix(alpha(255, 255, 255, 24), alpha(255, 96, 96, 110), deleteProgress) : alpha(255, 255, 255, 16), Border.INSIDE);
             Color deleteColor = !deletable ? alpha(120, 130, 140, 135) : deleteHovered ? alpha(255, 195, 195, 245) : alpha(176, 186, 196, 220);
-            NVGFonts.ICON.drawText(MaterialIcon.DELETE, delete.centerX(), delete.centerY() - u(1f), font(12f), deleteColor, Alignment.CENTER_MIDDLE, false);
+            NVGFonts.ICON.drawText(MaterialIcon.DELETE, delete.centerX(), delete.centerY() - u(1f), font(12f), deleteColor, Alignment.CENTER_MIDDLE, true);
         }
     }
 
@@ -1832,7 +1836,7 @@ public class NanoVGClickGuiScreen extends Screen {
         rememberTextField(TextFocus.CONFIG_RENAME, config, textX, renameFont, textMaxWidth);
         vg.scissor(input.x, input.y, input.width, input.height, () -> {
             renderSelectionHighlight(vg, true, NVGFonts.INTER, renameFont, textX, textY, textMaxWidth);
-            NVGFonts.INTER.drawText(text, textX, textY, renameFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+            NVGFonts.INTER.drawText(text, textX, textY, renameFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
             renderInlineCaret(vg, true, NVGFonts.INTER, renameFont, textX, textY, NanoVGTheme.TEXT);
         });
     }
@@ -1861,13 +1865,13 @@ public class NanoVGClickGuiScreen extends Screen {
         if (!bindLabel.isBlank()) {
             float bindFont = font(10f);
             float bindWidth = NVGFonts.INTER.getWidth(bindLabel, bindFont);
-            NVGFonts.INTER.drawText(bindLabel, nameRight, row.y + u(8f), bindFont, NanoVGTheme.MUTED, Alignment.RIGHT_TOP, false);
+            NVGFonts.INTER.drawText(bindLabel, nameRight, row.y + u(8f), bindFont, NanoVGTheme.MUTED, Alignment.RIGHT_TOP, true);
             nameRight -= bindWidth + u(8f);
         }
 
         float nameMaxWidth = Math.max(u(36f), nameRight - nameX);
         NVGFont nameFont = selected ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
-        nameFont.drawText(fitText(module.moduleName, nameFont, font(14f), nameMaxWidth), nameX, row.y + u(7f), font(14f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+        nameFont.drawText(fitText(module.moduleName, nameFont, font(14f), nameMaxWidth), nameX, row.y + u(7f), font(14f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
 
         drawSwitch(vg, switchRect.x, switchRect.y, switchRect.width, switchRect.height, enabled, "module-list:" + System.identityHashCode(module), pressedModule == module);
     }
@@ -1878,7 +1882,7 @@ public class NanoVGClickGuiScreen extends Screen {
         List<SettingValue<?>> settings = collectSettings(module);
 
         if (!hasRenderableSettings(module)) {
-            NVGFonts.INTER.drawText("No settings", x + u(10f), rowY + u(7f), font(12f), NanoVGTheme.MUTED, Alignment.LEFT_TOP, false);
+            NVGFonts.INTER.drawText("No settings", x + u(10f), rowY + u(7f), font(12f), NanoVGTheme.MUTED, Alignment.LEFT_TOP, true);
             return;
         }
 
@@ -1906,14 +1910,14 @@ public class NanoVGClickGuiScreen extends Screen {
         String updated = formatConfigUpdatedAt(config);
         Rect row = new Rect(rowX, y + u(2f), rowWidth, configUpdatedCardHeight(rowWidth, updated));
         vg.roundedRectangle(row.x, row.y + u(1f), row.width, row.height - u(2f), u(4f), alpha(255, 255, 255, 14));
-        NVGFonts.INTER.drawText("Last Updated", row.x + u(12f), row.y + u(6f), font(12f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+        NVGFonts.INTER.drawText("Last Updated", row.x + u(12f), row.y + u(6f), font(12f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
 
         List<String> lines = wrapConfigUpdatedLines(updated, rowWidth);
         float textY = row.y + u(24f);
         float lineHeight = u(15f);
         float valueFont = font(11f);
         for (int i = 0; i < lines.size(); i++) {
-            NVGFonts.INTER.drawText(lines.get(i), row.x + u(12f), textY + i * lineHeight, valueFont, NanoVGTheme.MUTED, Alignment.LEFT_TOP, false);
+            NVGFonts.INTER.drawText(lines.get(i), row.x + u(12f), textY + i * lineHeight, valueFont, NanoVGTheme.MUTED, Alignment.LEFT_TOP, true);
         }
     }
 
@@ -2006,7 +2010,7 @@ public class NanoVGClickGuiScreen extends Screen {
         float noteFont = font(12f);
         float noteLine = u(15f);
         for (int i = 0; i < lines.size(); i++) {
-            NVGFonts.INTER.drawText(lines.get(i), row.x + u(12f), textY + i * noteLine, noteFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+            NVGFonts.INTER.drawText(lines.get(i), row.x + u(12f), textY + i * noteLine, noteFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
         }
         return y + height + u(7f);
     }
@@ -2045,15 +2049,15 @@ public class NanoVGClickGuiScreen extends Screen {
     private void renderSettingRow(NVGU vg, Rect row, String label, String value, float enabled) {
         if (enabled > 0.01f)
             renderListRowWash(vg, row, enabled);
-        NVGFonts.INTER.drawText(fitText(label, NVGFonts.INTER, font(12f), row.width * 0.50f), row.x + u(12f), row.y + u(7f), font(12f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+        NVGFonts.INTER.drawText(fitText(label, NVGFonts.INTER, font(12f), row.width * 0.50f), row.x + u(12f), row.y + u(7f), font(12f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
         if (value != null)
-            NVGFonts.INTER.drawText(fitText(value, NVGFonts.INTER, font(11f), row.width * 0.36f), row.x + row.width - u(25f), row.y + u(8f), font(11f), NanoVGTheme.MUTED, Alignment.RIGHT_TOP, false);
+            NVGFonts.INTER.drawText(fitText(value, NVGFonts.INTER, font(11f), row.width * 0.36f), row.x + row.width - u(25f), row.y + u(8f), font(11f), NanoVGTheme.MUTED, Alignment.RIGHT_TOP, true);
     }
 
     private void renderKeybindRow(NVGU vg, Rect row, String label, String value) {
-        NVGFonts.INTER.drawText(fitText(label, NVGFonts.INTER, font(12f), row.width * 0.50f), row.x + u(12f), row.y + u(7f), font(12f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+        NVGFonts.INTER.drawText(fitText(label, NVGFonts.INTER, font(12f), row.width * 0.50f), row.x + u(12f), row.y + u(7f), font(12f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
         if (value != null)
-            NVGFonts.INTER.drawText(value, row.x + row.width - u(25f), row.y + u(8f), font(11f), NanoVGTheme.MUTED, Alignment.RIGHT_TOP, false);
+            NVGFonts.INTER.drawText(value, row.x + row.width - u(25f), row.y + u(8f), font(11f), NanoVGTheme.MUTED, Alignment.RIGHT_TOP, true);
     }
 
     private void renderListSetting(NVGU vg, Rect row, Module module, ListValue value) {
@@ -2072,7 +2076,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
         drawWrappedSettingLabel(value.name, row.x + u(12f), row.y + u(7f), listLabelMaxWidth(row.width));
         if (dropdownProgress <= 0.01f && value.get() != null)
-            NVGFonts.INTER.drawText(fitText(value.get(), NVGFonts.INTER, font(11f), row.width * 0.36f), row.x + row.width - u(25f), row.y + u(8f), font(11f), NanoVGTheme.MUTED, Alignment.RIGHT_TOP, false);
+            NVGFonts.INTER.drawText(fitText(value.get(), NVGFonts.INTER, font(11f), row.width * 0.36f), row.x + row.width - u(25f), row.y + u(8f), font(11f), NanoVGTheme.MUTED, Alignment.RIGHT_TOP, true);
         if (dropdownProgress <= 0.01f) {
             addControl(ControlType.LIST_VALUE, row, value, module, 0);
             return;
@@ -2180,12 +2184,12 @@ public class NanoVGClickGuiScreen extends Screen {
                 numberFont,
                 numberColor,
                 Alignment.LEFT_TOP,
-                false
+                true
         );
         renderInlineCaret(vg, true, NVGFonts.INTER, numberFont, input.x + u(6f), input.y + u(5f), numberColor);
         if (!shownSuffix.isEmpty())
             NVGFonts.INTER.drawText(shownSuffix, input.x + input.width - u(6f), input.y + u(5f), font(9f),
-                    alpha(150, 160, 170, 220), Alignment.RIGHT_TOP, false);
+                    alpha(150, 160, 170, 220), Alignment.RIGHT_TOP, true);
     }
 
     private void renderColorSetting(NVGU vg, Rect row, ColorValue value) {
@@ -2230,7 +2234,7 @@ public class NanoVGClickGuiScreen extends Screen {
         rememberTextField(TextFocus.SETTING, value, input.x + u(6f), settingFont, input.width - u(10f));
         renderSelectionHighlight(vg, active, NVGFonts.INTER, settingFont, input.x + u(6f), input.y + u(5f), input.width - u(10f));
         Color textColor = value.get().isEmpty() && !active ? alpha(120, 130, 140, 205) : alpha(255, 255, 255, 235);
-        NVGFonts.INTER.drawText(visibleText, input.x + u(6f), input.y + u(5f), settingFont, textColor, Alignment.LEFT_TOP, false);
+        NVGFonts.INTER.drawText(visibleText, input.x + u(6f), input.y + u(5f), settingFont, textColor, Alignment.LEFT_TOP, true);
         renderInlineCaret(vg, active, NVGFonts.INTER, settingFont, input.x + u(6f), input.y + u(5f), textColor);
     }
 
@@ -3335,7 +3339,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
         vg.globalAlpha(easeOut(progress), () -> {
             NanoVGTheme.renderPanel(vg, drawX, drawY, width, height, u(NanoVGTheme.RADIUS_HUD), 1f);
-            NVGFonts.INTER.drawText(text, drawX + paddingX, drawY + u(6f), tooltipFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+            NVGFonts.INTER.drawText(text, drawX + paddingX, drawY + u(6f), tooltipFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
         });
     }
 
@@ -3929,7 +3933,7 @@ public class NanoVGClickGuiScreen extends Screen {
             return;
 
         float caretX = textX + font.getWidth(text.substring(0, caret), fontSize);
-        font.drawText("|", caretX, textY, fontSize, color, Alignment.CENTER_TOP, false);
+        font.drawText("|", caretX, textY, fontSize, color, Alignment.CENTER_TOP, true);
     }
 
     private void renderSelectionHighlight(
@@ -4037,7 +4041,7 @@ public class NanoVGClickGuiScreen extends Screen {
         NVGFont optionFont = selected ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
         List<String> lines = wrapListOption(option, maxWidth);
         for (int i = 0; i < lines.size(); i++)
-            optionFont.drawText(lines.get(i), x, y + i * lineHeight, size, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+            optionFont.drawText(lines.get(i), x, y + i * lineHeight, size, NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
     }
 
     private static List<String> wrapListOption(String option, float maxWidth) {
@@ -4054,7 +4058,7 @@ public class NanoVGClickGuiScreen extends Screen {
         float lineHeight = u(15f);
         List<String> lines = wrapSettingLabel(label, maxWidth);
         for (int i = 0; i < lines.size(); i++)
-            NVGFonts.INTER.drawText(lines.get(i), x, y + i * lineHeight, size, NanoVGTheme.TEXT, Alignment.LEFT_TOP, false);
+            NVGFonts.INTER.drawText(lines.get(i), x, y + i * lineHeight, size, NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
     }
 
     private static List<String> wrapSettingLabel(String label, float maxWidth) {
