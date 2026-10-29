@@ -49,7 +49,7 @@ public class TargetStrafe extends Module {
     public static FloatValue distance = new FloatValue(
             "Distance",
             1f,
-            0f,
+            0.3f,
             8f,
             "m"
     );

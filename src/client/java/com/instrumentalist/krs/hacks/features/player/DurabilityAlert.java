@@ -43,12 +43,7 @@ public class DurabilityAlert extends Module {
     private int checkTicks;
 
     public DurabilityAlert() {
-        super("Durability Alert", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
-    }
-
-    @Override
-    public String tag() {
-        return threshold.get() + "%";
+        super("Durability Alert", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, false);
     }
 
     @Override

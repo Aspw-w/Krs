@@ -77,7 +77,7 @@ public class NoSlow extends Module {
                 event.cancel();
 
                 if (player.onGround()) {
-                    player.input.makeJump();
+                    player.jumpFromGround();
                 }
 
                 waitingPacket = true;
