@@ -9,8 +9,10 @@ import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.entity.EntityExtension;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.packet.BlinkUtil;
+import com.instrumentalist.krs.utils.render.BlockHighlight;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.IntValue;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import com.instrumentalist.krs.utils.input.Keys;
 
@@ -23,6 +25,8 @@ public class AntiVoid extends Module {
 
     private int canTick = 0;
     private Integer unSafeY = null;
+    private final BlockHighlight safeBlockHighlight = new BlockHighlight();
+    private BlockPos lastSafeBlock;
 
     public AntiVoid() {
         super("Anti Void", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
@@ -30,6 +34,8 @@ public class AntiVoid extends Module {
 
     @Override
     public void onDisable() {
+        safeBlockHighlight.release();
+        lastSafeBlock = null;
         if (mc.player == null) return;
         BlinkUtil.INSTANCE.sync(true, false);
         BlinkUtil.INSTANCE.stopBlink();
@@ -43,6 +49,8 @@ public class AntiVoid extends Module {
 
     @Override
     public void onWorld(WorldEvent event) {
+        safeBlockHighlight.release();
+        lastSafeBlock = null;
         canTick = 0;
         if (unSafeY != null) {
             BlinkUtil.INSTANCE.sync(true, false);
@@ -54,6 +62,7 @@ public class AntiVoid extends Module {
     @Override
     public void onUpdate(UpdateEvent event) {
         var player = mc.player;
+        updateSafeBlockHighlight();
         if (player == null || canTick > 0 || !EntityExtension.isFallingToVoid(player) || player.tickCount <= 50 || player.getAbilities().flying || player.isShiftKeyDown() || player.isSpectator() || player.isInWater()) {
             if (unSafeY != null) {
                 BlinkUtil.INSTANCE.sync(true, false);
@@ -74,6 +83,27 @@ public class AntiVoid extends Module {
             if (stopXZ.get())
                 MovementUtil.stopMoving();
         }
+    }
+
+    private void updateSafeBlockHighlight() {
+        var player = mc.player;
+        var level = mc.level;
+        if (player == null || level == null) {
+            safeBlockHighlight.release();
+            return;
+        }
+
+        boolean overVoid = EntityExtension.isFallingToVoid(player);
+        if (player.onGround() && !overVoid) {
+            BlockPos below = player.getOnPos();
+            if (!level.getBlockState(below).isAir())
+                lastSafeBlock = below.immutable();
+        }
+
+        if (lastSafeBlock != null && !player.onGround() && overVoid && !player.getAbilities().flying && !player.isSpectator())
+            safeBlockHighlight.setTarget(lastSafeBlock);
+        else
+            safeBlockHighlight.release();
     }
 
     @Override

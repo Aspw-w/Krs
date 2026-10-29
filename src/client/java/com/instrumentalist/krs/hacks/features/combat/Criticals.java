@@ -110,7 +110,7 @@ public class Criticals extends Module {
     }
 
     private boolean isInCombat() {
-        return System.currentTimeMillis() - lastAttackMillis < 2000L
+        return System.currentTimeMillis() - lastAttackMillis < 10000L
                 || ModuleManager.getModuleState(KillAura.class) && KillAura.closestEntity != null;
     }
 

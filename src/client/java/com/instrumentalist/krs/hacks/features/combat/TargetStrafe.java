@@ -9,12 +9,17 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.movement.fly.FlyModule;
 import com.instrumentalist.krs.hacks.features.movement.speed.SpeedModule;
 import com.instrumentalist.krs.utils.move.MovementUtil;
+import com.instrumentalist.krs.utils.render.PathLines;
+import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import com.instrumentalist.krs.utils.input.Keys;
+
+import java.util.ArrayList;
 
 public class TargetStrafe extends Module {
 
@@ -29,8 +34,12 @@ public class TargetStrafe extends Module {
     private static final int FINAL_SWEEP_REFINEMENTS = 10;
     private static final float SEARCH_ANGLE_STEP = 15.0f;
     private static final float MAX_TURN_PER_TICK = 22.5f;
+    private static final int ORBIT_SEGMENTS = 64;
+    private static final double MIN_ORBIT_RADIUS = 0.3;
 
     private static float steeringOffset;
+
+    private final ArrayList<Vec3> orbitPoints = new ArrayList<>(ORBIT_SEGMENTS + 1);
 
     public TargetStrafe() {
         super("Target Strafe", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
@@ -399,6 +408,26 @@ public class TargetStrafe extends Module {
     @Override
     public void onDisable() {
         resetSteering();
+        PathLines.hide(this, this);
+    }
+
+    @Override
+    public void onRender3D(Render3DEvent event) {
+        Entity target = KillAura.closestEntity;
+        double radius = distance.get();
+        if (mc.player == null || mc.level == null || target == null || !target.isAlive()
+                || !ModuleManager.getModuleState(KillAura.class) || radius < MIN_ORBIT_RADIUS) {
+            PathLines.hide(this, this);
+            return;
+        }
+
+        Vec3 center = RenderUtil.INSTANCE.getLerpedPos(target, event.partialTicks);
+        orbitPoints.clear();
+        for (int segment = 0; segment <= ORBIT_SEGMENTS; segment++) {
+            double angle = Math.PI * 2.0 * (segment % ORBIT_SEGMENTS) / ORBIT_SEGMENTS;
+            orbitPoints.add(new Vec3(center.x + Math.cos(angle) * radius, center.y, center.z + Math.sin(angle) * radius));
+        }
+        PathLines.show(this, this, null, orbitPoints);
     }
 
     @Override
