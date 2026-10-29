@@ -2335,7 +2335,6 @@ public class Scaffold extends Module {
 
             BlockHitResult bhr = new BlockHitResult(target.hitPos(), target.side(), target.neighbour(), false);
             if (!rotationMode.get().equalsIgnoreCase("none") && !isPlacementBypassRotationMode(target) && !isNoHitCheckActive(target)) {
-                facePlacementTarget(target);
                 BlockHitResult currentHit = currentPlacementHit(target);
                 if (currentHit == null)
                     return false;
