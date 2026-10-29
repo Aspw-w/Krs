@@ -1,5 +1,7 @@
 package com.instrumentalist.krs.utils.entity;
 
+import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.level.VisualSpoofer;
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import net.minecraft.core.BlockPos;
@@ -9,6 +11,8 @@ import net.minecraft.network.protocol.game.ServerboundPunchPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+
+import java.util.Locale;
 
 public final class PlayerUtil implements IMinecraft {
     public static final PlayerUtil INSTANCE = new PlayerUtil();
@@ -56,6 +60,10 @@ public final class PlayerUtil implements IMinecraft {
     }
 
     public void nukeBlockWithPacket(BlockHitResult rayTraceResult) {
+        nukeBlockWithPacket(rayTraceResult, "Packet");
+    }
+
+    public void nukeBlockWithPacket(BlockHitResult rayTraceResult, String swingOrderMode) {
         var direction = rayTraceResult.getDirection();
         var blockPos = rayTraceResult.getBlockPos();
 
@@ -64,7 +72,7 @@ public final class PlayerUtil implements IMinecraft {
                 blockPos,
                 direction
         ));
-        sendSwingPacket(InteractionHand.MAIN_HAND);
+        swingHand(InteractionHand.MAIN_HAND, swingOrderMode);
         PacketUtil.sendPacket(new ServerboundPlayerActionPacket(
                 ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK,
                 blockPos,
@@ -77,6 +85,14 @@ public final class PlayerUtil implements IMinecraft {
     }
 
     public void destroyBlock(BlockHitResult rayTraceResult) {
+        destroyBlock(rayTraceResult, "Normal");
+    }
+
+    public void destroyBlock(BlockPos pos, String swingOrderMode) {
+        destroyBlock(blockHitResult(pos), swingOrderMode);
+    }
+
+    public void destroyBlock(BlockHitResult rayTraceResult, String swingOrderMode) {
         var gameMode = mc.gameMode;
         var level = mc.level;
         var player = mc.player;
@@ -85,7 +101,7 @@ public final class PlayerUtil implements IMinecraft {
         var direction = rayTraceResult.getDirection();
         var blockPos = rayTraceResult.getBlockPos();
         if (gameMode.continueDestroyBlock(blockPos, direction))
-            swingHand(InteractionHand.MAIN_HAND);
+            swingHand(InteractionHand.MAIN_HAND, swingOrderMode);
     }
 
     private Direction getBlockHitDirection(BlockPos pos) {
@@ -110,19 +126,11 @@ public final class PlayerUtil implements IMinecraft {
         return z > 0.0 ? Direction.SOUTH : Direction.NORTH;
     }
 
-    /**
-     * Swings the hand locally and tells the server about it, like a vanilla punch.
-     * Since 26.3 only main hand punches are sent; the server animates every other swing itself.
-     */
     public void swingHand(InteractionHand hand) {
         swingHandWithoutPacket(hand);
         sendSwingPacket(hand);
     }
 
-    /**
-     * Sends the server-side counterpart of a hand swing. Since 26.3 this is {@link ServerboundPunchPacket}, which only
-     * exists for the main hand.
-     */
     public void sendSwingPacket(InteractionHand hand) {
         if (hand == InteractionHand.MAIN_HAND)
             PacketUtil.sendPacket(ServerboundPunchPacket.INSTANCE);
@@ -134,17 +142,29 @@ public final class PlayerUtil implements IMinecraft {
         player.swing(hand, player.getItemInHand(hand).getAttackAnimation(), false);
     }
 
-    /**
-     * Plays the local swing that accompanies a successful item use. The server broadcasts the swing for item use
-     * actions on its own since 26.3, so no packet is sent.
-     */
     public void swingInteractHand(InteractionHand hand) {
         var player = mc.player;
         if (player == null) return;
         player.swing(hand, player.getItemInHand(hand).getInteractAnimation(), false);
     }
 
+    public void swingHand(InteractionHand hand, String swingOrderMode) {
+        switch (swingOrderMode.toLowerCase(Locale.ROOT)) {
+            case "packet" -> sendSwingPacket(hand);
+            case "no order" -> swingHandWithoutPacket(hand);
+            default -> swingHand(hand);
+        }
+    }
+
+    public void swingInteractHand(InteractionHand hand, String swingOrderMode) {
+        if (!swingOrderMode.equalsIgnoreCase("packet"))
+            swingInteractHand(hand);
+    }
+
     public void doSpoof(Integer spoofTargetSlot) {
+        if (!ModuleManager.getModuleState(VisualSpoofer.class))
+            return;
+
         if (spoofTargetSlot != null && spoofTargetSlot >= 0 && spoofTargetSlot <= 8) {
             spoofSlot = spoofTargetSlot;
             spoofing = true;
@@ -187,7 +207,6 @@ public final class PlayerUtil implements IMinecraft {
         if (player == null || spoofSlot == null || spoofSlot < 0 || spoofSlot > 8)
             return true;
 
-        // Restored to the visually spoofed slot: no transition left to hide.
         if (player.getInventory().getSelectedSlot() == spoofSlot)
             return true;
 

@@ -47,6 +47,9 @@ public class Nuker extends Module {
     private static final IntValue nukeSpeed = new IntValue("Nuke Speed", 10, 1, 10, () -> !singleBlock.get());
 
     @Setting
+    private static final ListValue swingOrderMode = new ListValue("Swing Order Mode", new String[]{"Normal", "Packet", "No Order"}, "Packet");
+
+    @Setting
     private static final BooleanValue noteBlockOnly = new BooleanValue("Note Block Only", false);
 
     private static boolean wasBreaking = false;
@@ -191,11 +194,11 @@ public class Nuker extends Module {
 
             if (breaking) {
                 selectBestTool(player, targetPos);
-                PlayerUtil.INSTANCE.nukeBlockWithPacket(hitResult);
+                PlayerUtil.INSTANCE.nukeBlockWithPacket(hitResult, swingOrderMode.get());
                 handledBlock = true;
             } else if (placing) {
                 if (gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hitResult).consumesAction()) {
-                    PlayerUtil.INSTANCE.swingInteractHand(InteractionHand.MAIN_HAND);
+                    PlayerUtil.INSTANCE.swingInteractHand(InteractionHand.MAIN_HAND, swingOrderMode.get());
                     handledBlock = true;
                 }
             }
@@ -281,7 +284,7 @@ public class Nuker extends Module {
             selectBestTool(player, current);
 
             if (single || nukeTimer.hasTimePassed(1000L / (nukeSpeed.get() + 3))) {
-                PlayerUtil.INSTANCE.destroyBlock(hitResult);
+                PlayerUtil.INSTANCE.destroyBlock(hitResult, swingOrderMode.get());
                 nukeTimer.reset();
             }
 
@@ -291,7 +294,7 @@ public class Nuker extends Module {
             }
         } else if (placing) {
             if (gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hitResult).consumesAction()) {
-                PlayerUtil.INSTANCE.swingInteractHand(InteractionHand.MAIN_HAND);
+                PlayerUtil.INSTANCE.swingInteractHand(InteractionHand.MAIN_HAND, swingOrderMode.get());
                 currentBlock = null;
                 breakStartTime = 0L;
             }

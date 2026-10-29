@@ -92,7 +92,7 @@ public class ModuleManager implements EventListener {
                 new SafeWalk(), new Parkour(), new AutoWalk(), new AutoRespawn(),
                 new AutoLeave(), new AutoSneak(), new MiddleClick(), new AntiAFK(),
                 new NoWeb(), new NoBlockEffects(), new AntiLevitation(), new FastFall(),
-                new Spider(), new AutoRocket(), new AutoTotem(), new ItemDropChanger(),
+                new Spider(), new AutoRocket(), new AutoTotem(), new ItemDropChanger(), new VisualSpoofer(),
                 new XCarry(), new PortalGodMode(), new Stasis(), new ChestTP(), new SurroundTP(),
                 new NoBreakReset(), new TrueSight(), new AutoTool(), new DurabilityAlert(), new HUDHider()
         ));

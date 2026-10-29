@@ -81,6 +81,9 @@ public class Scaffold extends Module {
     private static final ListValue mode = new ListValue("Mode", new String[]{"Normal", "Telly"}, "Normal");
 
     @Setting
+    private static final ListValue swingOrderMode = new ListValue("Swing Order Mode", new String[]{"Normal", "Packet"}, "Packet");
+
+    @Setting
     private static final BooleanValue tower = new BooleanValue("Tower", true);
 
     @Setting
@@ -2352,7 +2355,7 @@ public class Scaffold extends Module {
                 clearMathPlacementTarget();
                 if (isSnapRotationActive())
                     snapRotationResetPending = true;
-                // The server broadcasts the placement swing on its own since 26.3.
+                PlayerUtil.INSTANCE.swingInteractHand(hand, swingOrderMode.get());
             }
 
             return placed;

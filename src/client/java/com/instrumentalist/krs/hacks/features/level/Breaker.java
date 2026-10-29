@@ -50,6 +50,9 @@ public class Breaker extends Module {
     private static final FloatValue range = new FloatValue("Range", 4f, 1f, 6f, "m");
 
     @Setting
+    private static final ListValue swingOrderMode = new ListValue("Swing Order Mode", new String[]{"Normal", "Packet", "No Order"}, "Packet");
+
+    @Setting
     private static final BooleanValue autoWhitelist = new BooleanValue("Auto Whitelist", false);
 
     private static boolean wasBreaking = false;
@@ -358,12 +361,12 @@ public class Breaker extends Module {
                     BlockHitResult hitResult = hitResult(bedPos);
                     switch (clickMode.get().toLowerCase(Locale.ROOT)) {
                         case "break" -> {
-                            PlayerUtil.INSTANCE.destroyBlock(hitResult);
+                            PlayerUtil.INSTANCE.destroyBlock(hitResult, swingOrderMode.get());
                             progress = true;
                         }
                         case "place" -> {
                             if (gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hitResult).consumesAction())
-                                PlayerUtil.INSTANCE.swingInteractHand(InteractionHand.MAIN_HAND);
+                                PlayerUtil.INSTANCE.swingInteractHand(InteractionHand.MAIN_HAND, swingOrderMode.get());
                         }
                     }
                 }
@@ -386,7 +389,7 @@ public class Breaker extends Module {
                         BlockHitResult hitResult = hitResult(secondPos);
                         hypTick++;
                         if (secondProgress) {
-                            PlayerUtil.INSTANCE.destroyBlock(hitResult);
+                            PlayerUtil.INSTANCE.destroyBlock(hitResult, swingOrderMode.get());
                             if (hypTick >= 6) {
                                 if (!ModuleManager.getModuleState(KillAura.class) || KillAura.closestEntity == null)
                                     Client.rotationManager.faceBlock(secondPos, 180f);
@@ -394,7 +397,7 @@ public class Breaker extends Module {
                         } else {
                             blockKillAura();
                             Client.rotationManager.faceBlock(secondPos, 180f);
-                            PlayerUtil.INSTANCE.destroyBlock(hitResult);
+                            PlayerUtil.INSTANCE.destroyBlock(hitResult, swingOrderMode.get());
                             secondProgress = true;
                         }
                     } else {
@@ -412,7 +415,7 @@ public class Breaker extends Module {
                         BlockHitResult hitResult = hitResult(bedPos);
                         hypTick++;
                         if (progress) {
-                            PlayerUtil.INSTANCE.destroyBlock(hitResult);
+                            PlayerUtil.INSTANCE.destroyBlock(hitResult, swingOrderMode.get());
                             if (hypTick >= 6) {
                                 if (!ModuleManager.getModuleState(KillAura.class) || KillAura.closestEntity == null)
                                     Client.rotationManager.faceBlock(bedPos, 180f);
@@ -420,7 +423,7 @@ public class Breaker extends Module {
                         } else {
                             blockKillAura();
                             Client.rotationManager.faceBlock(bedPos, 180f);
-                            PlayerUtil.INSTANCE.destroyBlock(hitResult);
+                            PlayerUtil.INSTANCE.destroyBlock(hitResult, swingOrderMode.get());
                             progress = true;
                         }
                     }
@@ -441,9 +444,9 @@ public class Breaker extends Module {
                         Client.rotationManager.faceBlock(secondPos, 180f);
                         BlockHitResult hitResult = hitResult(secondPos);
                         if (progress) {
-                            PlayerUtil.INSTANCE.destroyBlock(hitResult);
+                            PlayerUtil.INSTANCE.destroyBlock(hitResult, swingOrderMode.get());
                         } else {
-                            PlayerUtil.INSTANCE.destroyBlock(hitResult);
+                            PlayerUtil.INSTANCE.destroyBlock(hitResult, swingOrderMode.get());
                             progress = true;
                         }
                     } else {
@@ -459,7 +462,7 @@ public class Breaker extends Module {
                         Client.rotationManager.faceBlock(bedPos, 180f);
                         BlockHitResult hitResult = hitResult(bedPos);
                         if (gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hitResult).consumesAction())
-                            PlayerUtil.INSTANCE.swingInteractHand(InteractionHand.MAIN_HAND);
+                            PlayerUtil.INSTANCE.swingInteractHand(InteractionHand.MAIN_HAND, swingOrderMode.get());
                     }
                 }
             }

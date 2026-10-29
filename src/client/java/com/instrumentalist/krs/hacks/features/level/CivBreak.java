@@ -40,6 +40,9 @@ public class CivBreak extends Module {
     private static final IntValue fastSpeed = new IntValue("Fast Speed", 10, 1, 10, () -> mode.get().equalsIgnoreCase("instant") || mode.get().equalsIgnoreCase("wait one break"));
 
     @Setting
+    private static final ListValue swingOrderMode = new ListValue("Swing Order Mode", new String[]{"Normal", "Packet", "No Order"}, "Packet");
+
+    @Setting
     private static final BooleanValue rotations = new BooleanValue("Rotations", true);
 
     private static boolean wasBreaking = false;
@@ -158,10 +161,10 @@ public class CivBreak extends Module {
         blockHighlight.setTarget(targetPos);
 
         switch (stage) {
-            case 0 -> PlayerUtil.INSTANCE.destroyBlock(targetPos);
+            case 0 -> PlayerUtil.INSTANCE.destroyBlock(targetPos, swingOrderMode.get());
             case 1 -> {
                 if (rotateTimer.hasTimePassed(1000L / (fastSpeed.get() + 2))) {
-                    PlayerUtil.INSTANCE.sendSwingPacket(InteractionHand.MAIN_HAND);
+                    PlayerUtil.INSTANCE.swingHand(InteractionHand.MAIN_HAND, swingOrderMode.get());
                     ServerboundPlayerActionPacket.Action action = mc.player.isCreative() ? ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK : ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK;
                     for (int i = 0; i < 2; i++) {
                         PacketUtil.sendPacket(new ServerboundPlayerActionPacket(
