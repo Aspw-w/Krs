@@ -8,14 +8,17 @@ import com.instrumentalist.krs.utils.input.Keys;
 
 public class Rotations extends Module {
     @Setting
-    public static final BooleanValue vanilla = new BooleanValue("Vanilla", true);
+    public static final BooleanValue realistic = new BooleanValue("Realistic", false);
+
+    @Setting
+    public static final BooleanValue capeFix = new BooleanValue("Cape Fix", false);
 
     public Rotations() {
         super("Rotations", ModuleCategory.Render, Keys.KEY_UNKNOWN, true, false);
     }
 
     public static boolean shouldUseVanilla() {
-        return ModuleManager.getModuleState(Rotations.class) && vanilla.get();
+        return ModuleManager.getModuleState(Rotations.class) && realistic.get();
     }
 
     @Override

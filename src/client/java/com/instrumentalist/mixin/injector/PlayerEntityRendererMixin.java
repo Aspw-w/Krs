@@ -78,10 +78,11 @@ public abstract class PlayerEntityRendererMixin implements IMinecraft {
                 || avatar != mc.player
                 || Client.rotationManager == null
                 || !Client.rotationManager.isRotating()
-                || !ModuleManager.getModuleState(Rotations.class))
+                || !ModuleManager.getModuleState(Rotations.class)
+                || !Rotations.capeFix.get())
             return fallback;
 
-        if (Rotations.vanilla.get())
+        if (Rotations.realistic.get())
             return Client.rotationManager.getInterpolatedBodyYaw(tickDelta);
 
         if (Client.rotationManager.isReturning())
@@ -101,7 +102,7 @@ public abstract class PlayerEntityRendererMixin implements IMinecraft {
         applyEmptyHandSpoofArmPose(state);
         applyOldHittingUseState(state);
 
-        if (Client.rotationManager.isRotating() && ModuleManager.getModuleState(Rotations.class) && !Rotations.vanilla.get()) {
+        if (Client.rotationManager.isRotating() && ModuleManager.getModuleState(Rotations.class) && !Rotations.realistic.get()) {
             float headYaw = Client.rotationManager.getInterpolatedYaw(f);
             if (Client.rotationManager.isReturning()) {
                 float bodyYaw = Client.rotationManager.getInterpolatedReturningBodyYaw(f);
