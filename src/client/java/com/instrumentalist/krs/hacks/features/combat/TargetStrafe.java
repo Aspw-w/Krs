@@ -416,7 +416,7 @@ public class TargetStrafe extends Module {
         Entity target = KillAura.closestEntity;
         double radius = distance.get();
         if (mc.player == null || mc.level == null || target == null || !target.isAlive()
-                || !ModuleManager.getModuleState(KillAura.class) || radius < MIN_ORBIT_RADIUS) {
+                || radius < MIN_ORBIT_RADIUS || !shouldDoStrafe()) {
             PathLines.hide(this, this);
             return;
         }
