@@ -198,6 +198,17 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
 
                 this.applyBlockTransformation(matrices, arm);
             }
+
+            case "spin" -> {
+                float spin = (System.nanoTime() / 1_000_000L % 1000L) / (float) 1000L * 360.0F;
+
+                matrices.rotate(Axis.ZP.rotationDegrees(-spin));
+                matrices.translate((arm == HumanoidArm.RIGHT ? 1 : -1) * (-0.05F + 0.15F * 0.85F), 0.2F - 0.15F * 0.53F, 0.0F);
+
+                this.applyFirstPersonItem(matrices, arm, equipProgress / 1.8F, 0.0F);
+
+                this.applyBlockTransformation(matrices, arm);
+            }
         }
     }
 
