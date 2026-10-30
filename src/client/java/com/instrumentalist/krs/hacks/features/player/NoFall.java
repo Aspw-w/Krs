@@ -22,7 +22,7 @@ import java.util.Locale;
 
 public class NoFall extends Module {
     @Setting
-    private final ListValue mode = new ListValue("Mode", new String[]{"Packet", "Less Packet", "Spoof", "No Ground", "Hypixel NCP", "Cubecraft Reduce", "Grim 1.9+"}, "Packet");
+    private final ListValue mode = new ListValue("Mode", new String[]{"Packet", "Less Packet", "Spoof", "No Ground", "Hypixel NCP", "Cubecraft", "Grim 1.9+"}, "Packet");
 
     @Setting
     private final BooleanValue modifiedGrim = new BooleanValue("Modified Grim", false, () -> mode.get().equalsIgnoreCase("grim 1.9+"));
@@ -189,7 +189,7 @@ public class NoFall extends Module {
             }
             case "spoof" -> event.onGround = true;
             case "no ground" -> event.onGround = false;
-            case "cubecraft reduce" -> {
+            case "cubecraft" -> {
                 if (motionY < -0.5) {
                     double distanceToGround = getDistanceToGround();
                     if (distanceToGround >= 0.0 && distanceToGround <= 2.0 && !hasBlockAbove(2.0) && !hasPowderSnowNearby(2.0)) {
