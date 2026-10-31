@@ -118,10 +118,13 @@ public class CivBreak extends Module {
         BlockPos targetPos = pos;
         Direction targetDirection = direction;
         double rangeLimit = range.get() * range.get();
-        if (targetPos == null
-                || targetDirection == null
-                || level.getBlockState(targetPos).isAir() && stage == 1
-                || rangeLimit < player.distanceToSqr(Vec3.atCenterOf(targetPos))) {
+        boolean validTarget = targetPos != null
+                && targetDirection != null
+                && rangeLimit >= player.distanceToSqr(Vec3.atCenterOf(targetPos));
+        if (validTarget)
+            blockHighlight.setTarget(targetPos);
+
+        if (!validTarget || level.getBlockState(targetPos).isAir() && stage == 1) {
             if (wasBreaking) {
                 PlayerUtil.INSTANCE.stopDestroyBlock();
                 if (rotations.get())
@@ -158,7 +161,6 @@ public class CivBreak extends Module {
             stage = 1;
 
         wasBreaking = true;
-        blockHighlight.setTarget(targetPos);
 
         switch (stage) {
             case 0 -> PlayerUtil.INSTANCE.destroyBlock(targetPos, swingOrderMode.get());
