@@ -1,5 +1,6 @@
 package xyz.breadloaf.imguimc.customwindow;
 
+import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.hacks.Module;
@@ -640,7 +641,7 @@ public class ModuleRenderable implements Renderable, IMinecraft {
 
                             if (paths == null || paths.isEmpty()) return;
 
-                            PathLines.show(ModuleRenderable.class, mc.player.position(), paths);
+                            PathLines.show(ModuleRenderable.class, mc.player.position(), paths, RenderColors.PATH_FINDER);
 
                             for (Vec3 path : paths) {
                                 PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(path.x, path.y, path.z, true, mc.player.horizontalCollision));
@@ -696,7 +697,7 @@ public class ModuleRenderable implements Renderable, IMinecraft {
 
                         if (paths == null || paths.isEmpty()) return;
 
-                        PathLines.show(ModuleRenderable.class, mc.player.position(), paths);
+                        PathLines.show(ModuleRenderable.class, mc.player.position(), paths, RenderColors.PATH_FINDER);
 
                         for (Vec3 path : paths) {
                             PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(path.x, path.y, path.z, true, mc.player.horizontalCollision));

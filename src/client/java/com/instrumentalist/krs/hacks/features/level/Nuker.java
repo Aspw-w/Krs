@@ -1,5 +1,6 @@
 package com.instrumentalist.krs.hacks.features.level;
 
+import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.MotionEvent;
 import com.instrumentalist.krs.hacks.Module;
@@ -55,7 +56,7 @@ public class Nuker extends Module {
     private static boolean wasBreaking = false;
 
     private final MSTimer nukeTimer = new MSTimer();
-    private final BlockHighlight blockHighlight = new BlockHighlight(0.45f);
+    private final BlockHighlight blockHighlight = new BlockHighlight(0.45f, RenderColors.NUKER);
     private BlockPos currentBlock = null;
     private final ArrayDeque<BlockPos> blockQueue = new ArrayDeque<>(256);
     private final ArrayList<BlockPos> potentialBlocks = new ArrayList<>(256);

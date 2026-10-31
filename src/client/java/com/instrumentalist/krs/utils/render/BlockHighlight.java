@@ -82,7 +82,7 @@ public final class BlockHighlight implements EventListener {
     private final boolean[] frontFaces = new boolean[6];
     private final boolean[] neighbourFaces = new boolean[6];
     private final Consumer<NVGU> drawer = this::draw;
-    private final Color color = Color.WHITE;
+    private final Color color;
     private final float fadeInSeconds;
     private final float fadeOutSeconds;
     private int entryCount;
@@ -94,7 +94,16 @@ public final class BlockHighlight implements EventListener {
         this(DEFAULT_FADE_OUT_SECONDS);
     }
 
+    public BlockHighlight(Color color) {
+        this(DEFAULT_FADE_OUT_SECONDS, color);
+    }
+
     public BlockHighlight(float fadeOutSeconds) {
+        this(fadeOutSeconds, RenderColors.DEFAULT);
+    }
+
+    public BlockHighlight(float fadeOutSeconds, Color color) {
+        this.color = color;
         this.fadeInSeconds = DEFAULT_FADE_IN_SECONDS;
         this.fadeOutSeconds = fadeOutSeconds;
         for (int i = 0; i < MAX_ENTRIES; i++)

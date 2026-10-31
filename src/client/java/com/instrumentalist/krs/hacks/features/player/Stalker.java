@@ -2,6 +2,7 @@ package com.instrumentalist.krs.hacks.features.player;
 
 
 
+import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.events.features.*;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
@@ -77,7 +78,7 @@ public class Stalker extends Module {
             ArrayList<Vec3> paths = MainPathFinder.computePath(mc.player.position(), currentTarget.position());
             if (paths == null || paths.isEmpty()) return;
 
-            PathLines.show(this, mc.player.position(), paths);
+            PathLines.show(this, mc.player.position(), paths, RenderColors.STALKER);
 
             for (Vec3 path : paths) {
                 PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(path.x, path.y, path.z, true, mc.player.horizontalCollision));

@@ -2,6 +2,7 @@ package com.instrumentalist.krs.hacks.features.combat;
 
 
 
+import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.events.features.*;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
@@ -427,7 +428,7 @@ public class TargetStrafe extends Module {
             double angle = Math.PI * 2.0 * (segment % ORBIT_SEGMENTS) / ORBIT_SEGMENTS;
             orbitPoints.add(new Vec3(center.x + Math.cos(angle) * radius, center.y, center.z + Math.sin(angle) * radius));
         }
-        PathLines.show(this, this, null, orbitPoints);
+        PathLines.show(this, this, null, orbitPoints, RenderColors.TARGET_STRAFE);
     }
 
     @Override

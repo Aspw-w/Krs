@@ -1,5 +1,6 @@
 package com.instrumentalist.krs.hacks.features.level;
 
+import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.KeyboardEvent;
 import com.instrumentalist.krs.events.features.MotionEvent;
@@ -60,7 +61,7 @@ public class Breaker extends Module {
     private int hypTick = 0;
     private BlockPos cachedBedPos = null;
     private BlockPos cachedSecondPos = null;
-    private final BlockHighlight blockHighlight = new BlockHighlight();
+    private final BlockHighlight blockHighlight = new BlockHighlight(RenderColors.BREAKER);
     private int originalSlot = -1;
     private boolean progress = false;
     private boolean secondProgress = false;

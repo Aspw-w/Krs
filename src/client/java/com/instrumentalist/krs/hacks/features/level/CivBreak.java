@@ -1,5 +1,6 @@
 package com.instrumentalist.krs.hacks.features.level;
 
+import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.MotionEvent;
 import com.instrumentalist.krs.events.features.SendPacketEvent;
@@ -48,7 +49,7 @@ public class CivBreak extends Module {
     private static boolean wasBreaking = false;
 
     private final MSTimer rotateTimer = new MSTimer();
-    private final BlockHighlight blockHighlight = new BlockHighlight();
+    private final BlockHighlight blockHighlight = new BlockHighlight(RenderColors.CIV_BREAK);
     private int originalSlot = -1;
     private BlockPos pos = null;
     private Direction direction = null;

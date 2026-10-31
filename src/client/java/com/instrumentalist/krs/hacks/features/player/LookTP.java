@@ -2,6 +2,7 @@ package com.instrumentalist.krs.hacks.features.player;
 
 
 
+import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.MotionEvent;
 import com.instrumentalist.krs.events.features.ReceivedPacketEvent;
@@ -133,7 +134,7 @@ public class LookTP extends Module {
                 return;
             }
 
-            PathLines.show(this, mc.player.position(), paths);
+            PathLines.show(this, mc.player.position(), paths, RenderColors.LOOK_TP);
 
             if (clientsideTeleport.get()) {
                 clientsidePath = new ArrayList<>(paths);

@@ -1,5 +1,6 @@
 package com.instrumentalist.krs.hacks.features.movement;
 
+import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.ReceivedPacketEvent;
 import com.instrumentalist.krs.events.features.UpdateEvent;
@@ -25,7 +26,7 @@ public class AntiVoid extends Module {
 
     private int canTick = 0;
     private Integer unSafeY = null;
-    private final BlockHighlight safeBlockHighlight = new BlockHighlight();
+    private final BlockHighlight safeBlockHighlight = new BlockHighlight(RenderColors.ANTI_VOID);
     private BlockPos lastSafeBlock;
 
     public AntiVoid() {

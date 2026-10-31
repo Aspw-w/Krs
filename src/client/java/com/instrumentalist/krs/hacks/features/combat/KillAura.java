@@ -2,6 +2,7 @@ package com.instrumentalist.krs.hacks.features.combat;
 
 
 
+import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.HandleInputEvent;
 import com.instrumentalist.krs.events.features.Render3DEvent;
@@ -1567,7 +1568,7 @@ public class KillAura extends Module {
                 continue;
             }
             if (step instanceof TeleportMoveStep moveStep) {
-                if (sequence.sentMovePackets >= movePacketTarget)
+                if (sequence.sentMovePackets >= movePacketTarget && sequence.elapsedTicks < sequence.totalTicks)
                     break;
 
                 sendTeleportMovePacket(moveStep.position(), sequence.onGround, sequence.horizontalCollision);
@@ -1642,7 +1643,7 @@ public class KillAura extends Module {
         }
 
         sequence.pathTarget = goStep.target();
-        PathLines.show(this, goStep.target(), from, path);
+        PathLines.show(this, goStep.target(), from, path, RenderColors.KILL_AURA_TELEPORT);
         sequence.totalMovePackets += path.size() - plannedCount;
         for (int i = 0; i < path.size(); i++)
             sequence.steps.add(sequence.nextStep + i, new TeleportMoveStep(path.get(i)));
@@ -1653,7 +1654,7 @@ public class KillAura extends Module {
         boolean lastTick = sequence.elapsedTicks >= sequence.totalTicks;
 
         if (isSameExactPosition(sequence.lastSentPosition, current)) {
-            sequence.nextStep++;
+            finishLiveReturn(sequence);
             return true;
         }
 
@@ -1662,11 +1663,11 @@ public class KillAura extends Module {
 
         ArrayList<Vec3> path = resolveReturnPath(sequence.lastSentPosition, current);
         if (path.isEmpty()) {
-            sequence.nextStep++;
+            finishLiveReturn(sequence);
             return true;
         }
 
-        PathLines.show(this, sequence.pathTarget != null ? sequence.pathTarget : this, sequence.lastSentPosition, path);
+        PathLines.show(this, sequence.pathTarget != null ? sequence.pathTarget : this, sequence.lastSentPosition, path, RenderColors.KILL_AURA_TELEPORT);
 
         for (Vec3 position : path) {
             if (!lastTick && sequence.sentMovePackets >= movePacketTarget)
@@ -1688,11 +1689,30 @@ public class KillAura extends Module {
         }
 
         if (lastTick || isSameExactPosition(sequence.lastSentPosition, current)) {
-            sequence.nextStep++;
+            finishLiveReturn(sequence);
             return true;
         }
 
         return false;
+    }
+
+    private void finishLiveReturn(PendingTeleportSequence sequence) {
+        sequence.nextStep++;
+        sequence.totalMovePackets = sequence.sentMovePackets + remainingPlannedPackets(sequence);
+    }
+
+    private static int remainingPlannedPackets(PendingTeleportSequence sequence) {
+        int packets = 0;
+        for (int i = sequence.nextStep; i < sequence.steps.size(); i++) {
+            TeleportStep step = sequence.steps.get(i);
+            if (step instanceof TeleportMoveStep)
+                packets++;
+            else if (step instanceof TeleportGoStep goStep && goStep.plannedPath() != null)
+                packets += goStep.plannedPath().size();
+            else if (step instanceof TeleportReturnStep returnStep)
+                packets += returnStep.estimatedPackets();
+        }
+        return packets;
     }
 
     private void skipFollowingAttackAndReturn(PendingTeleportSequence sequence) {
@@ -1793,7 +1813,7 @@ public class KillAura extends Module {
             return;
         }
 
-        PathLines.show(this, PREDICTION_LINE, null, predictionPoints);
+        PathLines.show(this, PREDICTION_LINE, null, predictionPoints, RenderColors.KILL_AURA_PREDICTION);
     }
 
     private static boolean isSameExactPosition(Vec3 first, Vec3 second) {
@@ -1928,7 +1948,7 @@ public class KillAura extends Module {
                 return;
 
             if (resolvedPath != null) {
-                PathLines.show(this, target, mc.player.position(), resolvedPath.positions());
+                PathLines.show(this, target, mc.player.position(), resolvedPath.positions(), RenderColors.KILL_AURA_TELEPORT);
                 for (Vec3 path : resolvedPath.positions()) {
                     PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(path.x, path.y, path.z, tpOnGroundPacket.get(), mc.player.horizontalCollision));
                 }
@@ -1945,7 +1965,7 @@ public class KillAura extends Module {
                     ? resolvedPath.arrivalPosition()
                     : resolvedPath.positions().getLast();
             ArrayList<Vec3> returnPath = resolveReturnPath(lastSent, mc.player.position());
-            PathLines.show(this, target, lastSent, returnPath);
+            PathLines.show(this, target, lastSent, returnPath, RenderColors.KILL_AURA_TELEPORT);
             for (Vec3 path : returnPath) {
                 PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(
                         path.x,

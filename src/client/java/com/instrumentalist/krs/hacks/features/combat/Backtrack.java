@@ -1,5 +1,6 @@
 package com.instrumentalist.krs.hacks.features.combat;
 
+import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.events.features.AttackEvent;
 import com.instrumentalist.krs.events.features.MotionEvent;
 import com.instrumentalist.krs.events.features.ReceivedPacketEvent;
@@ -102,7 +103,7 @@ public class Backtrack extends Module {
     private void showLine(Object key, Vec3 from, Vec3 to) {
         lineScratch.clear();
         lineScratch.add(to);
-        PathLines.show(this, key, from, lineScratch);
+        PathLines.show(this, key, from, lineScratch, key == SELF_LINE ? RenderColors.BACKTRACK_SELF : RenderColors.BACKTRACK_TARGET);
     }
 
     @Override

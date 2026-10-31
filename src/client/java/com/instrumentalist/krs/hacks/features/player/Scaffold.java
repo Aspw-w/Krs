@@ -1,5 +1,6 @@
 package com.instrumentalist.krs.hacks.features.player;
 
+import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.BlockEdgeEvent;
 import com.instrumentalist.krs.events.features.TickEvent;
@@ -198,7 +199,7 @@ public class Scaffold extends Module {
     private final ArrayList<BlockPos> scaffoldDistanceCandidates = new ArrayList<>(32);
     private final HashSet<BlockPos> scaffoldCandidateSet = new HashSet<>(64);
     private static final long HIGHLIGHT_HOLD_MILLIS = 900L;
-    private final BlockHighlight blockHighlight = new BlockHighlight(0.45f);
+    private final BlockHighlight blockHighlight = new BlockHighlight(0.45f, RenderColors.SCAFFOLD);
 
     private record PlacementTarget(BlockPos pos, BlockPos neighbour, Vec3 hitPos, Direction side, int searchDistance) {
     }

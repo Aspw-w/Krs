@@ -36,7 +36,6 @@ public final class PathLines implements EventListener {
     private final Line staging = new Line();
     private final Vector4f clip = new Vector4f();
     private final Consumer<NVGU> drawer = this::draw;
-    private final Color color = Color.WHITE;
     private int lineCount;
     private boolean registered;
     private boolean projected;
@@ -48,11 +47,19 @@ public final class PathLines implements EventListener {
     }
 
     public static void show(Object owner, Vec3 from, List<Vec3> path) {
-        INSTANCE.put(owner, owner, from, path);
+        INSTANCE.put(owner, owner, from, path, RenderColors.DEFAULT);
+    }
+
+    public static void show(Object owner, Vec3 from, List<Vec3> path, Color color) {
+        INSTANCE.put(owner, owner, from, path, color);
     }
 
     public static void show(Object owner, Object key, Vec3 from, List<Vec3> path) {
-        INSTANCE.put(owner, key, from, path);
+        INSTANCE.put(owner, key, from, path, RenderColors.DEFAULT);
+    }
+
+    public static void show(Object owner, Object key, Vec3 from, List<Vec3> path, Color color) {
+        INSTANCE.put(owner, key, from, path, color);
     }
 
     public static void hide(Object owner, Object key) {
@@ -64,7 +71,7 @@ public final class PathLines implements EventListener {
         }
     }
 
-    private void put(Object owner, Object key, Vec3 from, List<Vec3> path) {
+    private void put(Object owner, Object key, Vec3 from, List<Vec3> path, Color color) {
         if (owner == null || key == null || path == null || path.isEmpty())
             return;
 
@@ -101,6 +108,7 @@ public final class PathLines implements EventListener {
         line.pointCount = staging.pointCount;
         line.owner = owner;
         line.key = key;
+        line.color = color != null ? color : RenderColors.DEFAULT;
         line.holdUntilNanos = System.nanoTime() + HOLD_NANOS;
         if (fresh)
             line.alpha = 0f;
@@ -252,9 +260,8 @@ public final class PathLines implements EventListener {
         nvgLineJoin(handle, NVG_ROUND);
         nvgLineCap(handle, NVG_BUTT);
 
-        float colorAlpha = color.getAlpha() / 255f;
         for (int i = 0; i < lineCount; i++)
-            drawLine(vg, handle, lines[i], colorAlpha * lines[i].alpha);
+            drawLine(vg, handle, lines[i], lines[i].color.getAlpha() / 255f * lines[i].alpha);
 
         nvgRestore(handle);
     }
@@ -274,10 +281,10 @@ public final class PathLines implements EventListener {
                     nvgLineTo(handle, commands[offset], commands[offset + 1]);
             }
             nvgStrokeWidth(handle, GLOW_WIDTH);
-            nvgStrokeColor(handle, vg.createAndStoreColour(color).a(GLOW_ALPHA * opacity));
+            nvgStrokeColor(handle, vg.createAndStoreColour(line.color).a(GLOW_ALPHA * opacity));
             nvgStroke(handle);
             nvgStrokeWidth(handle, EDGE_WIDTH);
-            nvgStrokeColor(handle, vg.createAndStoreColour(color).a(EDGE_ALPHA * opacity));
+            nvgStrokeColor(handle, vg.createAndStoreColour(line.color).a(EDGE_ALPHA * opacity));
             nvgStroke(handle);
         }
     }
@@ -285,6 +292,7 @@ public final class PathLines implements EventListener {
     private static final class Line {
         private Object owner;
         private Object key;
+        private Color color = RenderColors.DEFAULT;
         private long holdUntilNanos;
         private float alpha;
         private int pointCount;
