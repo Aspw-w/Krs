@@ -17,13 +17,13 @@ public class HUDHider extends Module {
     }
 
     @Setting
-    public static final BooleanValue board = new BooleanValue("ScoreBoard", true);
+    public static final BooleanValue board = new BooleanValue("Scoreboard", true);
 
     @Setting
-    public static final BooleanValue bos = new BooleanValue("BossBar", true);
+    public static final BooleanValue bos = new BooleanValue("Boss Bar", true);
 
     @Setting
-    public static final BooleanValue bar = new BooleanValue("ActionBar", true);
+    public static final BooleanValue bar = new BooleanValue("Action Bar", true);
 
     @Setting
     public static final BooleanValue titled = new BooleanValue("Title", true);
