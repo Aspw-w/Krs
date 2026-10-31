@@ -146,26 +146,8 @@ public class KillAura extends Module {
     @Setting
     public static final ListValue autoBlockMode = new ListValue(
             "Auto Block Mode",
-            new String[]{"Vanilla", "Blink1", "Blink2", "Hypixel NCP", "Swap", "Legit", "Packet", "Interact1", "Interact2", "Basic", "Spoof", "Delayed", "Post Attack", "No Order"},
+            new String[]{"Vanilla", "Blink1", "Hypixel NCP", "Swap", "Legit", "Interact1", "Interact2", "Basic", "Spoof", "Delayed", "Post Attack", "No Order"},
             "No Order"
-    );
-
-    @Setting
-    private final FloatValue autoBlockCps = new FloatValue(
-            "Auto Block CPS",
-            8f,
-            1f,
-            10f,
-            () -> isAutoBlockMode(autoBlockMode.get())
-    );
-
-    @Setting
-    private final FloatValue autoBlockRange = new FloatValue(
-            "Auto Block Range",
-            6f,
-            3f,
-            8f,
-            () -> isAutoBlockMode(autoBlockMode.get())
     );
 
     @Setting
@@ -218,9 +200,9 @@ public class KillAura extends Module {
     );
 
     @Setting
-    private final BooleanValue extraParticles = new BooleanValue(
-            "Extra Particles",
-            false
+    private final BooleanValue additionalParticles = new BooleanValue(
+            "Additional Particles",
+            true
     );
 
     @Setting
@@ -293,7 +275,6 @@ public class KillAura extends Module {
     private boolean sendingTeleportSequencePacket;
 
     private long lastAttackTime = 0;
-    private long lastOpenBlockTime = 0;
     private int randomDelay = 0;
     private int abTick = 0;
     private int blockTick = 0;
@@ -389,9 +370,6 @@ public class KillAura extends Module {
 
     private float getRealTargetReach() {
         float reach = targetRange.get();
-
-        if (isAutoBlockMode(autoBlockMode.get()))
-            reach = Math.max(reach, autoBlockRange.get());
 
         if (mc.player.isCreative() && reach <= 4.5f)
             reach += 1.5f;
@@ -565,28 +543,7 @@ public class KillAura extends Module {
         boolean hasTargetVisibility = mc.player.hasLineOfSight(closestEntity)
                 || canHitTargetAtRotation
                 || Client.rotationManager.canHitEntityAtRotation(closestEntity, yaw, pitch, realTargetReach, false);
-        boolean canAutoBlock = canAutoBlock(currentAutoBlockMode, closest.squaredDistance(), canAttackThroughWalls || hasTargetVisibility);
-
-        if (!autoBlock && wasBlocking)
-            resetAutoBlock();
-
-        if (autoBlock) {
-            isBlocking = canAutoBlock || wasBlocking;
-
-            if (!canAutoBlock) {
-                resetAutoBlock();
-            } else if (wasBlocking) {
-                if (shouldFinishAutoBlock(currentAutoBlockMode)) {
-                    finishAutoBlock(currentAutoBlockMode, yaw, pitch);
-                } else {
-                    blockTick++;
-                }
-                return;
-            }
-        } else {
-            isBlocking = true;
-        }
-
+        boolean canAutoBlock = canAutoBlock(currentAutoBlockMode, canAttackThroughWalls || hasTargetVisibility);
         boolean canHitVisibleAtRotation = Client.rotationManager.canHitEntityAtRotation(
                 closestEntity,
                 yaw,
@@ -596,6 +553,26 @@ public class KillAura extends Module {
         );
         boolean canAttackTarget = closest.squaredDistance() <= realAttackReachSquared
                 && (canAttackThroughWalls || hasTargetVisibility || canHitVisibleAtRotation);
+
+        if (!autoBlock && wasBlocking)
+            resetAutoBlock();
+
+        if (autoBlock) {
+            isBlocking = mc.player.isSwinging() && (canAutoBlock || wasBlocking);
+
+            if (!canAutoBlock) {
+                resetAutoBlock();
+            } else if (wasBlocking) {
+                if (!canAttackTarget || !shouldFinishAutoBlock(currentAutoBlockMode, closestEntity)) {
+                    blockTick++;
+                    return;
+                }
+
+                finishAutoBlock(currentAutoBlockMode, yaw, pitch);
+            }
+        } else {
+            isBlocking = mc.player.isSwinging();
+        }
 
         if (!canAttackTarget) {
             switch (currentAutoBlockMode) {
@@ -612,10 +589,8 @@ public class KillAura extends Module {
                     break;
 
                 case "hypixel ncp":
-                case "blink2":
                 case "swap":
                 case "legit":
-                case "packet":
                 case "interact1":
                 case "basic":
                 case "interact2":
@@ -643,9 +618,6 @@ public class KillAura extends Module {
         }
 
         if (canHitAtRotation) {
-            if (autoBlock && canAutoBlock && !canStartAutoBlockCycle())
-                return;
-
             if (attackReady) {
                 abTick++;
 
@@ -725,10 +697,8 @@ public class KillAura extends Module {
                 break;
 
             case "hypixel ncp":
-            case "blink2":
             case "swap":
             case "legit":
-            case "packet":
             case "interact1":
             case "basic":
             case "interact2":
@@ -946,7 +916,7 @@ public class KillAura extends Module {
     }
 
     private void renderParticles(Entity target) {
-        if (extraParticles.get()) {
+        if (additionalParticles.get()) {
             mc.player.magicCrit(target);
             if (mc.player.getDeltaMovement().y < -0.08)
                 mc.player.crit(target);
@@ -991,7 +961,7 @@ public class KillAura extends Module {
         if (mode == null) return false;
 
         return switch (mode.toLowerCase(Locale.ROOT)) {
-            case "hypixel ncp", "blink2", "swap", "legit", "packet", "interact1", "interact2", "basic", "spoof", "delayed", "post attack" -> true;
+            case "hypixel ncp", "swap", "legit", "interact1", "interact2", "basic", "spoof", "delayed", "post attack" -> true;
             default -> false;
         };
     }
@@ -1017,23 +987,16 @@ public class KillAura extends Module {
                 && !killAura.sendingTeleportSequencePacket;
     }
 
-    private boolean canAutoBlock(String mode, double squaredDistance, boolean targetVisible) {
+    private boolean canAutoBlock(String mode, boolean targetVisible) {
         return mc.player != null
                 && targetVisible
-                && squaredDistance <= square(autoBlockRange.get())
                 && (usesItemInteractionMode(mode)
                 ? findBlockableHand() != null
                 : ToolUtil.INSTANCE.isSword(mc.player.getMainHandItem()));
     }
 
-    private boolean canStartAutoBlockCycle() {
-        long now = System.currentTimeMillis();
-        long interval = Math.max(50L, (long) (1000.0f / autoBlockCps.get()));
-        return lastOpenBlockTime == 0L || now - lastOpenBlockTime >= interval;
-    }
-
     private boolean startAutoBlock(String mode, float yaw, float pitch, Entity target, boolean attacked) {
-        if (mc.player == null || wasBlocking || !canStartAutoBlockCycle())
+        if (mc.player == null || wasBlocking)
             return false;
 
         InteractionHand blockHand = InteractionHand.MAIN_HAND;
@@ -1055,10 +1018,6 @@ public class KillAura extends Module {
             return false;
 
         switch (mode) {
-            case "packet":
-                sendUseItemPacketAutoBlock(yaw, pitch);
-                break;
-
             case "interact1":
                 sendInteractAutoBlock(target, yaw, pitch);
                 break;
@@ -1082,7 +1041,6 @@ public class KillAura extends Module {
         wasPacketBlocking = true;
         wasBlocking = true;
         blockTick = 1;
-        lastOpenBlockTime = System.currentTimeMillis();
 
         if (usesBlink(mode)) {
             BlinkUtil.INSTANCE.doBlink();
@@ -1091,10 +1049,18 @@ public class KillAura extends Module {
         return true;
     }
 
-    private boolean shouldFinishAutoBlock(String mode) {
-        return switch (mode) {
-            case "delayed" -> blockTick >= 2;
-            default -> blockTick >= 1;
+    private boolean shouldFinishAutoBlock(String mode, Entity target) {
+        int minimumTicks = "delayed".equals(mode) ? 2 : 1;
+        return blockTick >= minimumTicks && isAttackReady(target);
+    }
+
+    private boolean isAttackReady(Entity target) {
+        return switch (apsMode.get().toLowerCase(Locale.ROOT)) {
+            case "cooldown" -> mc.player.getAttackStrengthScale(0f) >= (quickCooldown.get() ? 0.8f : 1f);
+            case "randomized cps" -> lastAttackTime == 0 || System.currentTimeMillis() - lastAttackTime >= randomDelay;
+            case "no delay" -> true;
+            case "hurt math" -> target instanceof LivingEntity livingEntity && livingEntity.hurtTime <= 5;
+            default -> false;
         };
     }
 
@@ -1111,9 +1077,7 @@ public class KillAura extends Module {
                 releaseAutoBlock();
                 break;
 
-            case "blink2":
             case "legit":
-            case "packet":
             case "interact1":
             case "basic":
             case "interact2":
@@ -1137,7 +1101,7 @@ public class KillAura extends Module {
         if (mode == null) return false;
 
         return switch (mode.toLowerCase(Locale.ROOT)) {
-            case "hypixel ncp", "blink2" -> true;
+            case "hypixel ncp" -> true;
             default -> false;
         };
     }
@@ -1154,11 +1118,6 @@ public class KillAura extends Module {
     private void sendUseItemAutoBlock(float yaw, float pitch) {
         syncSelectedSlot();
         sendSwordBlockPackets(yaw, pitch);
-    }
-
-    private void sendUseItemPacketAutoBlock(float yaw, float pitch) {
-        syncSelectedSlot();
-        PacketUtil.sendPacket(new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, 0, yaw, pitch));
     }
 
     private void sendInteractAutoBlock(Entity target, float yaw, float pitch) {
@@ -1187,7 +1146,7 @@ public class KillAura extends Module {
     }
 
     private boolean interactWithFacingAutoBlock(float yaw, float pitch, InteractionHand blockHand) {
-        double reach = autoBlockRange.get();
+        double reach = getRealTargetReach();
         EntityHitResult entityHit = rayTraceEntity(yaw, pitch, reach);
         if (entityHit != null && interactEntityLikeUseItem(entityHit, blockHand))
             return true;
@@ -1368,7 +1327,6 @@ public class KillAura extends Module {
         wasPacketBlocking = false;
         wasBlocking = false;
         blockTick = 0;
-        lastOpenBlockTime = 0;
 
         if (wasBlinking) {
             BlinkUtil.INSTANCE.sync(true, true);
@@ -2013,7 +1971,6 @@ public class KillAura extends Module {
         }
 
         lastAttackTime = 0;
-        lastOpenBlockTime = 0;
         randomDelay = 0;
         abTick = 0;
         blockTick = 0;
