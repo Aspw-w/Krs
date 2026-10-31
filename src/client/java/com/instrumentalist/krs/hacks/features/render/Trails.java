@@ -12,35 +12,51 @@ import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.render.RenderUtil;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
+import org.lwjgl.nanovg.NVGPaint;
 import org.nvgu.NVGU;
+import org.nvgu.util.NVGUColour;
 
 import java.awt.Color;
 
 import static org.lwjgl.nanovg.NanoVG.NVG_ONE;
 import static org.lwjgl.nanovg.NanoVG.NVG_ONE_MINUS_SRC_ALPHA;
 import static org.lwjgl.nanovg.NanoVG.NVG_SRC_ALPHA;
+import static org.lwjgl.nanovg.NanoVG.nvgClosePath;
 import static org.lwjgl.nanovg.NanoVG.nvgGlobalCompositeBlendFunc;
+import static org.lwjgl.nanovg.NanoVG.nvgLinearGradient;
+import static org.nvgu.util.TrackedNanoVG.nvgBeginPath;
+import static org.nvgu.util.TrackedNanoVG.nvgLineTo;
+import static org.nvgu.util.TrackedNanoVG.nvgMoveTo;
 
 public class Trails extends Module {
-    private static final int MAX_POINTS = 32;
-    private static final double MIN_STEP_SQUARED = 0.0004;
-
     private static final int LENGTH = 30;
+    private static final int DELAY = 1;
+    private static final double LAG = 0.3;
+    private static final int BRIDGE_STEPS = 6;
+    private static final int CAPACITY = LENGTH + 8;
+    private static final int SUBDIVISIONS = 6;
+    private static final int MAX_SAMPLES = LENGTH * SUBDIVISIONS + BRIDGE_STEPS + 4;
+
     private static final float WIDTH = 2.5f;
     private static final Color HEAD_COLOUR = new Color(110, 190, 255);
     private static final Color TAIL_COLOUR = new Color(255, 90, 200);
 
-    private final double[] xs = new double[MAX_POINTS];
-    private final double[] ys = new double[MAX_POINTS];
-    private final double[] zs = new double[MAX_POINTS];
-    private final int[] ticks = new int[MAX_POINTS];
-    private final float[] screenX = new float[MAX_POINTS + 1];
-    private final float[] screenY = new float[MAX_POINTS + 1];
-    private final float[] screenWidth = new float[MAX_POINTS + 1];
-    private final float[] life = new float[MAX_POINTS + 1];
+    private final double[] xs = new double[CAPACITY];
+    private final double[] ys = new double[CAPACITY];
+    private final double[] zs = new double[CAPACITY];
+    private final float[] screenX = new float[MAX_SAMPLES];
+    private final float[] screenY = new float[MAX_SAMPLES];
+    private final float[] screenWidth = new float[MAX_SAMPLES];
+    private final float[] life = new float[MAX_SAMPLES];
+    private final float[] leftX = new float[MAX_SAMPLES];
+    private final float[] leftY = new float[MAX_SAMPLES];
+    private final float[] rightX = new float[MAX_SAMPLES];
+    private final float[] rightY = new float[MAX_SAMPLES];
     private final float[] projected = new float[3];
-    private int head;
-    private int size;
+    private final double[] curveHead = new double[3];
+    private final double[] curveBefore = new double[3];
+    private boolean hasSamples;
+    private int firstTick;
     private int tickCounter;
     private int projectedCount;
 
@@ -64,8 +80,7 @@ public class Trails extends Module {
     }
 
     private void reset() {
-        head = 0;
-        size = 0;
+        hasSamples = false;
         projectedCount = 0;
     }
 
@@ -78,48 +93,84 @@ public class Trails extends Module {
         }
 
         tickCounter++;
-        while (size > 0 && tickCounter - ticks[oldestIndex()] > LENGTH)
-            size--;
-
-        double x = player.getX();
-        double y = player.getY();
-        double z = player.getZ();
-        if (size > 0) {
-            int newest = (head - 1 + MAX_POINTS) % MAX_POINTS;
-            double dx = x - xs[newest];
-            double dy = y - ys[newest];
-            double dz = z - zs[newest];
-            if (dx * dx + dy * dy + dz * dz < MIN_STEP_SQUARED) return;
+        if (!hasSamples) {
+            firstTick = tickCounter;
+            hasSamples = true;
         }
+        firstTick = Math.max(firstTick, tickCounter - CAPACITY + 1);
 
-        xs[head] = x;
-        ys[head] = y;
-        zs[head] = z;
-        ticks[head] = tickCounter;
-        head = (head + 1) % MAX_POINTS;
-        size = Math.min(size + 1, MAX_POINTS);
+        int slot = Math.floorMod(tickCounter, CAPACITY);
+        xs[slot] = player.getX();
+        ys[slot] = player.getY();
+        zs[slot] = player.getZ();
     }
 
     @Override
     public void onRender3D(Render3DEvent event) {
         projectedCount = 0;
-        LocalPlayer player = mc.player;
-        if (player == null || mc.level == null || size == 0 || !RenderUtil.shouldRenderWorldHudOverlays()) return;
+        if (mc.player == null || mc.level == null || !hasSamples || !RenderUtil.shouldRenderWorldHudOverlays()) return;
 
-        float partialTicks = event.partialTicks;
+        double now = tickCounter - 1 + event.partialTicks;
+        double headTime = now - DELAY;
+        double tailTime = Math.max(now - LENGTH, firstTick);
+        double endTime = now - LAG;
+        double bridge = endTime - headTime;
+        double span = endTime - tailTime;
+        if (headTime - tailTime < 1.0e-3) return;
+
         Vec3 camera = mc.gameRenderer.mainCamera().position();
         float toScaledX = NanoVGManager.getScaledScreenWidth() / Math.max(1, mc.getWindow().getWidth());
         float toScaledY = NanoVGManager.getScaledScreenHeight() / Math.max(1, mc.getWindow().getHeight());
-        float now = tickCounter + partialTicks;
 
-        for (int i = 0; i < size; i++) {
-            int index = (oldestIndex() + i) % MAX_POINTS;
-            float remaining = Math.clamp(1f - (now - ticks[index]) / LENGTH, 0f, 1f);
-            project(xs[index], ys[index], zs[index], remaining, camera, toScaledX, toScaledY);
+        evaluate(tailTime, 0f, camera, toScaledX, toScaledY);
+        for (long step = (long) Math.floor(tailTime * SUBDIVISIONS) + 1; projectedCount < MAX_SAMPLES - BRIDGE_STEPS - 2; step++) {
+            double time = step / (double) SUBDIVISIONS;
+            if (time >= headTime - 1.0e-4) break;
+
+            evaluate(time, (float) ((time - tailTime) / span), camera, toScaledX, toScaledY);
         }
+        evaluate(headTime, (float) ((headTime - tailTime) / span), camera, toScaledX, toScaledY);
 
-        Vec3 lerped = RenderUtil.INSTANCE.getLerpedPos(player, partialTicks);
-        project(lerped.x, lerped.y, lerped.z, 1f, camera, toScaledX, toScaledY);
+        curve(headTime, curveHead);
+        curve(headTime - 0.5, curveBefore);
+        int endBase = (int) Math.floor(endTime);
+        double endFraction = endTime - endBase;
+        double endX = sample(xs, endBase) + (sample(xs, endBase + 1) - sample(xs, endBase)) * endFraction;
+        double endY = sample(ys, endBase) + (sample(ys, endBase + 1) - sample(ys, endBase)) * endFraction;
+        double endZ = sample(zs, endBase) + (sample(zs, endBase + 1) - sample(zs, endBase)) * endFraction;
+        double controlX = curveHead[0] + (curveHead[0] - curveBefore[0]) * bridge;
+        double controlY = curveHead[1] + (curveHead[1] - curveBefore[1]) * bridge;
+        double controlZ = curveHead[2] + (curveHead[2] - curveBefore[2]) * bridge;
+        for (int i = 1; i <= BRIDGE_STEPS; i++) {
+            double u = i / (double) BRIDGE_STEPS;
+            double a = (1.0 - u) * (1.0 - u);
+            double b = 2.0 * (1.0 - u) * u;
+            double c = u * u;
+            project(
+                    a * curveHead[0] + b * controlX + c * endX,
+                    a * curveHead[1] + b * controlY + c * endY,
+                    a * curveHead[2] + b * controlZ + c * endZ,
+                    (float) ((headTime + u * bridge - tailTime) / span),
+                    camera, toScaledX, toScaledY
+            );
+        }
+    }
+
+    private void evaluate(double time, float remaining, Vec3 camera, float toScaledX, float toScaledY) {
+        curve(time, curveHead);
+        project(curveHead[0], curveHead[1], curveHead[2], remaining, camera, toScaledX, toScaledY);
+    }
+
+    private void curve(double time, double[] output) {
+        int base = (int) Math.floor(time);
+        float t = (float) (time - base);
+        output[0] = catmullRom(sample(xs, base - 1), sample(xs, base), sample(xs, base + 1), sample(xs, base + 2), t);
+        output[1] = catmullRom(sample(ys, base - 1), sample(ys, base), sample(ys, base + 1), sample(ys, base + 2), t);
+        output[2] = catmullRom(sample(zs, base - 1), sample(zs, base), sample(zs, base + 1), sample(zs, base + 2), t);
+    }
+
+    private double sample(double[] values, int tick) {
+        return values[Math.floorMod(Math.clamp(tick, firstTick, tickCounter), CAPACITY)];
     }
 
     private void project(double x, double y, double z, float remaining, Vec3 camera, float toScaledX, float toScaledY) {
@@ -152,16 +203,19 @@ public class Trails extends Module {
         vg.save();
         try {
             nvgGlobalCompositeBlendFunc(handle, NVG_SRC_ALPHA, NVG_ONE);
-            for (int i = 0; i < projectedCount - 1; i++) {
-                if (Float.isNaN(screenX[i]) || Float.isNaN(screenX[i + 1])) continue;
+            int start = 0;
+            while (start < projectedCount) {
+                while (start < projectedCount && Float.isNaN(screenX[start]))
+                    start++;
+                int end = start;
+                while (end + 1 < projectedCount && !Float.isNaN(screenX[end + 1]))
+                    end++;
 
-                float fraction = life[i];
-                if (fraction <= 0f) continue;
-
-                Color colour = mix(TAIL_COLOUR, HEAD_COLOUR, fraction);
-                float thickness = 0.6f + fraction * screenWidth[i + 1];
-                vg.line(screenX[i], screenY[i], screenX[i + 1], screenY[i + 1], thickness * 3f, withAlpha(colour, (int) (fraction * fraction * 45f)));
-                vg.line(screenX[i], screenY[i], screenX[i + 1], screenY[i + 1], thickness, withAlpha(colour, (int) (fraction * fraction * 150f)));
+                if (end - start >= 1) {
+                    drawRibbon(vg, start, end, 3f, 45f);
+                    drawRibbon(vg, start, end, 1f, 150f);
+                }
+                start = end + 1;
             }
         } finally {
             nvgGlobalCompositeBlendFunc(handle, NVG_SRC_ALPHA, NVG_ONE_MINUS_SRC_ALPHA);
@@ -169,8 +223,54 @@ public class Trails extends Module {
         }
     }
 
-    private int oldestIndex() {
-        return (head - size + MAX_POINTS) % MAX_POINTS;
+    private void drawRibbon(NVGU vg, int start, int end, float widthScale, float alpha) {
+        long handle = vg.getHandle();
+        float pathLength = 0f;
+        for (int i = start; i < end && pathLength < 1f; i++)
+            pathLength += Math.abs(screenX[i + 1] - screenX[i]) + Math.abs(screenY[i + 1] - screenY[i]);
+        if (pathLength < 1f) return;
+
+        float normalX = 0f;
+        float normalY = 1f;
+        for (int i = start; i <= end; i++) {
+            int previous = Math.max(i - 1, start);
+            int next = Math.min(i + 1, end);
+            float tangentX = screenX[next] - screenX[previous];
+            float tangentY = screenY[next] - screenY[previous];
+            float length = (float) Math.sqrt(tangentX * tangentX + tangentY * tangentY);
+            if (length > 1.0e-4f) {
+                normalX = -tangentY / length;
+                normalY = tangentX / length;
+            }
+
+            float half = (0.6f + life[i] * screenWidth[i]) * widthScale * 0.5f;
+            leftX[i] = screenX[i] + normalX * half;
+            leftY[i] = screenY[i] + normalY * half;
+            rightX[i] = screenX[i] - normalX * half;
+            rightY[i] = screenY[i] - normalY * half;
+        }
+
+        nvgBeginPath(handle);
+        nvgMoveTo(handle, leftX[start], leftY[start]);
+        for (int i = start + 1; i <= end; i++)
+            nvgLineTo(handle, leftX[i], leftY[i]);
+        for (int i = end; i >= start; i--)
+            nvgLineTo(handle, rightX[i], rightY[i]);
+        nvgClosePath(handle);
+
+        float tailLife = life[start];
+        float headLife = life[end];
+        Color tail = withAlpha(mix(TAIL_COLOUR, HEAD_COLOUR, tailLife), (int) (tailLife * tailLife * alpha));
+        Color tip = withAlpha(mix(TAIL_COLOUR, HEAD_COLOUR, headLife), (int) (headLife * headLife * alpha));
+        NVGPaint paint = vg.createAndStorePaint();
+        nvgLinearGradient(handle, screenX[start], screenY[start], screenX[end], screenY[end], vg.createAndStoreColour(tail), vg.createAndStoreColour(tip), paint);
+        new NVGUColour(paint).apply(vg, NVGUColour.RenderType.FILL);
+    }
+
+    private static double catmullRom(double p0, double p1, double p2, double p3, float t) {
+        double t2 = t * t;
+        double t3 = t2 * t;
+        return 0.5 * (2.0 * p1 + (p2 - p0) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 + (3.0 * p1 - p0 - 3.0 * p2 + p3) * t3);
     }
 
     private static Color mix(Color a, Color b, float t) {
