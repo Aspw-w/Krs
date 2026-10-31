@@ -5,12 +5,14 @@ import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.math.TimerUtil;
+import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundKeepAlivePacket;
 import net.minecraft.network.protocol.common.ServerboundKeepAlivePacket;
 import net.minecraft.network.protocol.common.ServerboundPongPacket;
 import com.instrumentalist.krs.utils.input.Keys;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 
 public class TuckMod extends Module {
 
@@ -43,10 +45,19 @@ public class TuckMod extends Module {
     @Override
     public void onMotion(MotionEvent event) {
         if (mc.player == null) return;
-        TimerUtil.timerSpeed = 0.4f;
-        if (mc.player.getDeltaMovement().y <= 0) {
+        TimerUtil.timerSpeed = 0.5f;
+        ChatUtil.printChat("[sex] " + mc.player.getDeltaMovement());
+        if (mc.player.getDeltaMovement().y <= -0.3) {
+            ChatUtil.printChat("[sex] df");
+            event.y += Double.MAX_VALUE;
+            PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(event.x, event.y - 0.01, event.z, true, true));
             event.onGround = true;
             mc.player.setOnGround(true);
+        } else {
+            if (mc.player.tickCount % 11 == 0) {
+                event.y += Double.MAX_VALUE;
+                ChatUtil.printChat("[tungtung] 67fg + " + event.y);
+            }
         }
     }
 
