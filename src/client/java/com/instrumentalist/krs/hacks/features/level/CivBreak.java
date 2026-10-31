@@ -117,12 +117,13 @@ public class CivBreak extends Module {
 
         BlockPos targetPos = pos;
         Direction targetDirection = direction;
+        if (targetPos != null)
+            blockHighlight.setTarget(targetPos);
+
         double rangeLimit = range.get() * range.get();
         boolean validTarget = targetPos != null
                 && targetDirection != null
                 && rangeLimit >= player.distanceToSqr(Vec3.atCenterOf(targetPos));
-        if (validTarget)
-            blockHighlight.setTarget(targetPos);
 
         if (!validTarget || level.getBlockState(targetPos).isAir() && stage == 1) {
             if (wasBreaking) {
