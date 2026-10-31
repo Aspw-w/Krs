@@ -29,12 +29,13 @@ import static org.nvgu.util.TrackedNanoVG.nvgLineTo;
 import static org.nvgu.util.TrackedNanoVG.nvgMoveTo;
 
 public class Trails extends Module {
-    private static final int LENGTH = 30;
+    private static final int LENGTH = 20;
     private static final int DELAY = 1;
     private static final double LAG = 0.3;
     private static final int BRIDGE_STEPS = 6;
     private static final int CAPACITY = LENGTH + 8;
     private static final int SUBDIVISIONS = 6;
+    private static final int CHUNK_SIZE = 3;
     private static final int MAX_SAMPLES = LENGTH * SUBDIVISIONS + BRIDGE_STEPS + 4;
 
     private static final float WIDTH = 2.5f;
@@ -250,6 +251,18 @@ public class Trails extends Module {
             rightY[i] = screenY[i] - normalY * half;
         }
 
+        for (int chunkStart = start; chunkStart < end; chunkStart += CHUNK_SIZE)
+            fillChunk(vg, chunkStart, Math.min(chunkStart + CHUNK_SIZE, end), alpha);
+    }
+
+    private void fillChunk(NVGU vg, int start, int end, float alpha) {
+        long handle = vg.getHandle();
+        float tailLife = life[start];
+        float headLife = life[end];
+        int tailAlpha = (int) (tailLife * tailLife * alpha);
+        int headAlpha = (int) (headLife * headLife * alpha);
+        if (tailAlpha <= 0 && headAlpha <= 0) return;
+
         nvgBeginPath(handle);
         nvgMoveTo(handle, leftX[start], leftY[start]);
         for (int i = start + 1; i <= end; i++)
@@ -258,10 +271,8 @@ public class Trails extends Module {
             nvgLineTo(handle, rightX[i], rightY[i]);
         nvgClosePath(handle);
 
-        float tailLife = life[start];
-        float headLife = life[end];
-        Color tail = withAlpha(mix(TAIL_COLOUR, HEAD_COLOUR, tailLife), (int) (tailLife * tailLife * alpha));
-        Color tip = withAlpha(mix(TAIL_COLOUR, HEAD_COLOUR, headLife), (int) (headLife * headLife * alpha));
+        Color tail = withAlpha(mix(TAIL_COLOUR, HEAD_COLOUR, tailLife), tailAlpha);
+        Color tip = withAlpha(mix(TAIL_COLOUR, HEAD_COLOUR, headLife), headAlpha);
         NVGPaint paint = vg.createAndStorePaint();
         nvgLinearGradient(handle, screenX[start], screenY[start], screenX[end], screenY[end], vg.createAndStoreColour(tail), vg.createAndStoreColour(tip), paint);
         new NVGUColour(paint).apply(vg, NVGUColour.RenderType.FILL);
