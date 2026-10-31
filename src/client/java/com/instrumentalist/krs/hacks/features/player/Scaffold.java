@@ -181,6 +181,7 @@ public class Scaffold extends Module {
     private boolean wasTellyKeepYOnGround = false;
     private boolean tellyJumpDownOnLastGround = false;
     private boolean tellyClutchMode = false;
+    private boolean jumpKeyOverridden = false;
     private Integer lastSlot = null;
     private PlacementTarget humanizedMathAimTarget = null;
     private Vec3 humanizedMathAimPos = null;
@@ -275,8 +276,16 @@ public class Scaffold extends Module {
         tellyClutchMode = false;
         resetRotationHumanization();
         updateAutoSneak(false);
+        restorePhysicalMovementKeys();
         PlayerUtil.INSTANCE.stopSpoof();
         blockHighlight.release();
+    }
+
+    private void restorePhysicalMovementKeys() {
+        boolean screenClosed = mc.gui.screen() == null;
+        mc.options.keyJump.setDown(screenClosed && isPhysicalJumpDown());
+        mc.options.keyShift.setDown(screenClosed && isPhysicalKeyDown(mc.options.keyShift.saveString()));
+        jumpKeyOverridden = false;
     }
 
     @Override
@@ -325,14 +334,16 @@ public class Scaffold extends Module {
         if (down.get())
             mc.options.keyShift.setDown(false);
 
-        if (tellyGroundPhase || wasTowering)
+        if (tellyGroundPhase || wasTowering) {
             mc.options.keyJump.setDown(false);
-
-        if (!tellyGroundPhase
-                && !wasTowering
-                && isTellyUpwardJumpInputActive(mc.player)
-                && !ModuleManager.getModuleState(SpeedModule.class))
+            jumpKeyOverridden = true;
+        } else if (isTellyUpwardJumpInputActive(mc.player) && !ModuleManager.getModuleState(SpeedModule.class)) {
             mc.options.keyJump.setDown(true);
+            jumpKeyOverridden = true;
+        } else if (jumpKeyOverridden) {
+            mc.options.keyJump.setDown(mc.gui.screen() == null && isPhysicalJumpDown());
+            jumpKeyOverridden = false;
+        }
     }
 
     public static void hookTellyJumpInput(ClientInput input) {
@@ -390,7 +401,7 @@ public class Scaffold extends Module {
         if (Sprint.tryStartSprinting(player, keyPresses, true))
             sprinting = true;
 
-        if (!sprinting)
+        if (!sprinting && !player.horizontalCollision)
             return false;
 
         InputUtil.applyInput(input, new Input(
@@ -632,7 +643,18 @@ public class Scaffold extends Module {
                 && player != null
                 && player.horizontalCollision
                 && isPhysicalJumpDown()
-                && isTellyMoving();
+                && isTellyMoving()
+                && canTowerLift(player);
+    }
+
+    private boolean canTowerLift(net.minecraft.client.player.LocalPlayer player) {
+        boolean modeAllowed = !towerMode.get().equalsIgnoreCase("hypixel")
+                || !player.hasEffect(MobEffects.JUMP_BOOST) && !ModuleManager.getModuleState(SpeedModule.class)
+                || player.hasEffect(MobEffects.SPEED);
+        boolean timingAllowed = towerWhen.get().equalsIgnoreCase("always")
+                || towerWhen.get().equalsIgnoreCase("standing") && !MovementUtil.isMoving()
+                || towerWhen.get().equalsIgnoreCase("moving") && MovementUtil.isMoving();
+        return modeAllowed && timingAllowed && hotbarStackSize > 0 && hasAroundBlock();
     }
 
     private boolean isTellyUpwardJumpInputActive(net.minecraft.client.player.LocalPlayer player) {
