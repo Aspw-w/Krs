@@ -9,7 +9,10 @@ import com.instrumentalist.krs.events.features.TickEvent;
 import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.level.NoPlaceCooldown;
+import com.instrumentalist.krs.hacks.features.render.Camera;
 import com.instrumentalist.krs.hacks.features.render.ViewModel;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import net.minecraft.client.CameraType;
 import com.instrumentalist.krs.screen.CustomTitleScreen;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
@@ -136,6 +139,11 @@ public abstract class MinecraftClientMixin implements IMinecraft {
             this.hitResult = this.krs$airPlaceOriginalHitResult;
             this.krs$airPlaceOriginalHitResult = null;
         }
+    }
+
+    @ModifyExpressionValue(method = "handleKeybinds", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/CameraType;cycle()Lnet/minecraft/client/CameraType;"))
+    private CameraType cameraCycleHook(CameraType original) {
+        return Camera.nextCameraType(this.options.getCameraType(), original);
     }
 
     @Redirect(method = "handleKeybinds", at = @At(value = "FIELD", target = "Lnet/minecraft/client/Minecraft;rightClickDelay:I", opcode = Opcodes.GETFIELD, ordinal = 0))

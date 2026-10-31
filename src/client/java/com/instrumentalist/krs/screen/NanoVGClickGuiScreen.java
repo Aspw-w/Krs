@@ -268,6 +268,16 @@ public class NanoVGClickGuiScreen extends Screen {
         float mouseY = NanoVGManager.toScaledMouseY(event.y());
         int button = event.button();
 
+        if ((bindingModule != null || bindingValue != null) && button != Keys.MOUSE_BUTTON_LEFT) {
+            if (bindingModule != null)
+                bindingModule.key = Keys.mouseKey(button);
+            else
+                bindingValue.set(Keys.mouseKey(button));
+            bindingModule = null;
+            bindingValue = null;
+            return true;
+        }
+
         if (button == Keys.MOUSE_BUTTON_LEFT && closeRect.contains(mouseX, mouseY)) {
             onClose();
             return true;
@@ -4149,6 +4159,8 @@ public class NanoVGClickGuiScreen extends Screen {
     private static String keyName(int key) {
         if (key == Keys.KEY_UNKNOWN)
             return "NONE";
+        if (Keys.isMouseKey(key))
+            return Keys.mouseKeyName(key);
 
         String name = Keys.printableKeyName(key);
         if (name != null)

@@ -903,6 +903,8 @@ public class ModuleRenderable implements Renderable, IMinecraft {
     public static String keyName(int key) {
         if (key == Keys.KEY_UNKNOWN)
             return "NONE";
+        if (Keys.isMouseKey(key))
+            return Keys.mouseKeyName(key);
 
         String name = Keys.printableKeyName(key);
         if (name != null)

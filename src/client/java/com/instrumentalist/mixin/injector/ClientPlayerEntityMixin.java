@@ -3,6 +3,9 @@ package com.instrumentalist.mixin.injector;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.MotionEvent;
 import com.instrumentalist.krs.hacks.ModuleManager;
+import net.minecraft.world.item.ItemStack;
+import com.instrumentalist.krs.hacks.features.render.Camera;
+import com.instrumentalist.krs.hacks.features.render.NoRender;
 import com.instrumentalist.krs.hacks.features.exploit.PortalScreen;
 import com.instrumentalist.krs.hacks.features.movement.*;
 import com.instrumentalist.krs.hacks.features.player.Phase;
@@ -104,7 +107,18 @@ public abstract class ClientPlayerEntityMixin extends Player {
             return;
         }
 
+        if (Camera.isFreeLooking()) {
+            Camera.turn(deltaYaw, deltaPitch);
+            return;
+        }
+
         super.turn(deltaYaw, deltaPitch);
+    }
+
+    @Inject(method = "displayItemActivation", at = @At("HEAD"), cancellable = true)
+    private void noRenderTotemAnimation(ItemStack itemStack, CallbackInfo ci) {
+        if (NoRender.active(NoRender.totemAnimation))
+            ci.cancel();
     }
 
     @Inject(method = "tick", at = @At("HEAD"))

@@ -140,6 +140,8 @@ public final class Keys {
     public static final int MOUSE_BUTTON_LEFT = InputConstants.MOUSE_BUTTON_LEFT;
     public static final int MOUSE_BUTTON_MIDDLE = InputConstants.MOUSE_BUTTON_MIDDLE;
     public static final int MOUSE_BUTTON_RIGHT = InputConstants.MOUSE_BUTTON_RIGHT;
+    public static final int MOUSE_KEY_BASE = -100;
+    private static final int MOUSE_KEY_COUNT = 32;
 
     public static final int RELEASE = InputConstants.RELEASE;
     public static final int PRESS = InputConstants.PRESS;
@@ -236,6 +238,28 @@ public final class Keys {
      * Returns the layout dependent, lower case name of a printable key, or {@code null} for keys that do not produce
      * a character. Behaves like the former {@code glfwGetKeyName} lookup.
      */
+    public static int mouseKey(int button) {
+        return MOUSE_KEY_BASE - button;
+    }
+
+    public static boolean isMouseKey(int key) {
+        return key <= MOUSE_KEY_BASE && key > MOUSE_KEY_BASE - MOUSE_KEY_COUNT;
+    }
+
+    public static int mouseButton(int key) {
+        return MOUSE_KEY_BASE - key;
+    }
+
+    public static String mouseKeyName(int key) {
+        int button = mouseButton(key);
+        return switch (button) {
+            case MOUSE_BUTTON_LEFT -> "MOUSE LEFT";
+            case MOUSE_BUTTON_RIGHT -> "MOUSE RIGHT";
+            case MOUSE_BUTTON_MIDDLE -> "MOUSE MIDDLE";
+            default -> "MOUSE " + (button + 1);
+        };
+    }
+
     public static String printableKeyName(int key) {
         String keypadName = switch (key) {
             case KEY_KP_0 -> "0";

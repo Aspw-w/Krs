@@ -1,8 +1,10 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.Client;
+import com.instrumentalist.krs.events.features.KeyboardEvent;
 import com.instrumentalist.krs.events.features.MouseClickEvent;
 import com.instrumentalist.krs.events.features.MouseScrollEvent;
+import com.instrumentalist.krs.utils.input.Keys;
 import com.instrumentalist.krs.hacks.features.player.ChestStealer;
 import com.instrumentalist.krs.utils.GuiInputBlocker;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -67,7 +69,13 @@ public abstract class MouseMixin {
             return;
         }
 
-        if (Client.eventManager == null || !Client.eventManager.hasListeners(MouseClickEvent.class))
+        if (Client.eventManager == null)
+            return;
+
+        if (Client.eventManager.hasListeners(KeyboardEvent.class))
+            Client.eventManager.call(new KeyboardEvent(Keys.mouseKey(button.button()), action));
+
+        if (!Client.eventManager.hasListeners(MouseClickEvent.class))
             return;
 
         MouseClickEvent event = new MouseClickEvent(window, button.button(), action, button.modifiers());

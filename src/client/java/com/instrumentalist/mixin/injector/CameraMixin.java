@@ -13,6 +13,7 @@ import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -87,6 +88,66 @@ public abstract class CameraMixin implements IMinecraft {
             setPosition(longJump.getMatrix2SilentCameraPosition());
     }
 
+    @Inject(method = "update(Lnet/minecraft/client/DeltaTracker;)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/client/Camera;alignWithEntity(F)V",
+                    shift = At.Shift.AFTER))
+    private void cameraModuleHook(DeltaTracker deltaTracker, CallbackInfo ci) {
+        int mode = com.instrumentalist.krs.hacks.features.render.Camera.getTransitionMode();
+        boolean freeLooking = com.instrumentalist.krs.hacks.features.render.Camera.isFreeLooking();
+        if (mode == com.instrumentalist.krs.hacks.features.render.Camera.TRANSITION_NONE && !freeLooking || entity == null || ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly())
+            return;
+
+        float partialTicks = deltaTracker.getGameTimeDeltaPartialTick(true);
+        float progress = mode == com.instrumentalist.krs.hacks.features.render.Camera.TRANSITION_NONE ? 1.0F : com.instrumentalist.krs.hacks.features.render.Camera.getTransitionProgress();
+        float entityYaw = entity.getViewYRot(partialTicks);
+        float entityPitch = entity.getViewXRot(partialTicks);
+        float yaw = entityYaw;
+        float pitch = entityPitch;
+        if (freeLooking) {
+            yaw = com.instrumentalist.krs.hacks.features.render.Camera.getLookYaw();
+            pitch = com.instrumentalist.krs.hacks.features.render.Camera.getLookPitch();
+        } else if (com.instrumentalist.krs.hacks.features.render.Camera.isReturningFromFreeLook()) {
+            yaw = entityYaw + Mth.wrapDegrees(com.instrumentalist.krs.hacks.features.render.Camera.getReturnYaw() - entityYaw) * (1.0F - progress);
+            pitch = Mth.lerp(progress, com.instrumentalist.krs.hacks.features.render.Camera.getReturnPitch(), entityPitch);
+        }
+
+        float fullDistance = krs$thirdPersonDistance();
+        float distance = fullDistance;
+        float depth = com.instrumentalist.krs.hacks.features.render.Camera.TRANSITION_DEPTH;
+        boolean mirrored = mc.options.getCameraType().isMirrored();
+
+        if (mode == com.instrumentalist.krs.hacks.features.render.Camera.TRANSITION_OPEN) {
+            distance = fullDistance * (1.0F - depth * (1.0F - progress));
+        } else if (mode == com.instrumentalist.krs.hacks.features.render.Camera.TRANSITION_CLOSE) {
+            distance = fullDistance * (1.0F - depth * progress);
+            if (progress >= 1.0F) {
+                com.instrumentalist.krs.hacks.features.render.Camera.finishTransition();
+                detached = false;
+                setPosition(entity.getEyePosition(partialTicks));
+                setRotation(entityYaw, entityPitch);
+                return;
+            }
+        } else if (mode == com.instrumentalist.krs.hacks.features.render.Camera.TRANSITION_FLIP) {
+            distance = fullDistance * (1.0F - depth * (1.0F - Math.abs(2.0F * progress - 1.0F)));
+            if (progress < 0.5F)
+                mirrored = !mirrored;
+        }
+
+        if (mirrored) {
+            yaw += 180.0F;
+            pitch = -pitch;
+        }
+
+        detached = true;
+        setPosition(entity.getEyePosition(partialTicks));
+        setRotation(yaw, pitch);
+        move(-getMaxZoom(distance), 0.0F, 0.0F);
+
+        if (mode != com.instrumentalist.krs.hacks.features.render.Camera.TRANSITION_NONE && progress >= 1.0F)
+            com.instrumentalist.krs.hacks.features.render.Camera.finishTransition();
+    }
+
     @Unique
     private void applyFreecamThirdPersonPull() {
         CameraType cameraType = mc.options.getCameraType();
@@ -96,6 +157,11 @@ public abstract class CameraMixin implements IMinecraft {
         if (cameraType.isMirrored())
             setRotation(Freecam.getCamYaw() + 180.0F, -Freecam.getCamPitch());
 
+        move(-getMaxZoom(krs$thirdPersonDistance()), 0.0F, 0.0F);
+    }
+
+    @Unique
+    private float krs$thirdPersonDistance() {
         float distance = 4.0F;
         float scale = 1.0F;
 
@@ -112,7 +178,7 @@ public abstract class CameraMixin implements IMinecraft {
             );
         }
 
-        move(-getMaxZoom(finalDistance), 0.0F, 0.0F);
+        return finalDistance;
     }
 
     @ModifyExpressionValue(method = "extractRenderState",
