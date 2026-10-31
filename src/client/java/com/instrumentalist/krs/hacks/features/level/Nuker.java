@@ -131,6 +131,13 @@ public class Nuker extends Module {
         }
     }
 
+    private void sortPotentialBlocks(BlockPos playerPos, boolean farthestFirst) {
+        if (farthestFirst)
+            potentialBlocks.sort((a, b) -> Double.compare(b.distSqr(playerPos), a.distSqr(playerPos)));
+        else
+            potentialBlocks.sort((a, b) -> Double.compare(a.distSqr(playerPos), b.distSqr(playerPos)));
+    }
+
     private boolean isWithinRange(LocalPlayer player, BlockPos pos, int rangeValue) {
         return player.distanceToSqr(Vec3.atCenterOf(pos)) <= rangeValue * rangeValue;
     }
@@ -174,7 +181,7 @@ public class Nuker extends Module {
             return;
         }
 
-        potentialBlocks.sort((a, b) -> Double.compare(a.distSqr(playerPos), b.distSqr(playerPos)));
+        sortPotentialBlocks(playerPos, placing);
         blockHighlight.setTargets(potentialBlocks);
         blockQueue.clear();
         blockQueue.addAll(potentialBlocks);
@@ -263,7 +270,7 @@ public class Nuker extends Module {
                 return;
             }
 
-            potentialBlocks.sort((a, b) -> Double.compare(a.distSqr(playerPos), b.distSqr(playerPos)));
+            sortPotentialBlocks(playerPos, placing);
             currentBlock = potentialBlocks.get(0);
             current = currentBlock;
             breakStartTime = System.currentTimeMillis();

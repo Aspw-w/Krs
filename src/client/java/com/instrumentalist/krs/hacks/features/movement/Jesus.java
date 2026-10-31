@@ -22,7 +22,7 @@ import com.instrumentalist.krs.utils.input.Keys;
 import java.util.Locale;
 
 public class Jesus extends Module {
-    private static final VoxelShape WATER_SHAPE = Shapes.create(new AABB(0.0D, 0.0D, 0.0D, 1.0D, 0.9999D, 1.0D));
+    private static final VoxelShape WATER_SHAPE = Shapes.block();
 
     private boolean wasInLiquid;
 
