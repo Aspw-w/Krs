@@ -154,7 +154,8 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
         }
 
         if (cancelNextBobView) {
-            if (ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly())
+            if (ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly()
+                    || com.instrumentalist.krs.hacks.features.render.Camera.shouldDisableCameraBobbing())
                 ci.cancel();
 
             cancelNextBobView = false;

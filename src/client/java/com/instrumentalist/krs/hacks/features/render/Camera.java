@@ -33,6 +33,9 @@ public class Camera extends Module {
     @Setting
     public static final BooleanValue smoothToggle = new BooleanValue("Smooth Toggle", true);
 
+    @Setting
+    public static final BooleanValue noCameraBobbing = new BooleanValue("No Camera Bobbing", true);
+
     private static boolean freeLooking;
     private static float lookYaw;
     private static float lookPitch;
@@ -128,6 +131,10 @@ public class Camera extends Module {
 
     public static float getReturnPitch() {
         return returnPitch;
+    }
+
+    public static boolean shouldDisableCameraBobbing() {
+        return ModuleManager.getModuleState(Camera.class) && noCameraBobbing.get();
     }
 
     public static boolean isFreeLooking() {
