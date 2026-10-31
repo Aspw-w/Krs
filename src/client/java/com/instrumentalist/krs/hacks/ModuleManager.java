@@ -67,13 +67,13 @@ public class ModuleManager implements EventListener {
         clearModuleRegistry();
 
         modules.addAll(List.of(
-                new SpeedModule(), new FlyModule(), new ElytraFly(), new EntityControl(), new NoBreakCooldown(),
+                new SpeedModule(), new FlyModule(), new ElytraFly(), new EntityControl(), new NoBreakCooldown(), new NoPlaceCooldown(),
                 new Interface(), new KillAura(), new Backtrack(),
                 new SpinBot(), new BrandSpoofer(), new AntiBot(), new AutoPot(), new Criticals(),
                 new Teams(), new Velocity(), new Phase(), new ServerCrasher(), new Spammer(),
                 new PerfectHorseJump(), new InventoryMove(), new Jesus(), new NoSlow(), new LongJump(),
                 new ChestStealer(), new FastLadder(), new InvManager(), new NoFall(), new AirPlace(),
-                new Sprint(), new ThunderDetector(), new KillEffect(), new CameraNoClip(),
+                new Sprint(), new ThunderDetector(), new KillEffect(), new Trails(),new CameraNoClip(),
                 new AntiBlind(), new Breaker(), new CivBreak(), new Timer(), new Nuker(), new NoteBot(),
                 new Xray(), new CaveFinder(), new Scaffold(), new Blink(), new TransactionConfirmBlinker(), new ExploitPatcher(),
                 new PortalScreen(), new FullBright(), new TargetStrafe(), new DisablerModule(),
