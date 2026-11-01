@@ -10,6 +10,11 @@ import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.level.NoPlaceCooldown;
 import com.instrumentalist.krs.hacks.features.render.Camera;
+import com.instrumentalist.krs.hacks.features.dev.GhostHand;
+import com.instrumentalist.krs.hacks.features.dev.QueuedMiner;
+import com.instrumentalist.krs.hacks.features.dev.AutoMine;
+import com.instrumentalist.krs.hacks.features.dev.ToolSaver;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import com.instrumentalist.krs.hacks.features.render.ViewModel;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.CameraType;
@@ -105,6 +110,25 @@ public abstract class MinecraftClientMixin implements IMinecraft {
         Client.eventManager.call(event);
         if (event.isCancelled())
             ci.cancel();
+    }
+
+    @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)
+    private void queuedMinerSuppressHook(boolean breaking, CallbackInfo ci) {
+        if (QueuedMiner.shouldSuppressManualMining()
+                || AutoMine.shouldSuppressManualMining()
+                || breaking && ToolSaver.shouldBlockMining(this.hitResult))
+            ci.cancel();
+    }
+
+    @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
+    private void toolSaverStartAttackHook(CallbackInfoReturnable<Boolean> cir) {
+        if (ToolSaver.shouldBlockMining(this.hitResult))
+            cir.setReturnValue(false);
+    }
+
+    @Inject(method = "pick", at = @At("RETURN"))
+    private void ghostHandPickHook(float partialTicks, CallbackInfo ci) {
+        this.hitResult = GhostHand.modifyHitResult(this.hitResult);
     }
 
     @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)

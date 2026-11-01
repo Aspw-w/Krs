@@ -64,6 +64,7 @@
     "ModelFeatureRendererMixin",
     "MobMixin",
     "MouseMixin",
+    "MultiPlayerGameModeAccessor",
     "PacketProcessorMixin",
     "PanoramaMixin",
     "ParticleEngineMixin",

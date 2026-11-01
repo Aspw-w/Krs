@@ -5,6 +5,12 @@ import com.instrumentalist.krs.events.features.AttackEvent;
 import com.instrumentalist.krs.events.features.CancelBlockBreakingEvent;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.level.NoBreakCooldown;
+import com.instrumentalist.krs.hacks.features.dev.QueuedMiner;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -36,6 +42,23 @@ public abstract class ClientPlayerInteractionManagerMixin {
             return 0;
 
         return this.destroyDelay;
+    }
+
+    @Unique
+    private BlockState krs$destroyingState;
+
+    @Inject(method = "destroyBlock", at = @At("HEAD"))
+    private void captureDestroyedState(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+        var level = Minecraft.getInstance().level;
+        krs$destroyingState = level != null ? level.getBlockState(pos) : null;
+    }
+
+    @Inject(method = "destroyBlock", at = @At("RETURN"))
+    private void notifyDestroyedBlock(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+        BlockState state = krs$destroyingState;
+        krs$destroyingState = null;
+        if (cir.getReturnValueZ())
+            QueuedMiner.onBlockDestroyed(pos, state);
     }
 
     @Inject(method = "attack", at = @At("HEAD"), cancellable = true)

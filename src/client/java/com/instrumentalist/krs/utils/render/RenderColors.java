@@ -23,6 +23,20 @@ public final class RenderColors {
     public static final Color NUKER = new Color(255, 225, 70);
     public static final Color ANTI_VOID = new Color(90, 255, 130);
 
+    public static final Color VEIN_MINER = new Color(255, 110, 180);
+    public static final Color TUNNEL_MINER = new Color(110, 150, 255);
+    public static final Color PACKET_MINE = new Color(235, 95, 255);
+    public static final Color GHOST_HAND = new Color(165, 255, 70);
+    public static final Color HAMMER = new Color(255, 150, 90);
+    public static final Color HARVESTER = new Color(120, 230, 90);
+    public static final Color AUTO_MINE = new Color(90, 220, 255);
+    public static final Color CITY_BREAKER = new Color(255, 70, 110);
+    public static final Color BREAK_ESP = new Color(255, 185, 40);
+
+    public static Color withAlpha(Color color, int alpha) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.clamp(alpha, 0, 255));
+    }
+
     private RenderColors() {
     }
 }

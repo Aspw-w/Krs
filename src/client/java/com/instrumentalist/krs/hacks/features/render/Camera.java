@@ -12,15 +12,6 @@ import net.minecraft.client.CameraType;
 import net.minecraft.util.Mth;
 
 public class Camera extends Module {
-    public static final int TRANSITION_NONE = 0;
-    public static final int TRANSITION_OPEN = 1;
-    public static final int TRANSITION_CLOSE = 2;
-    public static final int TRANSITION_FLIP = 3;
-    public static final int TRANSITION_RETURN = 4;
-    public static final float TRANSITION_DEPTH = 0.35F;
-    private static final float TRANSITION_NANOS = 150_000_000f;
-    private static final float CLOSE_TRANSITION_NANOS = 70_000_000f;
-
     @Setting
     public static final BooleanValue freeLook = new BooleanValue("Free Look", true);
 
@@ -31,21 +22,12 @@ public class Camera extends Module {
     public static final BooleanValue skipFrontView = new BooleanValue("Skip Front View", false);
 
     @Setting
-    public static final BooleanValue smoothToggle = new BooleanValue("Smooth Toggle", true);
-
-    @Setting
-    public static final BooleanValue noCameraBobbing = new BooleanValue("No Camera Bobbing", true);
+    public static final BooleanValue minimalBobbing = new BooleanValue("Minimal Bobbing", false);
 
     private static boolean freeLooking;
     private static float lookYaw;
     private static float lookPitch;
     private static CameraType previousCameraType;
-    private static int transitionMode = TRANSITION_NONE;
-    private static long transitionStart;
-    private static CameraType pendingCameraType;
-    private static boolean returningFromFreeLook;
-    private static float returnYaw;
-    private static float returnPitch;
 
     public Camera() {
         super("Camera", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, false);
@@ -53,20 +35,16 @@ public class Camera extends Module {
 
     @Override
     public void onEnable() {
-        transitionMode = TRANSITION_NONE;
-        pendingCameraType = null;
     }
 
     @Override
     public void onDisable() {
-        stopFreeLook(false);
-        finishTransition();
+        stopFreeLook();
     }
 
     @Override
     public void onWorld(WorldEvent event) {
-        stopFreeLook(false);
-        finishTransition();
+        stopFreeLook();
     }
 
     @Override
@@ -77,64 +55,28 @@ public class Camera extends Module {
         if (event.action == Keys.PRESS && !freeLooking && freeLook.get() && mc.player != null && mc.gui.screen() == null)
             startFreeLook();
         else if (event.action == Keys.RELEASE)
-            stopFreeLook(true);
+            stopFreeLook();
     }
 
     private void startFreeLook() {
-        finishTransition();
         freeLooking = true;
         lookYaw = mc.player.getYRot();
         lookPitch = mc.player.getXRot();
         previousCameraType = mc.options.getCameraType();
         mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
-        if (!smoothToggle.get()) return;
-
-        if (previousCameraType.isFirstPerson())
-            startTransition(TRANSITION_OPEN);
-        else if (previousCameraType.isMirrored())
-            startTransition(TRANSITION_FLIP);
     }
 
-    private static void stopFreeLook(boolean animate) {
+    private static void stopFreeLook() {
         if (!freeLooking) return;
 
         freeLooking = false;
-        CameraType previous = previousCameraType;
+        if (previousCameraType != null)
+            mc.options.setCameraType(previousCameraType);
         previousCameraType = null;
-        if (previous == null) return;
-
-        if (!animate || !smoothToggle.get()) {
-            mc.options.setCameraType(previous);
-            return;
-        }
-
-        returningFromFreeLook = true;
-        returnYaw = lookYaw;
-        returnPitch = lookPitch;
-        if (previous.isFirstPerson()) {
-            startTransition(TRANSITION_CLOSE);
-            pendingCameraType = previous;
-            return;
-        }
-
-        mc.options.setCameraType(previous);
-        startTransition(previous.isMirrored() ? TRANSITION_FLIP : TRANSITION_RETURN);
-    }
-
-    public static boolean isReturningFromFreeLook() {
-        return returningFromFreeLook;
-    }
-
-    public static float getReturnYaw() {
-        return returnYaw;
-    }
-
-    public static float getReturnPitch() {
-        return returnPitch;
     }
 
     public static boolean shouldDisableCameraBobbing() {
-        return ModuleManager.getModuleState(Camera.class) && noCameraBobbing.get();
+        return ModuleManager.getModuleState(Camera.class) && minimalBobbing.get();
     }
 
     public static boolean isFreeLooking() {
@@ -161,46 +103,6 @@ public class Camera extends Module {
         if (next == CameraType.THIRD_PERSON_FRONT && skipFrontView.get())
             next = next.cycle();
 
-        if (!smoothToggle.get() || freeLooking)
-            return next;
-
-        if (transitionMode == TRANSITION_CLOSE)
-            return previous;
-
-        if (!previous.isFirstPerson() && next.isFirstPerson()) {
-            startTransition(TRANSITION_CLOSE);
-            pendingCameraType = next;
-            return previous;
-        }
-
-        if (previous.isFirstPerson() && !next.isFirstPerson())
-            startTransition(TRANSITION_OPEN);
-        else if (!previous.isMirrored() && next.isMirrored())
-            startTransition(TRANSITION_FLIP);
-
         return next;
-    }
-
-    private static void startTransition(int mode) {
-        transitionMode = mode;
-        transitionStart = System.nanoTime();
-    }
-
-    public static int getTransitionMode() {
-        return ModuleManager.getModuleState(Camera.class) ? transitionMode : TRANSITION_NONE;
-    }
-
-    public static float getTransitionProgress() {
-        float progress = Math.clamp((System.nanoTime() - transitionStart) / (transitionMode == TRANSITION_CLOSE ? CLOSE_TRANSITION_NANOS : TRANSITION_NANOS), 0.0F, 1.0F);
-        float inverse = 1.0F - progress;
-        return 1.0F - inverse * inverse * inverse;
-    }
-
-    public static void finishTransition() {
-        transitionMode = TRANSITION_NONE;
-        returningFromFreeLook = false;
-        if (pendingCameraType != null)
-            mc.options.setCameraType(pendingCameraType);
-        pendingCameraType = null;
     }
 }

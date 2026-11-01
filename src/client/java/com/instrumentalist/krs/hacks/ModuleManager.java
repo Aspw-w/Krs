@@ -94,12 +94,14 @@ public class ModuleManager implements EventListener {
                 new NoWeb(), new NoBlockEffects(), new AntiLevitation(), new FastFall(),
                 new Spider(), new AutoRocket(), new AutoTotem(), new ItemDropChanger(), new VisualSpoofer(),
                 new XCarry(), new PortalGodMode(), new Stasis(), new ChestTP(), new SurroundTP(),
-                new NoBreakReset(), new TrueSight(), new AutoTool(), new DurabilityAlert(), new HUDHider()
+                new NoBreakReset(), new PacketMine(), new TrueSight(), new AutoTool(), new DurabilityAlert(), new HUDHider()
         ));
 
         devModules.addAll(List.of(
                 new BlockBreakSimulator2(), new Debugga(), new NoMoreAutism(), new ChatExcepChecker(),
-                new FukumaiPlayerTracker(), new MovementUtilTest(), new TuckMod(), new Sex()
+                new FukumaiPlayerTracker(), new MovementUtilTest(), new TuckMod(), new Sex(),
+                new VeinMiner(), new TunnelMiner(), new GhostHand(),
+                new Hammer(), new Harvester(), new AutoMine(), new ToolSaver(), new CityBreaker(), new BreakESP()
         ));
 
         allModules.addAll(modules);
