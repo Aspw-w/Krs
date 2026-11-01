@@ -217,6 +217,15 @@ public class ModuleManager implements EventListener {
 
     @Override
     public void onWorld(WorldEvent event) {
+        resetWorldState(event.previousWorld != null);
+    }
+
+    @Override
+    public void onWorldLeave(WorldLeaveEvent event) {
+        resetWorldState(true);
+    }
+
+    private void resetWorldState(boolean saveConfig) {
         for (Module module : modules) {
             if (module.tempEnabled && module instanceof PluginsDetector)
                 module.toggle();
@@ -229,7 +238,7 @@ public class ModuleManager implements EventListener {
         if (!ModuleManager.getModuleState(Breaker.class) && Breaker.resetAutoWhitelist(true))
             Client.notificationManager.addNotification("Auto Whitelist", "Reset bed whitelist");
 
-        if (Client.loaded && event.previousWorld != null)
+        if (Client.loaded && saveConfig)
             Client.configManager.saveCurrentIfFilesExist();
 
         BehaviorUtils.noKillAura = false;

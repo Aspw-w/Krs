@@ -130,6 +130,7 @@ public class EventManager {
         HANDLE_INPUT(HandleInputEvent.class, "onHandleInput"),
         MOTION(MotionEvent.class, "onMotion"),
         WORLD(WorldEvent.class, "onWorld"),
+        WORLD_LEAVE(WorldLeaveEvent.class, "onWorldLeave"),
         BLOCK_EDGE(BlockEdgeEvent.class, "onBlockEdge"),
         TICK(TickEvent.class, "onTick"),
         RENDER(RenderEvent.class, "onRender"),

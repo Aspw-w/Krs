@@ -31,6 +31,9 @@ public interface EventListener extends IMinecraft {
     default void onWorld(WorldEvent event) {
     }
 
+    default void onWorldLeave(WorldLeaveEvent event) {
+    }
+
     default void onBlockEdge(BlockEdgeEvent event) {
     }
 

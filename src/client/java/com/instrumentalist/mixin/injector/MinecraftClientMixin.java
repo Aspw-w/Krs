@@ -8,6 +8,7 @@ import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.HandleInputEvent;
 import com.instrumentalist.krs.events.features.TickEvent;
 import com.instrumentalist.krs.events.features.WorldEvent;
+import com.instrumentalist.krs.events.features.WorldLeaveEvent;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.level.NoPlaceCooldown;
 import com.instrumentalist.krs.hacks.features.render.Camera;
@@ -38,6 +39,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.Objects;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.particle.ParticleEngine;
@@ -193,6 +195,24 @@ public abstract class MinecraftClientMixin implements IMinecraft {
         Client.eventManager.call(event);
         if (event.isCancelled())
             ci.cancel();
+    }
+
+    @Inject(method = "disconnect(Lnet/minecraft/client/gui/screens/Screen;ZZ)V", at = @At("HEAD"))
+    private void worldLeaveOnDisconnect(Screen screen, boolean keepResourcePacks, boolean stopSound, CallbackInfo ci) {
+        krs$callWorldLeave(true);
+    }
+
+    @Inject(method = "clearClientLevel", at = @At("HEAD"))
+    private void worldLeaveOnClear(Screen screen, CallbackInfo ci) {
+        krs$callWorldLeave(false);
+    }
+
+    @Unique
+    private void krs$callWorldLeave(boolean disconnected) {
+        if (this.level == null || Client.eventManager == null || !Client.eventManager.hasListeners(WorldLeaveEvent.class))
+            return;
+
+        Client.eventManager.call(new WorldLeaveEvent(this.level, disconnected));
     }
 
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
