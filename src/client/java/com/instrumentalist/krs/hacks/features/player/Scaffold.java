@@ -76,6 +76,7 @@ public class Scaffold extends Module {
     private static final double MATH_SEARCH_ORIGIN_PRIORITY_TICKS = 0.30D;
     private static final double MATH_SEARCH_PATH_WEIGHT_TICKS = 0.24D;
     private static final double MATH_SEARCH_PLAYER_DISTANCE_WEIGHT_TICKS = 0.35D;
+    private static final boolean[] SEARCH_PASSES = {true, false};
     private static final int MATH_FACE_SAMPLE_DIVISIONS = 16;
 
     @Setting
@@ -1191,10 +1192,12 @@ public class Scaffold extends Module {
             return findRayTracePlacementTarget(pos);
 
         clearMathPlacementTarget();
-        for (BlockPos candidate : buildScaffoldCandidates(pos)) {
-            PlacementTarget target = findPlacementTargetForCandidate(pos, candidate, scaffoldSearchDistance(pos, candidate));
-            if (target != null)
-                return target;
+        for (boolean restricted : SEARCH_PASSES) {
+            for (BlockPos candidate : buildScaffoldCandidates(pos, restricted)) {
+                PlacementTarget target = findPlacementTargetForCandidate(pos, candidate, scaffoldSearchDistance(pos, candidate));
+                if (target != null)
+                    return target;
+            }
         }
 
         return null;
@@ -1206,20 +1209,24 @@ public class Scaffold extends Module {
         PlacementTarget nearestTarget = null;
         double bestScore = Double.MAX_VALUE;
 
-        for (BlockPos candidate : buildScaffoldCandidates(pos)) {
-            int searchDistance = scaffoldSearchDistance(pos, candidate);
-            if (nearestTarget != null && searchDistance > nearestTarget.searchDistance())
-                break;
+        for (boolean restricted : SEARCH_PASSES) {
+            for (BlockPos candidate : buildScaffoldCandidates(pos, restricted)) {
+                int searchDistance = scaffoldSearchDistance(pos, candidate);
+                if (nearestTarget != null && searchDistance > nearestTarget.searchDistance())
+                    break;
 
-            PlacementTarget target = findRayTracePlacementTargetForCandidate(pos, candidate, searchDistance);
-            if (target == null)
-                continue;
+                PlacementTarget target = findRayTracePlacementTargetForCandidate(pos, candidate, searchDistance);
+                if (target == null)
+                    continue;
 
-            double score = placementTargetScore(pos, target);
-            if (score < bestScore) {
-                nearestTarget = target;
-                bestScore = score;
+                double score = placementTargetScore(pos, target);
+                if (score < bestScore) {
+                    nearestTarget = target;
+                    bestScore = score;
+                }
             }
+            if (nearestTarget != null)
+                break;
         }
 
         PlacementTarget positionTarget = selectMathPositionTarget(pos, lockedTarget, nearestTarget);
@@ -1524,7 +1531,7 @@ public class Scaffold extends Module {
         humanizedMathAimRefreshTick = Integer.MIN_VALUE;
     }
 
-    private List<BlockPos> buildScaffoldCandidates(BlockPos pos) {
+    private List<BlockPos> buildScaffoldCandidates(BlockPos pos, boolean restricted) {
         scaffoldCandidates.clear();
         scaffoldCandidateSet.clear();
         addScaffoldCandidate(pos);
@@ -1551,7 +1558,23 @@ public class Scaffold extends Module {
                 addScaffoldCandidatesAtDistance(pos, distance, searchYaw);
         }
 
+        if (restricted) {
+            BlockPos anchor = usableLastPlacedScaffoldBlock(pos);
+            scaffoldCandidates.removeIf(candidate -> !isUsefulSearchCandidate(pos, candidate, anchor, searchYaw));
+        }
         return scaffoldCandidates;
+    }
+
+    private static boolean isUsefulSearchCandidate(BlockPos origin, BlockPos candidate, BlockPos anchor, float searchYaw) {
+        if (candidate.equals(origin))
+            return true;
+
+        if (anchor != null && !anchor.equals(origin)) {
+            int bridgeDistance = scaffoldSearchDistance(anchor, origin);
+            return scaffoldSearchDistance(anchor, candidate) + scaffoldSearchDistance(candidate, origin) == bridgeDistance;
+        }
+
+        return scaffoldCandidateYawDistance(origin, candidate, searchYaw) <= 90.0F;
     }
 
     private void addScaffoldCandidatesAtDistance(BlockPos pos, int distance, float searchYaw) {
@@ -2670,7 +2693,9 @@ public class Scaffold extends Module {
         if (predictedTargetBlock.equals(currentTargetBlock) || !isScaffoldReplaceable(predictedTargetBlock))
             return null;
 
-        return findPlacementTarget(predictedTargetBlock);
+        return usesRayTracePlacementSearch()
+                ? findRayTracePlacementTargetForCandidate(predictedTargetBlock, predictedTargetBlock, 0)
+                : findPlacementTargetForCandidate(predictedTargetBlock, predictedTargetBlock, 0);
     }
 
     private static double mathPreRotationLeadDistance(double speed) {
