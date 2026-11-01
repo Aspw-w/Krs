@@ -32,6 +32,8 @@ public final class RenderColors {
     public static final Color AUTO_MINE = new Color(90, 220, 255);
     public static final Color CITY_BREAKER = new Color(255, 70, 110);
     public static final Color BREAK_ESP = new Color(255, 185, 40);
+    public static final Color BOW_AIMBOT = new Color(255, 230, 120);
+    public static final Color CRYSTAL_AURA = new Color(200, 90, 255);
 
     public static Color withAlpha(Color color, int alpha) {
         return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.clamp(alpha, 0, 255));

@@ -2,6 +2,7 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.combat.HitBoxes;
 import com.instrumentalist.krs.hacks.features.combat.TargetStrafe;
 import com.instrumentalist.krs.hacks.features.movement.EntityControl;
 import com.instrumentalist.krs.hacks.features.movement.MovementFix;
@@ -51,6 +52,11 @@ public abstract class EntityMixin implements IMinecraft {
     @Shadow public boolean needsSync;
 
     @Shadow public abstract void setDeltaMovement(double x, double y, double z);
+
+    @ModifyReturnValue(method = "getPickRadius", at = @At("RETURN"))
+    private float hitBoxesHook(float original) {
+        return HitBoxes.modifyPickRadius((Entity) (Object) this, original);
+    }
 
     @ModifyReturnValue(method = "getBlockSpeedFactor", at = @At("RETURN"))
     private float noBlockEffectsSpeedFactorHook(float original) {

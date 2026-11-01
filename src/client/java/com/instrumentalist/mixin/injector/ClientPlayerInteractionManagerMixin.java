@@ -6,6 +6,7 @@ import com.instrumentalist.krs.events.features.CancelBlockBreakingEvent;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.level.NoBreakCooldown;
 import com.instrumentalist.krs.utils.world.QueuedMiner;
+import com.instrumentalist.krs.utils.entity.ItemUseHold;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -59,6 +60,12 @@ public abstract class ClientPlayerInteractionManagerMixin {
         krs$destroyingState = null;
         if (cir.getReturnValueZ())
             QueuedMiner.onBlockDestroyed(pos, state);
+    }
+
+    @Inject(method = "releaseUsingItem", at = @At("HEAD"), cancellable = true)
+    private void itemUseHoldHook(Player player, CallbackInfo ci) {
+        if (ItemUseHold.shouldBlockRelease())
+            ci.cancel();
     }
 
     @Inject(method = "attack", at = @At("HEAD"), cancellable = true)

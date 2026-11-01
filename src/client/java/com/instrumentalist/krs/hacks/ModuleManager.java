@@ -78,7 +78,8 @@ public class ModuleManager implements EventListener {
                 new Xray(), new CaveFinder(), new Scaffold(), new Blink(), new TransactionConfirmBlinker(), new ExploitPatcher(),
                 new PortalScreen(), new FullBright(), new TargetStrafe(), new DisablerModule(),
                 new OldHitting(), new Freecam(), new Capes(), new MurdererDetector(),
-                new NoHurtCam(), new FastBow(), new FastEat(), new Zoom(), new PathFinder(),
+                new NoHurtCam(), new FastBow(), new FastEat(), new HitBoxes(),
+                new Zoom(), new PathFinder(),
                 new FastBreak(), new ViewModel(), new EntityDesync(), new Step(), new AntiVoid(),
                 new AutoFish(), new NoJumpCooldown(), new AlwaysRiptide(),
                 new WorldTime(), new ChatCommands(), new Rotations(),
@@ -101,7 +102,9 @@ public class ModuleManager implements EventListener {
                 new BlockBreakSimulator2(), new Debugga(), new NoMoreAutism(), new ChatExcepChecker(),
                 new FukumaiPlayerTracker(), new MovementUtilTest(), new TuckMod(), new Sex(),
                 new VeinMiner(), new TunnelMiner(), new GhostHand(),
-                new Hammer(), new Harvester(), new AutoMine(), new ToolSaver(), new CityBreaker(), new BreakESP()
+                new Hammer(), new Harvester(), new AutoMine(), new ToolSaver(), new CityBreaker(), new BreakESP(),
+                new AutoWeapon(), new AutoGapple(), new AutoShield(), new TriggerBot(), new AimAssist(),
+                new BowAimbot(), new AntiFireball(), new PopCounter(), new AutoXP(), new CrystalAura()
         ));
 
         allModules.addAll(modules);
