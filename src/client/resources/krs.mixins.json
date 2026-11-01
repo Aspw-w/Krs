@@ -29,6 +29,8 @@
     "CommandSuggestionsMixin",
     "ConnectScreenMixin",
     "CustomHeadLayerMixin",
+    "DebugEntryPositionMixin",
+    "DebugEntrySectionPositionMixin",
     "DisconnectedScreenMixin",
     "EntityMixin",
     "EntityRenderDispatcherMixin",

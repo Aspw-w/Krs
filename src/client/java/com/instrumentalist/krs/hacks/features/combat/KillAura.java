@@ -558,7 +558,7 @@ public class KillAura extends Module {
             resetAutoBlock();
 
         if (autoBlock) {
-            isBlocking = mc.player.isSwinging() && (canAutoBlock || wasBlocking);
+            isBlocking = canAutoBlock || wasBlocking;
 
             if (!canAutoBlock) {
                 resetAutoBlock();
@@ -571,7 +571,7 @@ public class KillAura extends Module {
                 finishAutoBlock(currentAutoBlockMode, yaw, pitch);
             }
         } else {
-            isBlocking = mc.player.isSwinging();
+            isBlocking = true;
         }
 
         if (!canAttackTarget) {

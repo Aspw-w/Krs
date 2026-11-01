@@ -642,6 +642,8 @@ public class ModuleRenderable implements Renderable, IMinecraft {
 
                             if (paths == null || paths.isEmpty()) return;
 
+                            paths.set(paths.size() - 1, playerEntity.position());
+
                             PathLines.show(ModuleRenderable.class, mc.player.position(), paths, RenderColors.PATH_FINDER);
 
                             for (Vec3 path : paths) {
@@ -697,6 +699,8 @@ public class ModuleRenderable implements Renderable, IMinecraft {
                         paths = MainPathFinder.computePath(mc.player.position(), new Vec3(xPos, yPos, zPos));
 
                         if (paths == null || paths.isEmpty()) return;
+
+                        paths.set(paths.size() - 1, new Vec3(xPos, yPos, zPos));
 
                         PathLines.show(ModuleRenderable.class, mc.player.position(), paths, RenderColors.PATH_FINDER);
 

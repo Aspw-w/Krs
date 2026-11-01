@@ -13,6 +13,9 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientSuggestionProvider;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.entity.player.Player;
 
 import java.util.ArrayList;
@@ -35,12 +38,34 @@ public final class ChatCommandTree {
             (context, builder) -> SharedSuggestionProvider.suggest(keyNames(), builder);
     private static final SuggestionProvider<ClientSuggestionProvider> TP_TARGETS =
             (context, builder) -> {
-                List<String> targets = new ArrayList<>(playerNames());
+                List<String> targets = new ArrayList<>();
+                BlockPos looking = lookingBlock();
+                if (looking != null)
+                    targets.add(looking.getX() + " " + looking.getY() + " " + looking.getZ());
+                targets.add("~ ~ ~");
                 targets.add("~");
+                targets.addAll(playerNames());
                 return SharedSuggestionProvider.suggest(targets, builder);
             };
-    private static final SuggestionProvider<ClientSuggestionProvider> RELATIVE =
-            (context, builder) -> SharedSuggestionProvider.suggest(List.of("~"), builder);
+    private static final SuggestionProvider<ClientSuggestionProvider> TP_Y =
+            (context, builder) -> {
+                List<String> values = new ArrayList<>();
+                BlockPos looking = lookingBlock();
+                if (looking != null)
+                    values.add(looking.getY() + " " + looking.getZ());
+                values.add("~ ~");
+                values.add("~");
+                return SharedSuggestionProvider.suggest(values, builder);
+            };
+    private static final SuggestionProvider<ClientSuggestionProvider> TP_Z =
+            (context, builder) -> {
+                List<String> values = new ArrayList<>();
+                BlockPos looking = lookingBlock();
+                if (looking != null)
+                    values.add(String.valueOf(looking.getZ()));
+                values.add("~");
+                return SharedSuggestionProvider.suggest(values, builder);
+            };
 
     private ChatCommandTree() {
     }
@@ -69,16 +94,16 @@ public final class ChatCommandTree {
                         .then(argument("key", StringArgumentType.word()).suggests(KEYS).executes(NOOP))));
 
         commands.register(literal("tp")
-                .then(argument("target", StringArgumentType.word()).suggests(TP_TARGETS).executes(NOOP)
-                        .then(argument("y", StringArgumentType.word()).suggests(RELATIVE)
-                                .then(argument("z", StringArgumentType.word()).suggests(RELATIVE).executes(NOOP)))));
+                .then(argument("player|x", TokenArgument.token()).suggests(TP_TARGETS).executes(NOOP)
+                        .then(argument("y", TokenArgument.token()).suggests(TP_Y)
+                                .then(argument("z", TokenArgument.token()).suggests(TP_Z).executes(NOOP)))));
 
         commands.register(literal("vclip")
                 .then(argument("height", DoubleArgumentType.doubleArg()).executes(NOOP)));
 
         commands.register(literal("notify")
-                .then(argument("title", StringArgumentType.word())
-                        .then(argument("message", StringArgumentType.word()).executes(NOOP))));
+                .then(argument("title", TokenArgument.token())
+                        .then(argument("message", TokenArgument.token()).executes(NOOP))));
 
         commands.register(literal("server").executes(NOOP)
                 .then(argument("address", StringArgumentType.greedyString()).executes(NOOP)));
@@ -99,6 +124,13 @@ public final class ChatCommandTree {
         for (Module module : modules)
             names.add(module.moduleName.replace(" ", ""));
         return names;
+    }
+
+    private static BlockPos lookingBlock() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK)
+            return hit.getBlockPos();
+        return null;
     }
 
     private static Collection<String> playerNames() {
