@@ -15,6 +15,7 @@ import com.instrumentalist.krs.utils.math.ToolUtil;
 import com.instrumentalist.krs.utils.render.BlockHighlight;
 import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.utils.value.BooleanValue;
+import com.instrumentalist.krs.utils.world.QueuedMiner;
 import com.instrumentalist.mixin.injector.MultiPlayerGameModeAccessor;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;

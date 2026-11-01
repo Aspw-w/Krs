@@ -13,7 +13,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.level.NoPlaceCooldown;
 import com.instrumentalist.krs.hacks.features.render.Camera;
 import com.instrumentalist.krs.hacks.features.dev.GhostHand;
-import com.instrumentalist.krs.hacks.features.dev.QueuedMiner;
+import com.instrumentalist.krs.utils.world.QueuedMiner;
 import com.instrumentalist.krs.hacks.features.dev.AutoMine;
 import com.instrumentalist.krs.hacks.features.dev.ToolSaver;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;

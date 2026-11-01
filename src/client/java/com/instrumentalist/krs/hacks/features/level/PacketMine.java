@@ -7,7 +7,7 @@ import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.world.PacketBreaker;
-import com.instrumentalist.krs.hacks.features.dev.QueuedMiner;
+import com.instrumentalist.krs.utils.world.QueuedMiner;
 import com.instrumentalist.krs.utils.input.Keys;
 import com.instrumentalist.krs.utils.render.BlockHighlight;
 import com.instrumentalist.krs.utils.render.RenderColors;

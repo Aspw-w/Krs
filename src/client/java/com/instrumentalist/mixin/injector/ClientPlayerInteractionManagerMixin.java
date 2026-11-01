@@ -5,7 +5,7 @@ import com.instrumentalist.krs.events.features.AttackEvent;
 import com.instrumentalist.krs.events.features.CancelBlockBreakingEvent;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.level.NoBreakCooldown;
-import com.instrumentalist.krs.hacks.features.dev.QueuedMiner;
+import com.instrumentalist.krs.utils.world.QueuedMiner;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
