@@ -24,6 +24,7 @@
     "ClientConnectionMixin",
     "ClientPlayerEntityMixin",
     "ClientPlayerInteractionManagerMixin",
+    "CommandSuggestionsMixin",
     "ConnectScreenMixin",
     "CustomHeadLayerMixin",
     "DisconnectedScreenMixin",

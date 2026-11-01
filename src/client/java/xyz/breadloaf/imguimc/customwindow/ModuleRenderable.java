@@ -521,6 +521,7 @@ public class ModuleRenderable implements Renderable, IMinecraft {
             showLog(chatMode, "t/toggle <module> -> toggle module");
             showLog(chatMode, "ign/name -> copy your current username");
             showLog(chatMode, "bind <module> <key> -> bind module");
+            showLog(chatMode, "binds -> show every binds");
             showLog(chatMode, "crash -> crash the server");
             showLog(chatMode, "copynbt -> copy your holding item nbt");
             showLog(chatMode, "pl/plugins -> detect server plugins");
@@ -735,6 +736,31 @@ public class ModuleRenderable implements Renderable, IMinecraft {
                 showLog(chatMode, "Failed to vclip");
                 Client.notificationManager.addNotification("Failed", "Failed to vclip");
             }
+        } else if (command.equalsIgnoreCase("binds")) {
+            List<String> binds = new ArrayList<>();
+            List<Module> sortedModules = new ArrayList<>(ModuleManager.allModules);
+            sortedModules.sort(Comparator.comparing(module -> module.moduleName, String.CASE_INSENSITIVE_ORDER));
+            for (Module module : sortedModules) {
+                if (module.key != Keys.KEY_UNKNOWN)
+                    binds.add(module.moduleName + " -> " + keyName(module.key));
+
+                for (Field field : ModuleManager.getSettings(module)) {
+                    try {
+                        if (field.get(module) instanceof KeyBindValue keyBind && keyBind.get() != Keys.KEY_UNKNOWN)
+                            binds.add(module.moduleName + " > " + keyBind.name + " -> " + keyName(keyBind.get()));
+                    } catch (IllegalAccessException ignored) {
+                    }
+                }
+            }
+
+            if (binds.isEmpty()) {
+                showLog(chatMode, "No binds");
+                return;
+            }
+
+            showLog(chatMode, "Binds (" + binds.size() + "):");
+            for (String bind : binds)
+                showLog(chatMode, bind);
         } else if (command.equalsIgnoreCase("session")) {
             if (mc.getConnection() != null)
                 showLog(chatMode, String.valueOf(mc.getConnection().getLocalGameProfile().id()));
