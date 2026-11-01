@@ -26,7 +26,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
-public class HatenaPiano extends Module {
+public class PianoProGamer extends Module {
     @Setting
     private final TextValue song = new TextValue("Song", "C D E F E D C R E F G A G F E R C C C C C C D D E E F F E D C");
 
@@ -59,8 +59,8 @@ public class HatenaPiano extends Module {
     private boolean waitingForClick = false;
     private boolean releaseRotation = false;
 
-    public HatenaPiano() {
-        super("Hatena Piano", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
+    public PianoProGamer() {
+        super("Piano Pro Gamer", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     private static final PianoKey[] WHITE_KEYS = new PianoKey[]{
@@ -94,11 +94,6 @@ public class HatenaPiano extends Module {
             new PianoKey(147.3f, 21.1f),
             new PianoKey(148.5f, 20.3f)
     };
-
-    @Override
-    public String description() {
-        return "White-key player. Use C D E F G A B, C2, K1..K29, R, and :ticks";
-    }
 
     @Override
     public String tag() {

@@ -16,10 +16,10 @@ import java.awt.*;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class FukumaiPlayerTracker extends Module {
+public class BlueMapPlayerTracker extends Module {
 
-    public FukumaiPlayerTracker() {
-        super("Fukumai Player Tracker", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
+    public BlueMapPlayerTracker() {
+        super("BlueMap Player Tracker", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     private static volatile List<WebAccessUtil.PlayerInfo> playerInfoList = null;

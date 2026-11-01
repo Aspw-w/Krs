@@ -88,7 +88,7 @@ public class AutoWeapon extends Module {
                 continue;
 
             ItemStack stack = inventory.getItem(slot);
-            if (stack.isEmpty() || ToolSaver.isAboutToBreak(stack))
+            if (stack.isEmpty() || AutoToolSaver.isAboutToBreak(stack))
                 continue;
 
             double damage = damage(player, stack, target);

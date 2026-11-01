@@ -15,7 +15,7 @@ import com.instrumentalist.krs.hacks.features.render.Camera;
 import com.instrumentalist.krs.hacks.features.dev.GhostHand;
 import com.instrumentalist.krs.utils.world.QueuedMiner;
 import com.instrumentalist.krs.hacks.features.dev.AutoMine;
-import com.instrumentalist.krs.hacks.features.dev.ToolSaver;
+import com.instrumentalist.krs.hacks.features.dev.AutoToolSaver;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import com.instrumentalist.krs.hacks.features.render.ViewModel;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
@@ -119,13 +119,13 @@ public abstract class MinecraftClientMixin implements IMinecraft {
     private void queuedMinerSuppressHook(boolean breaking, CallbackInfo ci) {
         if (QueuedMiner.shouldSuppressManualMining()
                 || AutoMine.shouldSuppressManualMining()
-                || breaking && ToolSaver.shouldBlockMining(this.hitResult))
+                || breaking && AutoToolSaver.shouldBlockMining(this.hitResult))
             ci.cancel();
     }
 
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
     private void toolSaverStartAttackHook(CallbackInfoReturnable<Boolean> cir) {
-        if (ToolSaver.shouldBlockMining(this.hitResult))
+        if (AutoToolSaver.shouldBlockMining(this.hitResult))
             cir.setReturnValue(false);
     }
 

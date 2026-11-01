@@ -17,7 +17,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
-public class ToolSaver extends Module {
+public class AutoToolSaver extends Module {
     private static final long NOTIFY_COOLDOWN_MILLIS = 4_000L;
 
     @Setting
@@ -31,8 +31,8 @@ public class ToolSaver extends Module {
 
     private long lastNotifyMillis;
 
-    public ToolSaver() {
-        super("Tool Saver", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
+    public AutoToolSaver() {
+        super("Auto Tool Saver", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override
@@ -53,7 +53,7 @@ public class ToolSaver extends Module {
     }
 
     public static boolean isAboutToBreak(ItemStack stack) {
-        return ModuleManager.getModuleState(ToolSaver.class)
+        return ModuleManager.getModuleState(AutoToolSaver.class)
                 && stack != null
                 && !stack.isEmpty()
                 && stack.isDamageableItem()

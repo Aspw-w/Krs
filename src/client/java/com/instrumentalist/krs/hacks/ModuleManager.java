@@ -82,14 +82,14 @@ public class ModuleManager implements EventListener {
                 new Zoom(), new PathFinder(),
                 new FastBreak(), new ViewModel(), new EntityDesync(), new Step(), new AntiVoid(),
                 new AutoFish(), new NoJumpCooldown(), new AlwaysRiptide(),
-                new WorldTime(), new ChatCommands(), new Rotations(),
+                new WorldTime(), new ChatCommands(), new ServerRotations(),
                 new PluginsDetector(), new NameTags(), new ESP(), new MovementFix(), new LongThrow(),
                 new MaceExploit(), new NoPush(), new LookTP(),
                 new AntiCheatDetector(), new HackerDetector(), new PackSpoofer(),
                 new EntityFly(), new WidelyPutin(), new Imposter(), new CustomModel(), new Stalker(),
                 new PacketDuper(), new SneakSpam(), new ImGui(), new ClickGui(), new ConsoleSpammer(),
                 new Reach(), new NoCombatDelay(), new AutoBypass(), new PingDisabler(), new QuickMacro(),
-                new FPSBobbing(), new CrossbowExploit(), new WTap(), new HatenaPiano(),
+                new FPSBobbing(), new CrossbowExploit(), new WTap(), new PianoProGamer(),
                 new SafeWalk(), new Parkour(), new AutoWalk(), new AutoRespawn(),
                 new AutoLeave(), new AutoSneak(), new MiddleClick(), new AntiAFK(),
                 new NoWeb(), new NoBlockEffects(), new AntiLevitation(), new FastFall(),
@@ -99,10 +99,10 @@ public class ModuleManager implements EventListener {
         ));
 
         devModules.addAll(List.of(
-                new BlockBreakSimulator2(), new Debugga(), new NoMoreAutism(), new ChatExcepChecker(),
-                new FukumaiPlayerTracker(), new MovementUtilTest(), new TuckMod(), new Sex(),
+                new SigmaBitcoinMiner(), new TargetUUIDDebugger(), new NoMoreAutism(), new ChatExceptionChecker(),
+                new BlueMapPlayerTracker(), new MovementDebugger(), new MMCFly(), new TrySex(),
                 new VeinMiner(), new TunnelMiner(), new GhostHand(),
-                new Hammer(), new Harvester(), new AutoMine(), new ToolSaver(), new CityBreaker(), new BreakESP(),
+                new LengBreaker(), new Harvester(), new AutoMine(), new AutoToolSaver(), new CityBreaker(), new BreakESP(),
                 new AutoWeapon(), new AutoGapple(), new AutoShield(), new TriggerBot(), new AimAssist(),
                 new BowAimbot(), new AntiFireball(), new PopCounter(), new AutoXP(), new CrystalAura()
         ));

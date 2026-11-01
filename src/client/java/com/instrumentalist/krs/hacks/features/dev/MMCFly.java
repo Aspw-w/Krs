@@ -5,19 +5,15 @@ import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.math.TimerUtil;
-import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.common.ClientboundKeepAlivePacket;
-import net.minecraft.network.protocol.common.ServerboundKeepAlivePacket;
-import net.minecraft.network.protocol.common.ServerboundPongPacket;
 import com.instrumentalist.krs.utils.input.Keys;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 
-public class TuckMod extends Module {
+public class MMCFly extends Module {
 
-    public TuckMod() {
-        super("Tuck Mod", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
+    public MMCFly() {
+        super("MMC Fly", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     private int tick;

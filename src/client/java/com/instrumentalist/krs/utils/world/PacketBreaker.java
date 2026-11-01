@@ -1,6 +1,6 @@
 package com.instrumentalist.krs.utils.world;
 
-import com.instrumentalist.krs.hacks.features.dev.ToolSaver;
+import com.instrumentalist.krs.hacks.features.dev.AutoToolSaver;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.utils.math.ToolUtil;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
@@ -173,7 +173,7 @@ public final class PacketBreaker {
 
     private static int safeBestTool(LocalPlayer player, BlockPos pos) {
         int slot = ToolUtil.INSTANCE.findBestTool(pos);
-        if (slot < 0 || ToolSaver.isAboutToBreak(player.getInventory().getItem(slot)))
+        if (slot < 0 || AutoToolSaver.isAboutToBreak(player.getInventory().getItem(slot)))
             return -1;
         return slot;
     }

@@ -42,7 +42,7 @@ public final class Imposter extends Module {
 
     @Override
     public String description() {
-        return "Spawns an Among Us Imposter above you.";
+        return "Spawns an Among Us Imposter above you";
     }
 
     @Override

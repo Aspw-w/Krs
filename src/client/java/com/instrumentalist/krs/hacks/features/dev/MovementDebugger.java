@@ -14,7 +14,7 @@ import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.Locale;
 
-public class MovementUtilTest extends Module {
+public class MovementDebugger extends Module {
     @Setting
     private final ListValue mode = new ListValue(
             "Mode",
@@ -63,13 +63,8 @@ public class MovementUtilTest extends Module {
 
     private int ticks;
 
-    public MovementUtilTest() {
-        super("Movement Util Test", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
-    }
-
-    @Override
-    public String description() {
-        return "Manual tester for MovementUtil helpers";
+    public MovementDebugger() {
+        super("Movement Debugger", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

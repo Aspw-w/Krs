@@ -110,7 +110,7 @@ public class AutoMine extends Module {
 
         current = pos.immutable();
         selectTool(player, current);
-        if (ToolSaver.isAboutToBreak(player.getMainHandItem())) {
+        if (AutoToolSaver.isAboutToBreak(player.getMainHandItem())) {
             stop();
             return;
         }

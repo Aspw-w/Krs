@@ -12,7 +12,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
-public class Hammer extends QueuedMiner {
+public class LengBreaker extends QueuedMiner {
     private static final float HARDNESS_TOLERANCE = 1.5F;
 
     @Setting
@@ -36,8 +36,8 @@ public class Hammer extends QueuedMiner {
     @Setting
     private final IntValue instantSpeed = new IntValue("Instant Blocks/Tick", 4, 1, 16);
 
-    public Hammer() {
-        super("Hammer", RenderColors.HAMMER);
+    public LengBreaker() {
+        super("Leng Breaker", RenderColors.HAMMER);
     }
 
     @Override

@@ -8,7 +8,6 @@ import com.instrumentalist.krs.events.features.TickEvent;
 import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
-import com.instrumentalist.krs.utils.value.BooleanValue;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -17,10 +16,10 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import com.instrumentalist.krs.utils.input.Keys;
 
-public class BlockBreakSimulator2 extends Module {
+public class SigmaBitcoinMiner extends Module {
 
-    public BlockBreakSimulator2() {
-        super("Block Break Simulator 2", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
+    public SigmaBitcoinMiner() {
+        super("Sigma Bitcoin Miner", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

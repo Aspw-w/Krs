@@ -19,7 +19,7 @@ public class ClickGui extends Module {
 
     @Override
     public String description() {
-        return "344 is RIGHT_SHIFT";
+        return "RIGHT_SHIFT = Code 344 (Default)";
     }
 
     @Override

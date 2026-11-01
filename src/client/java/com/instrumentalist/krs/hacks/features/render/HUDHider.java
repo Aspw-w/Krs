@@ -11,11 +11,6 @@ public class HUDHider extends Module {
         super("Hud Hider", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, true);
     }
 
-    @Override
-    public String description() {
-        return "Hides hud elements";
-    }
-
     @Setting
     public static final BooleanValue board = new BooleanValue("Scoreboard", true);
 

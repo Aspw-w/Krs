@@ -9,10 +9,10 @@ import com.instrumentalist.krs.utils.input.Keys;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 
-public class ChatExcepChecker extends Module {
+public class ChatExceptionChecker extends Module {
 
-    public ChatExcepChecker() {
-        super("Chat Excep Checker", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
+    public ChatExceptionChecker() {
+        super("Chat Exception Checker", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

@@ -6,19 +6,19 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.input.Keys;
 
-public class Rotations extends Module {
+public class ServerRotations extends Module {
     @Setting
-    public static final BooleanValue realistic = new BooleanValue("Realistic", false);
+    public static final BooleanValue vanillaBody = new BooleanValue("Vanilla Body", true);
 
     @Setting
-    public static final BooleanValue capeFix = new BooleanValue("Cape Fix", false);
+    public static final BooleanValue capeMovementCorrection = new BooleanValue("Cape Movement Correction", true);
 
-    public Rotations() {
-        super("Rotations", ModuleCategory.Render, Keys.KEY_UNKNOWN, true, false);
+    public ServerRotations() {
+        super("Server Rotations", ModuleCategory.Render, Keys.KEY_UNKNOWN, true, false);
     }
 
     public static boolean shouldUseVanilla() {
-        return ModuleManager.getModuleState(Rotations.class) && realistic.get();
+        return ModuleManager.getModuleState(ServerRotations.class) && vanillaBody.get();
     }
 
     @Override

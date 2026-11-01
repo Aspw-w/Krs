@@ -5,7 +5,7 @@ import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.Capes;
 import com.instrumentalist.krs.hacks.features.render.OldHitting;
-import com.instrumentalist.krs.hacks.features.render.Rotations;
+import com.instrumentalist.krs.hacks.features.render.ServerRotations;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
@@ -78,11 +78,11 @@ public abstract class PlayerEntityRendererMixin implements IMinecraft {
                 || avatar != mc.player
                 || Client.rotationManager == null
                 || !Client.rotationManager.isRotating()
-                || !ModuleManager.getModuleState(Rotations.class)
-                || !Rotations.capeFix.get())
+                || !ModuleManager.getModuleState(ServerRotations.class)
+                || !ServerRotations.capeMovementCorrection.get())
             return fallback;
 
-        if (Rotations.realistic.get())
+        if (ServerRotations.vanillaBody.get())
             return Client.rotationManager.getInterpolatedBodyYaw(tickDelta);
 
         if (Client.rotationManager.isReturning())
@@ -102,7 +102,7 @@ public abstract class PlayerEntityRendererMixin implements IMinecraft {
         applyEmptyHandSpoofArmPose(state);
         applyOldHittingUseState(state);
 
-        if (Client.rotationManager.isRotating() && ModuleManager.getModuleState(Rotations.class) && !Rotations.realistic.get()) {
+        if (Client.rotationManager.isRotating() && ModuleManager.getModuleState(ServerRotations.class) && !ServerRotations.vanillaBody.get()) {
             float headYaw = Client.rotationManager.getInterpolatedYaw(f);
             if (Client.rotationManager.isReturning()) {
                 float bodyYaw = Client.rotationManager.getInterpolatedReturningBodyYaw(f);

@@ -2,7 +2,7 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.render.Rotations;
+import com.instrumentalist.krs.hacks.features.render.ServerRotations;
 import com.instrumentalist.krs.hacks.features.render.TrueSight;
 import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
 import com.instrumentalist.krs.utils.render.custommodel.CustomModelRenderer;
@@ -97,7 +97,7 @@ public abstract class LivingEntityRendererMixin {
         return !GuiEntityRenderGuard.isActive()
                 && Client.rotationManager != null
                 && Client.rotationManager.isRotating()
-                && Rotations.shouldUseVanilla()
+                && ServerRotations.shouldUseVanilla()
                 && entity == Minecraft.getInstance().player;
     }
 }

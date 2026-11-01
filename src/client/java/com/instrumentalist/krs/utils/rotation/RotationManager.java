@@ -118,6 +118,7 @@ public class RotationManager {
                 renderYaw += Mth.wrapDegrees(mc.player.getYRot() - renderYaw);
                 prevRenderBodyYaw = renderBodyYaw;
                 renderBodyYaw += Mth.wrapDegrees(mc.player.yBodyRot - renderBodyYaw);
+                fixRenderBodyYawInterpolation();
             } else {
                 renderYaw = getClientYaw();
             }
@@ -550,7 +551,7 @@ public class RotationManager {
             return getInterpolatedYaw(partialTicks);
         }
 
-        return Mth.rotLerp(partialTicks, prevRenderYaw, renderBodyYaw);
+        return Mth.rotLerp(partialTicks, prevRenderBodyYaw, renderBodyYaw);
     }
 
     public boolean isRotating() {
@@ -729,10 +730,9 @@ public class RotationManager {
         float horizontalDistanceSqr = (float) (deltaX * deltaX + deltaZ * deltaZ);
 
         if (horizontalDistanceSqr > 0.0025000002F) {
-            bodyTarget = (float) (Mth.atan2(deltaZ, deltaX) * (180.0D / Math.PI)) - 90.0F;
-            float movementYawDiff = Math.abs(Mth.wrapDegrees(headYaw - bodyTarget));
-            if (movementYawDiff >= 95.0F && movementYawDiff < 265.0F)
-                bodyTarget -= 180.0F;
+            float walkDirection = (float) Mth.atan2(deltaZ, deltaX) * (180.0F / (float) Math.PI) - 90.0F;
+            float movementYawDiff = Math.abs(Mth.wrapDegrees(headYaw) - walkDirection);
+            bodyTarget = movementYawDiff > 95.0F && movementYawDiff < 265.0F ? walkDirection - 180.0F : walkDirection;
         }
 
         if (((SwingStateAccessor) ((LivingEntityAccessor) mc.player).krs$getSwingState()).krs$getAnimation() > 0.0F)
