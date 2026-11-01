@@ -34,6 +34,16 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import com.instrumentalist.krs.utils.input.Keys;
+import com.instrumentalist.krs.utils.command.ChatCommandTree;
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.ParseResults;
+import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.context.SuggestionContext;
+import com.mojang.brigadier.suggestion.Suggestion;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.tree.CommandNode;
+import com.mojang.brigadier.tree.LiteralCommandNode;
+import net.minecraft.client.multiplayer.ClientSuggestionProvider;
 import org.nvgu.NVGU;
 import org.nvgu.util.Alignment;
 import org.nvgu.util.Border;
@@ -95,6 +105,7 @@ public class NanoVGClickGuiScreen extends Screen {
     private static CommandTab rememberedCommandTab = CommandTab.COMMAND;
     private static final int MAX_COMMAND_INPUT_LENGTH = 256;
     private static final int MAX_COMMAND_HISTORY = 50;
+    private static final int MAX_COMMAND_SUGGESTION_ROWS = 10;
     private static final List<String> commandHistory = new ArrayList<>();
     private static Module rememberedOpenedListModule;
     private static ListValue rememberedOpenedListValue;
@@ -137,6 +148,19 @@ public class NanoVGClickGuiScreen extends Screen {
     private CommandTab selectedCommandTab = CommandTab.COMMAND;
     private String commandInput = "";
     private int commandHistoryIndex = -1;
+    private List<Suggestion> commandSuggestionList = List.of();
+    private List<String> commandUsageLines = List.of();
+    private String commandSuggestionInput;
+    private int commandSuggestionCaret = -1;
+    private String commandSuggestionAppliedInput;
+    private String commandSuggestionOriginal = "";
+    private int commandSuggestionIndex;
+    private int commandSuggestionOffset;
+    private int commandSuggestionVisibleRows;
+    private boolean commandSuggestionsVisible;
+    private boolean commandSuggestionTabCycles;
+    private Rect commandInputRect = new Rect(0f, 0f, 0f, 0f);
+    private Rect commandSuggestionRect = new Rect(0f, 0f, 0f, 0f);
     private String lastSeenCommandLog;
     private int lastSeenCommandLogCount = -1;
     private float commandLogWrapWidth = -1f;
@@ -450,6 +474,11 @@ public class NanoVGClickGuiScreen extends Screen {
         if (nudgeHoveredColorSlider(scaledX, scaledY, vertical))
             return true;
 
+        if (commandSuggestionsVisible && !commandSuggestionList.isEmpty() && commandSuggestionRect.contains(scaledX, scaledY)) {
+            scrollCommandSuggestions(vertical > 0d ? -1 : 1);
+            return true;
+        }
+
         if (isSettingsDockOpen()
                 && (settingsPanelViewport.contains(scaledX, scaledY)
                 || settingsPanelScrollbarTrackRect.contains(scaledX, scaledY))) {
@@ -514,6 +543,9 @@ public class NanoVGClickGuiScreen extends Screen {
                     cancelConfigRename();
                 return true;
             }
+
+            if (textFocus == TextFocus.COMMAND && handleCommandSuggestionKey(key, (event.modifiers() & Keys.MOD_SHIFT) != 0))
+                return true;
 
             if (textFocus == TextFocus.COMMAND && (key == Keys.KEY_UP || key == Keys.KEY_DOWN)) {
                 browseCommandHistory(key == Keys.KEY_UP ? -1 : 1);
@@ -1509,6 +1541,7 @@ public class NanoVGClickGuiScreen extends Screen {
         }));
 
         renderScrollbar(vg, listViewport, contentHeight, listScroll);
+        renderCommandSuggestions(vg, y + height - u(6f));
         return logs.size();
     }
 
@@ -1516,6 +1549,8 @@ public class NanoVGClickGuiScreen extends Screen {
         boolean active = textFocus == TextFocus.COMMAND;
         Rect input = new Rect(x, y, width - u(91f), u(24f));
         Rect button = new Rect(x + width - u(83f), y, u(83f), u(24f));
+        commandInputRect = input;
+        updateCommandSuggestions();
         addControl(ControlType.COMMAND_INPUT, input, null, null, 0);
         addControl(ControlType.COMMAND_RUN, button, null, null, 0);
 
@@ -1528,6 +1563,7 @@ public class NanoVGClickGuiScreen extends Screen {
         Color textColor = commandInput.isBlank() && !active ? NanoVGTheme.muted(180) : NanoVGTheme.TEXT;
         NVGFonts.ICON.drawText(MaterialIcon.FORWARD_IOS, input.x + u(8f), input.y + u(5f), font(12f), active ? NanoVGTheme.INPUT_FOCUS : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, true);
         renderInputText(vg, TextFocus.COMMAND, null, active, text, inputFont, input.x + u(26f), input.y + u(6f), input.y + u(6f), input.width - u(32f), input, textColor);
+        renderCommandSuggestionGhost(vg, input, text, inputFont);
 
         renderCommandButton(vg, button, "command-run", "Run", !commandInput.isBlank(), false);
     }
@@ -1702,6 +1738,246 @@ public class NanoVGClickGuiScreen extends Screen {
 
         players.sort(Comparator.comparing(PlayerEntry::name, String.CASE_INSENSITIVE_ORDER));
         return players;
+    }
+
+    private void updateCommandSuggestions() {
+        if (textFocus != TextFocus.COMMAND) {
+            commandSuggestionsVisible = false;
+            commandSuggestionInput = null;
+            commandSuggestionAppliedInput = null;
+            return;
+        }
+
+        int caret = Math.clamp(textCaret, 0, commandInput.length());
+        if (commandInput.equals(commandSuggestionInput) && caret == commandSuggestionCaret)
+            return;
+
+        commandSuggestionInput = commandInput;
+        commandSuggestionCaret = caret;
+        if (commandInput.equals(commandSuggestionAppliedInput))
+            return;
+
+        commandSuggestionAppliedInput = null;
+        commandSuggestionTabCycles = false;
+        refreshCommandSuggestions(caret);
+        commandSuggestionsVisible = !commandInput.isEmpty()
+                && !commandSuggestionList.isEmpty()
+                && minecraft != null
+                && minecraft.options.autoSuggestions().get();
+    }
+
+    private void refreshCommandSuggestions(int caret) {
+        CommandDispatcher<ClientSuggestionProvider> commands = ChatCommandTree.dispatcher();
+        ClientSuggestionProvider source = minecraft != null && minecraft.player != null
+                ? minecraft.player.connection.getSuggestionsProvider()
+                : null;
+        ParseResults<ClientSuggestionProvider> parse = commands.parse(new StringReader(commandInput), source);
+        Suggestions suggestions = commands.getCompletionSuggestions(parse, caret).getNow(null);
+
+        commandSuggestionOriginal = commandInput;
+        commandSuggestionIndex = 0;
+        commandSuggestionOffset = 0;
+        commandSuggestionList = suggestions == null ? List.of() : sortCommandSuggestions(suggestions.getList(), caret);
+        commandUsageLines = commandSuggestionList.isEmpty() ? commandUsage(commands, parse, caret, source) : List.of();
+    }
+
+    private List<Suggestion> sortCommandSuggestions(List<Suggestion> suggestions, int caret) {
+        String partial = commandInput.substring(0, Math.min(caret, commandInput.length()));
+        String lastWord = partial.substring(partial.lastIndexOf(' ') + 1).toLowerCase(Locale.ROOT);
+        List<Suggestion> matching = new ArrayList<>();
+        List<Suggestion> others = new ArrayList<>();
+        for (Suggestion suggestion : suggestions) {
+            if (suggestion.getText().toLowerCase(Locale.ROOT).startsWith(lastWord))
+                matching.add(suggestion);
+            else
+                others.add(suggestion);
+        }
+        matching.addAll(others);
+        return matching;
+    }
+
+    private static List<String> commandUsage(
+            CommandDispatcher<ClientSuggestionProvider> commands,
+            ParseResults<ClientSuggestionProvider> parse,
+            int caret,
+            ClientSuggestionProvider source
+    ) {
+        try {
+            SuggestionContext<ClientSuggestionProvider> context = parse.getContext().findSuggestionContext(caret);
+            List<String> lines = new ArrayList<>();
+            for (Map.Entry<CommandNode<ClientSuggestionProvider>, String> entry : commands.getSmartUsage(context.parent, source).entrySet()) {
+                if (!(entry.getKey() instanceof LiteralCommandNode))
+                    lines.add(entry.getValue());
+            }
+            return lines;
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
+    }
+
+    private boolean handleCommandSuggestionKey(int key, boolean shift) {
+        updateCommandSuggestions();
+        if (key == Keys.KEY_TAB) {
+            if (commandSuggestionList.isEmpty())
+                return true;
+            if (!commandSuggestionsVisible) {
+                commandSuggestionsVisible = true;
+                return true;
+            }
+
+            if (commandSuggestionTabCycles)
+                cycleCommandSuggestion(shift ? -1 : 1);
+            applyCommandSuggestion();
+            commandSuggestionTabCycles = true;
+            return true;
+        }
+
+        if (!commandSuggestionsVisible || commandSuggestionList.isEmpty())
+            return false;
+
+        if (key == Keys.KEY_UP || key == Keys.KEY_DOWN) {
+            cycleCommandSuggestion(key == Keys.KEY_UP ? -1 : 1);
+            commandSuggestionTabCycles = false;
+            return true;
+        }
+
+        if (key == Keys.KEY_ESCAPE) {
+            commandSuggestionsVisible = false;
+            return true;
+        }
+
+        return false;
+    }
+
+    private void cycleCommandSuggestion(int direction) {
+        int size = commandSuggestionList.size();
+        if (size == 0)
+            return;
+
+        commandSuggestionIndex = Math.floorMod(commandSuggestionIndex + direction, size);
+        int rows = Math.max(1, commandSuggestionVisibleRows);
+        if (commandSuggestionIndex < commandSuggestionOffset)
+            commandSuggestionOffset = commandSuggestionIndex;
+        else if (commandSuggestionIndex >= commandSuggestionOffset + rows)
+            commandSuggestionOffset = commandSuggestionIndex - rows + 1;
+    }
+
+    private void scrollCommandSuggestions(int direction) {
+        int rows = Math.max(1, commandSuggestionVisibleRows);
+        int maxOffset = Math.max(0, commandSuggestionList.size() - rows);
+        commandSuggestionOffset = Math.clamp(commandSuggestionOffset + direction, 0, maxOffset);
+    }
+
+    private void applyCommandSuggestion() {
+        if (commandSuggestionList.isEmpty())
+            return;
+
+        Suggestion suggestion = commandSuggestionList.get(Math.clamp(commandSuggestionIndex, 0, commandSuggestionList.size() - 1));
+        String applied = suggestion.apply(commandSuggestionOriginal);
+        if (applied.length() > MAX_COMMAND_INPUT_LENGTH)
+            applied = applied.substring(0, MAX_COMMAND_INPUT_LENGTH);
+
+        commandInput = applied;
+        commandHistoryIndex = -1;
+        textCaret = Math.min(applied.length(), suggestion.getRange().getStart() + suggestion.getText().length());
+        textAnchor = textCaret;
+        commandSuggestionAppliedInput = applied;
+    }
+
+    private void renderCommandSuggestionGhost(NVGU vg, Rect input, String shownText, float fontSize) {
+        if (!commandSuggestionsVisible || commandSuggestionList.isEmpty() || !commandInput.equals(commandSuggestionOriginal)
+                || textCaret != commandInput.length())
+            return;
+
+        Suggestion suggestion = commandSuggestionList.get(commandSuggestionIndex);
+        int start = suggestion.getRange().getStart();
+        if (start > commandInput.length() || suggestion.getRange().getEnd() != commandInput.length())
+            return;
+
+        String typed = commandInput.substring(start);
+        if (!suggestion.getText().startsWith(typed) || suggestion.getText().length() <= typed.length())
+            return;
+
+        float textX = input.x + u(26f);
+        float maxWidth = input.width - u(32f);
+        float scroll = inputScroll(shownText, true, fontSize, maxWidth);
+        float ghostX = textX - scroll + NVGFonts.INTER.getWidth(commandInput, fontSize);
+        String ghost = suggestion.getText().substring(typed.length());
+        vg.scissor(textX - u(2f), input.y, maxWidth + u(4f), input.height, () ->
+                NVGFonts.INTER.drawText(ghost, ghostX, input.y + u(6f), fontSize, NanoVGTheme.muted(150), Alignment.LEFT_TOP, true));
+    }
+
+    private void renderCommandSuggestions(NVGU vg, float bottomLimit) {
+        commandSuggestionRect = new Rect(0f, 0f, 0f, 0f);
+        if (textFocus != TextFocus.COMMAND)
+            return;
+
+        boolean showList = commandSuggestionsVisible && !commandSuggestionList.isEmpty();
+        boolean showUsage = !showList && !commandUsageLines.isEmpty() && textCaret == commandInput.length();
+        if (!showList && !showUsage)
+            return;
+
+        float fontSize = font(11f);
+        float rowHeight = u(15f);
+        float paddingX = u(8f);
+        Rect input = commandInputRect;
+        float top = input.y + input.height + u(3f);
+        int available = Math.max(1, (int) ((bottomLimit - top - u(6f)) / rowHeight));
+        List<String> lines = new ArrayList<>();
+        int rows;
+        int rangeStart;
+        if (showList) {
+            rows = Math.min(Math.min(commandSuggestionList.size(), MAX_COMMAND_SUGGESTION_ROWS), available);
+            commandSuggestionVisibleRows = rows;
+            commandSuggestionOffset = Math.clamp(commandSuggestionOffset, 0, Math.max(0, commandSuggestionList.size() - rows));
+            for (Suggestion suggestion : commandSuggestionList)
+                lines.add(suggestion.getText());
+            rangeStart = commandSuggestionList.getFirst().getRange().getStart();
+        } else {
+            rows = Math.min(commandUsageLines.size(), available);
+            lines.addAll(commandUsageLines);
+            rangeStart = commandInput.length();
+        }
+
+        float textWidth = 0f;
+        for (String line : lines)
+            textWidth = Math.max(textWidth, NVGFonts.INTER.getWidth(line, fontSize));
+        float width = textWidth + paddingX * 2f;
+        float height = rows * rowHeight + u(6f);
+        float textX = input.x + u(26f);
+        float maxWidth = input.width - u(32f);
+        float scroll = inputScroll(inputText(commandInput, true, ""), true, fontSize, maxWidth);
+        String before = commandInput.substring(0, Math.clamp(rangeStart, 0, commandInput.length()));
+        float anchorX = textX - scroll + NVGFonts.INTER.getWidth(before, fontSize) - paddingX;
+        float x = Math.clamp(anchorX, input.x, Math.max(input.x, input.x + input.width - width));
+        Rect popup = new Rect(x, top, width, height);
+        commandSuggestionRect = popup;
+
+        vg.roundedRectangle(popup.x, popup.y, popup.width, popup.height, u(NanoVGTheme.RADIUS_HUD), NanoVGTheme.BASE);
+        vg.roundedRectangleBorder(popup.x, popup.y, popup.width, popup.height, u(NanoVGTheme.RADIUS_HUD), u(1f), alpha(255, 255, 255, 30), Border.INSIDE);
+        float rowY = popup.y + u(3f);
+        if (!showList) {
+            for (int i = 0; i < rows; i++)
+                NVGFonts.INTER.drawText(lines.get(i), popup.x + paddingX, rowY + i * rowHeight + u(2f), fontSize, NanoVGTheme.MUTED, Alignment.LEFT_TOP, true);
+            return;
+        }
+
+        for (int i = 0; i < rows; i++) {
+            int index = commandSuggestionOffset + i;
+            if (index >= commandSuggestionList.size())
+                break;
+
+            Rect row = new Rect(popup.x + u(2f), rowY + i * rowHeight, popup.width - u(4f), rowHeight);
+            boolean selected = index == commandSuggestionIndex;
+            if (selected)
+                vg.roundedRectangle(row.x, row.y, row.width, row.height, u(3f), alpha(255, 255, 255, 34));
+            else if (isHovered(row))
+                vg.roundedRectangle(row.x, row.y, row.width, row.height, u(3f), alpha(255, 255, 255, 16));
+            addControl(ControlType.COMMAND_SUGGESTION, row, null, null, index);
+            NVGFont rowFont = selected ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
+            rowFont.drawText(lines.get(index), popup.x + paddingX, row.y + u(2f), fontSize, selected ? NanoVGTheme.TEXT : NanoVGTheme.MUTED, Alignment.LEFT_TOP, true);
+        }
+
     }
 
     private void runCommandInput() {
@@ -2386,6 +2662,12 @@ public class NanoVGClickGuiScreen extends Screen {
                 beginTextSelectionOrSelectAll(mouseX, doubleClick);
             }
             case COMMAND_RUN -> runCommandInput();
+            case COMMAND_SUGGESTION -> {
+                textFocus = TextFocus.COMMAND;
+                commandSuggestionIndex = control.index;
+                commandSuggestionTabCycles = false;
+                applyCommandSuggestion();
+            }
             case MULTIPLAY_DISCONNECT -> {
                 if (minecraft != null && minecraft.level != null)
                     minecraft.level.disconnect(Component.literal("Disconnected"));
@@ -4318,6 +4600,7 @@ public class NanoVGClickGuiScreen extends Screen {
         CONFIG_DELETE,
         COMMAND_INPUT,
         COMMAND_RUN,
+        COMMAND_SUGGESTION,
         MULTIPLAY_DISCONNECT,
         PLAYER_KILL,
         PLAYER_TELEPORT,

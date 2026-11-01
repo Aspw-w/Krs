@@ -31,7 +31,11 @@ import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.instrumentalist.krs.utils.value.*;
 import com.instrumentalist.krs.utils.math.Tuple;
 import com.instrumentalist.mixin.injector.ChatComponentAccessor;
+import com.instrumentalist.mixin.injector.ChatScreenAccessor;
+import com.instrumentalist.mixin.injector.CommandSuggestionsAccessor;
+import com.instrumentalist.mixin.injector.SuggestionsListAccessor;
 import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.client.gui.components.CommandSuggestions;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.screens.ChatScreen;
@@ -83,6 +87,8 @@ public class Interface extends Module {
     private static final ThreadLocal<DecimalFormat> ONE_DECIMAL_FORMAT = ThreadLocal.withInitial(() -> new DecimalFormat("0.0"));
     private static final float MODULE_LIST_FONT_SIZE = 15f;
     private static final float HUD_FONT_SIZE = 15f;
+    private static final float CHAT_SUGGESTION_GAP = 4f;
+    private static final float CHAT_INPUT_TOP_OFFSET = 14f;
     private static final float INFO_HUD_ICON_GAP = 4f;
     private static final Color MODULE_LIST_TAG_COLOR = new Color(170, 170, 170);
     private static final float MODULE_LIST_HORIZONTAL_GRADIENT_SPAN = 300f;
@@ -867,6 +873,7 @@ public class Interface extends Module {
             connectionEntries.add(new InfoHudEntry(pingText, MaterialIcon.SIGNAL));
         }
 
+        startY = Math.min(startY, getChatSuggestionTop() - CHAT_SUGGESTION_GAP - connectionEntries.getFirst().height);
         layoutConnectedInfoHudChips(connectionEntries, leftX, startY);
 
         return someInformationRenderState;
@@ -952,6 +959,27 @@ public class Interface extends Module {
         NVGFonts.INTER.drawText(entry.text, entry.x + 8f + entry.iconWidth, entry.y + 4f, HUD_FONT_SIZE, NanoVGTheme.ACCENT, Alignment.LEFT_TOP, true);
     }
 
+    private static float getChatSuggestionTop() {
+        if (!(mc.gui.screen() instanceof ChatScreen chatScreen))
+            return Float.MAX_VALUE;
+
+        CommandSuggestions suggestions = ((ChatScreenAccessor) chatScreen).krs$getCommandSuggestions();
+        if (suggestions == null)
+            return Float.MAX_VALUE;
+
+        float guiToNanoVgScale = NanoVGManager.getScaledScreenHeight() / Math.max(1f, mc.getWindow().getGuiScaledHeight());
+        CommandSuggestionsAccessor accessor = (CommandSuggestionsAccessor) suggestions;
+        CommandSuggestions.SuggestionsList list = accessor.krs$getSuggestions();
+        if (list != null)
+            return (((SuggestionsListAccessor) (Object) list).krs$getRect().getY() - 1) * guiToNanoVgScale;
+
+        int usageLines = accessor.krs$getCommandUsage().size();
+        if (usageLines > 0)
+            return (chatScreen.height - CommandSuggestions.USAGE_OFFSET_FROM_BOTTOM - CommandSuggestions.LINE_HEIGHT * (usageLines - 1)) * guiToNanoVgScale;
+
+        return Float.MAX_VALUE;
+    }
+
     private static float getChatScreenOffset() {
         if (!(mc.gui.screen() instanceof ChatScreen))
             return 0f;
@@ -968,9 +996,8 @@ public class Interface extends Module {
         float guiToNanoVgScale = NanoVGManager.getScaledScreenHeight() / Math.max(1f, mc.getWindow().getGuiScaledHeight());
         float visibleChatHeight = visibleLines * chatLineHeight * chatScale;
 
-        if (visibleLines == 0f) {
-            return 278f;
-        }
+        if (visibleLines == 0)
+            return CHAT_INPUT_TOP_OFFSET * guiToNanoVgScale - 30f + (16f + 12f);
 
         return (40f + visibleChatHeight) * guiToNanoVgScale - 30f + (16f + 12f);
     }
