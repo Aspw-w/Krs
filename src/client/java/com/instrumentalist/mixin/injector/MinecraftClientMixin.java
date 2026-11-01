@@ -1,6 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.features.player.AirPlace;
+import com.instrumentalist.krs.hacks.features.combat.FastEat;
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.utils.GuiInputBlocker;
 import com.instrumentalist.krs.Client;
@@ -148,8 +149,13 @@ public abstract class MinecraftClientMixin implements IMinecraft {
         }
     }
 
-    @Inject(method = "startUseItem", at = @At("HEAD"))
+    @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
     private void airPlaceBeforeItemUse(CallbackInfo ci) {
+        if (FastEat.shouldBlockUse()) {
+            ci.cancel();
+            return;
+        }
+
         HitResult placementHit = AirPlace.createPlacementHit(this.hitResult, this.player);
         if (placementHit != this.hitResult) {
             this.krs$airPlaceOriginalHitResult = this.hitResult;
