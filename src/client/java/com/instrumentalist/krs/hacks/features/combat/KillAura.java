@@ -21,6 +21,9 @@ import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.pathfinder.MainPathFinder;
 import com.instrumentalist.krs.utils.value.*;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.component.Weapon;
 import net.minecraft.core.Direction;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.game.*;
@@ -212,6 +215,12 @@ public class KillAura extends Module {
     );
 
     @Setting
+    private final BooleanValue shieldBreaker = new BooleanValue(
+            "Shield Breaker",
+            false
+    );
+
+    @Setting
     public static final BooleanValue tpReach = new BooleanValue(
             "TP Reach",
             false
@@ -273,6 +282,13 @@ public class KillAura extends Module {
     private int targetCandidatePoolCursor;
     private PendingTeleportSequence pendingTeleportSequence;
     private boolean sendingTeleportSequencePacket;
+    private static final int SHIELD_BREAK_RETRY_TICKS = 10;
+    private int lastShieldBreakTargetId = -1;
+    private int lastShieldBreakTick = Integer.MIN_VALUE;
+    private int shieldBreakRestoreSlot = -1;
+    private int shieldBreakerSlot = -1;
+    private int shieldBreakSwapTick = Integer.MIN_VALUE;
+    private static boolean localAttack;
 
     private long lastAttackTime = 0;
     private int randomDelay = 0;
@@ -324,7 +340,7 @@ public class KillAura extends Module {
     private record TeleportReturnStep(int estimatedPackets) implements TeleportStep {
     }
 
-    private record TeleportAttackStep(Entity target, boolean moveClientToArrival) implements TeleportStep {
+    private record TeleportAttackStep(Entity target, boolean moveClientToArrival, boolean local) implements TeleportStep {
     }
 
     private record ResolvedTeleportPath(Vec3 arrivalPosition, ArrayList<Vec3> positions) {
@@ -407,6 +423,7 @@ public class KillAura extends Module {
 
     @Override
     public void onDisable() {
+        restoreShieldBreakSlot(true);
         cancelPendingTeleportSequence();
         PathLines.hide(this, PREDICTION_LINE);
 
@@ -437,6 +454,8 @@ public class KillAura extends Module {
             sendingTeleportSequencePacket = false;
             return;
         }
+
+        restoreShieldBreakSlot(false);
 
         if (mc.gameMode.getPlayerMode() == GameType.SPECTATOR) {
             reset();
@@ -605,6 +624,11 @@ public class KillAura extends Module {
         }
 
         boolean attackReady = attackCooldownMath(closestEntity);
+        boolean shieldBreakOnly = false;
+        if (!attackReady && canBreakShield(closestEntity)) {
+            attackReady = true;
+            shieldBreakOnly = true;
+        }
         boolean canHitAtRotation = !rotations.get() || noHitCheck.get() || tpReach.get() || randomTp.get();
         if (!canHitAtRotation) {
             canHitAtRotation = canAttackThroughWalls
@@ -648,6 +672,11 @@ public class KillAura extends Module {
                         attackTargets.addAll(multiTargets);
                         break;
                 }
+
+                if (shieldBreakOnly)
+                    attackTargets.removeIf(target -> !canBreakShield(target));
+                else if (shieldBreaker.get())
+                    attackTargets.sort(Comparator.comparing(this::canBreakShield));
 
                 if (startSpreadTeleportSequence(
                         attackTargets,
@@ -1445,7 +1474,7 @@ public class KillAura extends Module {
                     >= baseAttackReachSquared;
             boolean teleport = randomTp.get() || (tpReach.get() && needsExtendedTeleport);
             if (!teleport) {
-                steps.add(new TeleportAttackStep(target, false));
+                steps.add(new TeleportAttackStep(target, false, true));
                 continue;
             }
 
@@ -1455,7 +1484,7 @@ public class KillAura extends Module {
 
             if (resolvedPath == null) {
                 if (!needsExtendedTeleport)
-                    steps.add(new TeleportAttackStep(target, false));
+                    steps.add(new TeleportAttackStep(target, false, true));
                 continue;
             }
 
@@ -1463,7 +1492,7 @@ public class KillAura extends Module {
             Vec3 arrivalPosition = resolvedPath.arrivalPosition();
             steps.add(new TeleportGoStep(target, randomTp.get(), needsExtendedTeleport, simulatedPosition, paths));
             totalMovePackets += paths.size();
-            steps.add(new TeleportAttackStep(target, !returnAfterAttack));
+            steps.add(new TeleportAttackStep(target, !returnAfterAttack, false));
 
             if (returnAfterAttack) {
                 steps.add(new TeleportReturnStep(paths.size()));
@@ -1538,7 +1567,9 @@ public class KillAura extends Module {
                     mc.player.setPos(sequence.lastSentPosition);
                     sequence.sentPositions.clear();
                 }
-                performSpreadTeleportAttack(attackStep.target(), sequence.swingMode);
+                boolean local = attackStep.local()
+                        && (sequence.lastSentPosition == null || isSameExactPosition(sequence.lastSentPosition, mc.player.position()));
+                performSpreadTeleportAttack(attackStep.target(), sequence.swingMode, local);
             }
             sequence.nextStep++;
         }
@@ -1689,7 +1720,7 @@ public class KillAura extends Module {
         if (sequence.nextStep < sequence.steps.size()
                 && sequence.steps.get(sequence.nextStep) instanceof TeleportAttackStep attackStep
                 && attackStep.moveClientToArrival()) {
-            sequence.steps.set(sequence.nextStep, new TeleportAttackStep(attackStep.target(), false));
+            sequence.steps.set(sequence.nextStep, new TeleportAttackStep(attackStep.target(), false, true));
         }
 
         int returnIndex = sequence.nextStep + 1;
@@ -1796,11 +1827,11 @@ public class KillAura extends Module {
         }
     }
 
-    private void performSpreadTeleportAttack(Entity target, String currentSwingMode) {
+    private void performSpreadTeleportAttack(Entity target, String currentSwingMode, boolean local) {
         boolean wasSendingTeleportSequencePacket = sendingTeleportSequencePacket;
         sendingTeleportSequencePacket = true;
         try {
-            performAttack(target, currentSwingMode);
+            performAttack(target, currentSwingMode, local);
         } finally {
             sendingTeleportSequencePacket = wasSendingTeleportSequencePacket;
         }
@@ -1916,7 +1947,7 @@ public class KillAura extends Module {
             }
         }
 
-        performAttack(target, swingOrderMode.get().toLowerCase(Locale.ROOT));
+        performAttack(target, swingOrderMode.get().toLowerCase(Locale.ROOT), resolvedPath == null);
 
         if (resolvedPath != null && tpBack.get()) {
             Vec3 lastSent = resolvedPath.positions().isEmpty()
@@ -1936,7 +1967,86 @@ public class KillAura extends Module {
         }
     }
 
+    public static boolean isLocalAttack() {
+        return localAttack;
+    }
+
+    private void performAttack(Entity target, String currentSwingMode, boolean local) {
+        localAttack = local;
+        try {
+            performAttack(target, currentSwingMode);
+        } finally {
+            localAttack = false;
+        }
+    }
+
+    private boolean canBreakShield(Entity target) {
+        if (!shieldBreaker.get() || mc.player == null || !(target instanceof LivingEntity living) || !living.isBlocking())
+            return false;
+        if (target.getId() == lastShieldBreakTargetId && mc.player.tickCount - lastShieldBreakTick < SHIELD_BREAK_RETRY_TICKS)
+            return false;
+        return findShieldBreakerSlot() != -1;
+    }
+
+    private int findShieldBreakerSlot() {
+        Inventory inventory = mc.player.getInventory();
+        int selected = inventory.getSelectedSlot();
+        if (disablesShield(inventory.getItem(selected)))
+            return selected;
+
+        for (int slot = 0; slot < Inventory.getSelectionSize(); slot++) {
+            if (disablesShield(inventory.getItem(slot)))
+                return slot;
+        }
+        return -1;
+    }
+
+    private static boolean disablesShield(ItemStack stack) {
+        Weapon weapon = stack.get(DataComponents.WEAPON);
+        return weapon != null && weapon.disableBlockingForSeconds() > 0.0F;
+    }
+
     private void performAttack(Entity target, String currentSwingMode) {
+        if (!canBreakShield(target)) {
+            performSwingAttack(target, currentSwingMode);
+            return;
+        }
+
+        Inventory inventory = mc.player.getInventory();
+        int originalSlot = inventory.getSelectedSlot();
+        int breakerSlot = findShieldBreakerSlot();
+        if (breakerSlot != originalSlot) {
+            if (shieldBreakRestoreSlot == -1) {
+                shieldBreakRestoreSlot = originalSlot;
+                PlayerUtil.INSTANCE.doSpoof(originalSlot);
+            }
+            inventory.setSelectedSlot(breakerSlot);
+            shieldBreakerSlot = breakerSlot;
+            shieldBreakSwapTick = mc.player.tickCount;
+        }
+
+        lastShieldBreakTargetId = target.getId();
+        lastShieldBreakTick = mc.player.tickCount;
+        performSwingAttack(target, currentSwingMode);
+    }
+
+    private void restoreShieldBreakSlot(boolean force) {
+        if (shieldBreakRestoreSlot == -1 || mc.player == null) {
+            shieldBreakRestoreSlot = -1;
+            return;
+        }
+        if (!force && mc.player.tickCount <= shieldBreakSwapTick)
+            return;
+
+        Inventory inventory = mc.player.getInventory();
+        if (inventory.getSelectedSlot() == shieldBreakerSlot)
+            inventory.setSelectedSlot(shieldBreakRestoreSlot);
+        shieldBreakRestoreSlot = -1;
+        shieldBreakerSlot = -1;
+        PlayerUtil.INSTANCE.stopSpoof();
+    }
+
+    private void performSwingAttack(Entity target, String currentSwingMode) {
         switch (currentSwingMode) {
             case "1.8":
                 PlayerUtil.INSTANCE.swingHand(InteractionHand.MAIN_HAND);
