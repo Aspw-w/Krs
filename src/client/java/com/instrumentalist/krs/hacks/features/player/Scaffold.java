@@ -1,5 +1,12 @@
 package com.instrumentalist.krs.hacks.features.player;
 
+import com.instrumentalist.krs.events.features.ReceivedPacketEvent;
+import com.instrumentalist.mixin.injector.ClientLevelPredictionAccessor;
+import net.minecraft.network.protocol.game.ClientboundBlockChangedAckPacket;
+import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket;
+import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
+import net.minecraft.network.protocol.game.ClientboundSetPlayerInventoryPacket;
+import java.util.ArrayDeque;
 import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.BlockEdgeEvent;
@@ -161,6 +168,10 @@ public class Scaffold extends Module {
     private static final BooleanValue down = new BooleanValue("Down", true);
 
     private static int hotbarStackSize = 0;
+    private static final long PENDING_PLACEMENT_TIMEOUT_MILLIS = 3_000L;
+    private static final int OFFHAND_SLOT = -1;
+    private static final int OFFHAND_INVENTORY_INDEX = 40;
+    private static final ArrayDeque<PendingPlacement> pendingPlacements = new ArrayDeque<>();
     private static boolean wasTowering = false;
     private static boolean startedScaffold = false;
 
@@ -234,6 +245,7 @@ public class Scaffold extends Module {
 
     @Override
     public void onDisable() {
+        pendingPlacements.clear();
         var player = mc.player;
         if (player != null && mc.level != null) {
             if (wasTowering) {
@@ -291,6 +303,7 @@ public class Scaffold extends Module {
 
     @Override
     public void onEnable() {
+        pendingPlacements.clear();
         var player = mc.player;
         if (player == null || mc.level == null) return;
 
@@ -933,19 +946,77 @@ public class Scaffold extends Module {
         if (inventory == null) return 0;
 
         int stackSize = 0;
-        if (inventory.getContainerSize() > 40) {
-            var offhandStack = inventory.getItem(40);
-            if (isUsableScaffoldStack(offhandStack))
-                stackSize += offhandStack.getCount();
-        }
+        if (inventory.getContainerSize() > OFFHAND_INVENTORY_INDEX)
+            stackSize += predictedSlotCount(inventory, OFFHAND_SLOT);
 
-        for (int i = 0; i < Math.min(9, inventory.getContainerSize()); i++) {
-            var stack = inventory.getItem(i);
-            if (isUsableScaffoldStack(stack))
-                stackSize += stack.getCount();
-        }
+        for (int i = 0; i < Math.min(9, inventory.getContainerSize()); i++)
+            stackSize += predictedSlotCount(inventory, i);
 
         return stackSize;
+    }
+
+    private static int predictedSlotCount(Container inventory, int slot) {
+        int index = slot == OFFHAND_SLOT ? OFFHAND_INVENTORY_INDEX : slot;
+        if (inventory == null || index < 0 || index >= inventory.getContainerSize())
+            return 0;
+
+        var stack = inventory.getItem(index);
+        if (!isUsableScaffoldStack(stack))
+            return 0;
+
+        int unconfirmed = 0;
+        for (PendingPlacement placement : pendingPlacements) {
+            if (placement.slot == slot && placement.overwritten)
+                unconfirmed++;
+        }
+        return Math.max(0, stack.getCount() - unconfirmed);
+    }
+
+    private static void prunePendingPlacements() {
+        long now = System.currentTimeMillis();
+        pendingPlacements.removeIf(placement -> now - placement.createdMillis > PENDING_PLACEMENT_TIMEOUT_MILLIS);
+    }
+
+    private static void recordPendingPlacement(int slot) {
+        var player = mc.player;
+        var level = mc.level;
+        if (player == null || level == null || player.getAbilities().instabuild)
+            return;
+
+        int sequence = ((ClientLevelPredictionAccessor) level).krs$getBlockStatePredictionHandler().currentSequence();
+        pendingPlacements.addLast(new PendingPlacement(sequence, slot, System.currentTimeMillis()));
+    }
+
+    @Override
+    public void onReceivedPacket(ReceivedPacketEvent event) {
+        if (pendingPlacements.isEmpty())
+            return;
+
+        if (event.packet instanceof ClientboundBlockChangedAckPacket ack) {
+            pendingPlacements.removeIf(placement -> placement.sequence <= ack.sequence());
+            return;
+        }
+
+        boolean inventoryUpdate = event.packet instanceof ClientboundSetPlayerInventoryPacket
+                || event.packet instanceof ClientboundContainerSetSlotPacket slotPacket && slotPacket.getContainerId() == 0
+                || event.packet instanceof ClientboundContainerSetContentPacket contentPacket && contentPacket.containerId() == 0;
+        if (inventoryUpdate) {
+            for (PendingPlacement placement : pendingPlacements)
+                placement.overwritten = true;
+        }
+    }
+
+    private static final class PendingPlacement {
+        private final int sequence;
+        private final int slot;
+        private final long createdMillis;
+        private boolean overwritten;
+
+        private PendingPlacement(int sequence, int slot, long createdMillis) {
+            this.sequence = sequence;
+            this.slot = slot;
+            this.createdMillis = createdMillis;
+        }
     }
 
     private static boolean isUsableScaffoldStack(ItemStack stack) {
@@ -954,6 +1025,7 @@ public class Scaffold extends Module {
     }
 
     private void countBlockItems(Container inventory) {
+        prunePendingPlacements();
         hotbarStackSize = countUsableHotbarBlocks(inventory);
     }
 
@@ -2375,6 +2447,8 @@ public class Scaffold extends Module {
             ItemStack stack = hand == InteractionHand.OFF_HAND ? player.getOffhandItem() : player.getInventory().getItem(slot);
             if (!canPlaceScaffoldStackAt(target.pos(), stack))
                 return false;
+            if (!player.getAbilities().instabuild && predictedSlotCount(player.getInventory(), slot) <= 0)
+                return false;
 
             if (hand == InteractionHand.MAIN_HAND)
                 selectSlot(slot);
@@ -2391,6 +2465,7 @@ public class Scaffold extends Module {
             boolean placed = gameMode.useItemOn(player, hand, bhr).consumesAction();
 
             if (placed) {
+                recordPendingPlacement(slot);
                 placedScaffoldBlock = true;
                 lastPlacedScaffoldBlock = new BlockPos(target.pos().getX(), target.pos().getY(), target.pos().getZ());
                 blockHighlight.flash(lastPlacedScaffoldBlock, HIGHLIGHT_HOLD_MILLIS);
@@ -3139,19 +3214,18 @@ public class Scaffold extends Module {
 
     private Integer findBlockSlot(Container inv) {
         var player = mc.player;
-        if (player != null && isUsableScaffoldStack(player.getOffhandItem()))
-            return -1;
+        if (player != null && predictedSlotCount(player.getInventory(), OFFHAND_SLOT) > 0)
+            return OFFHAND_SLOT;
 
         Integer maxStackSlot = null;
         int maxStackSize = 0;
 
         for (int i = 0; i < Math.min(9, inv.getContainerSize()); i++) {
-            if (i < 0 || i > 8) continue;
-            var stack = inv.getItem(i);
-            if (isUsableScaffoldStack(stack)) {
+            int count = predictedSlotCount(inv, i);
+            if (count > 0) {
                 if (intelligentPicker.get()) {
-                    if (stack.getCount() > maxStackSize) {
-                        maxStackSize = stack.getCount();
+                    if (count > maxStackSize) {
+                        maxStackSize = count;
                         maxStackSlot = i;
                     }
                 } else return i;
