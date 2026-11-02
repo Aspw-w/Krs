@@ -336,6 +336,10 @@ public class InvManager extends Module {
                 || item == Items.BLAZE_POWDER
                 || item == Items.PAPER
                 || item == Items.FISHING_ROD
+                || item == Items.SNOWBALL
+                || item == Items.EGG
+                || item == Items.BLUE_EGG
+                || item == Items.BROWN_EGG
                 || item == Items.BUCKET;
     }
 

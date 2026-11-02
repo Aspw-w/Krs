@@ -7,6 +7,7 @@ import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.utils.entity.CombatTargets;
 import com.instrumentalist.krs.utils.input.Keys;
+import com.instrumentalist.krs.utils.math.Ballistics;
 import com.instrumentalist.krs.utils.render.PathLines;
 import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.utils.value.BooleanValue;
@@ -26,10 +27,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 
 public class BowAimbot extends Module {
-    private static final double GRAVITY = 0.05D;
-    private static final double DRAG = 0.99D;
     private static final int MAX_FLIGHT_TICKS = 120;
-    private static final int SEARCH_STEPS = 24;
     private static final Object TRAJECTORY_LINE = new Object();
 
     @Setting
@@ -100,21 +98,10 @@ public class BowAimbot extends Module {
         }
 
         Vec3 eye = player.getEyePosition();
-        Vec3 center = target.getBoundingBox().getCenter();
-        Vec3 velocity = new Vec3(target.getX() - target.xo, target.onGround() ? 0.0D : target.getY() - target.yo, target.getZ() - target.zo);
-        Vec3 aim = center;
-        float pitch = 0f;
-        int flightTicks = 0;
-        for (int iteration = 0; iteration < 4; iteration++) {
-            aim = prediction.get() ? center.add(velocity.scale(flightTicks)) : center;
-            float[] solution = solvePitch(speed, Math.hypot(aim.x - eye.x, aim.z - eye.z), aim.y - eye.y);
-            pitch = solution[0];
-            flightTicks = (int) solution[1];
-            if (!prediction.get())
-                break;
-        }
-
-        float yaw = (float) (Mth.atan2(aim.z - eye.z, aim.x - eye.x) * Mth.RAD_TO_DEG) - 90f;
+        Ballistics.Solution solution = Ballistics.aim(eye, target, speed, Ballistics.ARROW_GRAVITY, false, prediction.get());
+        float yaw = solution.yaw();
+        float pitch = solution.pitch();
+        int flightTicks = solution.flightTicks();
         Client.rotationManager.startRotationUnclampedPitch(yaw, pitch, 180f);
         rotating = true;
 
@@ -167,50 +154,6 @@ public class BowAimbot extends Module {
         return best;
     }
 
-    private static float[] solvePitch(double speed, double horizontal, double height) {
-        double low = -89.0D;
-        double high = 45.0D;
-        float[] best = {-45f, 0f};
-        double bestError = Double.MAX_VALUE;
-        for (int step = 0; step < SEARCH_STEPS; step++) {
-            double elevation = (low + high) / 2.0D;
-            double[] result = heightAt(speed, elevation, horizontal);
-            double error = Math.abs(result[0] - height);
-            if (error < bestError) {
-                bestError = error;
-                best = new float[]{(float) -elevation, (float) result[1]};
-            }
-            if (result[0] < height)
-                low = elevation;
-            else
-                high = elevation;
-        }
-        return best;
-    }
-
-    private static double[] heightAt(double speed, double elevationDegrees, double horizontal) {
-        double radians = Math.toRadians(elevationDegrees);
-        double vx = Math.cos(radians) * speed;
-        double vy = Math.sin(radians) * speed;
-        double x = 0.0D;
-        double y = 0.0D;
-        for (int tick = 1; tick <= MAX_FLIGHT_TICKS; tick++) {
-            double nextX = x + vx;
-            double nextY = y + vy;
-            if (nextX >= horizontal) {
-                double fraction = vx <= 1.0E-6D ? 0.0D : (horizontal - x) / vx;
-                return new double[]{y + vy * fraction, tick};
-            }
-            x = nextX;
-            y = nextY;
-            vx *= DRAG;
-            vy = vy * DRAG - GRAVITY;
-            if (vx < 1.0E-3D)
-                break;
-        }
-        return new double[]{-1.0E9D, MAX_FLIGHT_TICKS};
-    }
-
     private void showTrajectory(Vec3 eye, float yaw, float pitch, double speed, int ticks) {
         trajectory.clear();
         Vec3 velocity = Vec3.directionFromRotation(pitch, yaw).scale(speed);
@@ -218,7 +161,7 @@ public class BowAimbot extends Module {
         for (int tick = 0; tick <= Math.min(ticks + 2, MAX_FLIGHT_TICKS); tick++) {
             trajectory.add(position);
             position = position.add(velocity);
-            velocity = velocity.scale(DRAG).subtract(0.0D, GRAVITY, 0.0D);
+            velocity = velocity.scale(Ballistics.AIR_DRAG).subtract(0.0D, Ballistics.ARROW_GRAVITY, 0.0D);
         }
         PathLines.show(this, TRAJECTORY_LINE, eye, trajectory, RenderColors.BOW_AIMBOT);
     }

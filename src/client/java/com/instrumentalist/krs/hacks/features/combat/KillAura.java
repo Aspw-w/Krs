@@ -221,6 +221,53 @@ public class KillAura extends Module {
     );
 
     @Setting
+    private final BooleanValue projectiles = new BooleanValue(
+            "Projectiles",
+            false
+    );
+
+    @Setting
+    private final BooleanValue projectileThrowables = new BooleanValue(
+            "Snowballs & Eggs",
+            true,
+            projectiles::get
+    );
+
+    @Setting
+    private final BooleanValue projectileRod = new BooleanValue(
+            "Fishing Rod",
+            true,
+            projectiles::get
+    );
+
+    @Setting
+    private final BooleanValue projectileBow = new BooleanValue(
+            "Bow",
+            true,
+            projectiles::get
+    );
+
+    @Setting
+    private final FloatValue projectileRange = new FloatValue(
+            "Projectile Range",
+            20f,
+            6f,
+            50f,
+            "m",
+            projectiles::get
+    );
+
+    @Setting
+    private final IntValue bowCharge = new IntValue(
+            "Bow Charge",
+            6,
+            3,
+            20,
+            "ticks",
+            () -> projectiles.get() && projectileBow.get()
+    );
+
+    @Setting
     public static final BooleanValue tpReach = new BooleanValue(
             "TP Reach",
             false
@@ -284,6 +331,7 @@ public class KillAura extends Module {
     private boolean sendingTeleportSequencePacket;
     private static final int SHIELD_BREAK_RETRY_TICKS = 10;
     private int lastShieldBreakTargetId = -1;
+    private final KillAuraProjectiles projectileAttacker = new KillAuraProjectiles();
     private int lastShieldBreakTick = Integer.MIN_VALUE;
     private int shieldBreakRestoreSlot = -1;
     private int shieldBreakerSlot = -1;
@@ -423,6 +471,7 @@ public class KillAura extends Module {
 
     @Override
     public void onDisable() {
+        projectileAttacker.reset(true);
         restoreShieldBreakSlot(true);
         cancelPendingTeleportSequence();
         PathLines.hide(this, PREDICTION_LINE);
@@ -476,6 +525,15 @@ public class KillAura extends Module {
 
         float realTargetReach = getRealTargetReach();
         float realAttackReach = getRealAttackReach();
+
+        if (projectiles.get()) {
+            if (!spreadingTeleport && !wasBlocking
+                    && projectileAttacker.tick(projectileThrowables.get(), projectileBow.get(), projectileRod.get(), projectileRange.get(),
+                    bowCharge.get(), realAttackReach, onlyPlayers.get(), throughWalls.get(), getRotationSpeed()))
+                return;
+        } else {
+            projectileAttacker.reset(true);
+        }
         double realTargetReachSquared = square(realTargetReach);
         double realAttackReachSquared = square(realAttackReach);
         double baseAttackReachSquared = square(attackRange.get());

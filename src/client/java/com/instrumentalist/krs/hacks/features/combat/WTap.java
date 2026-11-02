@@ -26,6 +26,8 @@ public class WTap extends Module {
     private boolean stopForward = false;
     private long delayTicks = 0L;
     private long durationTicks = 0L;
+    private int resumeTicks = 0;
+    private static final int RESUME_TICKS = 3;
 
     public WTap() {
         super("WTap", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
@@ -69,8 +71,13 @@ public class WTap extends Module {
             return;
         }
 
-        if (!active)
+        if (!active) {
+            if (resumeTicks > 0) {
+                resumeTicks--;
+                resumeSprint(input);
+            }
             return;
+        }
 
         if (!stopForward && !canTrigger(input)) {
             resetActive();
@@ -86,10 +93,12 @@ public class WTap extends Module {
             durationTicks -= 50L;
             stopForward = true;
             stopForward(input);
+            return;
         }
 
-        if (durationTicks <= 0L)
-            resetActive();
+        resetActive();
+        resumeTicks = RESUME_TICKS;
+        resumeSprint(input);
     }
 
     private boolean canTrigger(ClientInput input) {
@@ -104,8 +113,27 @@ public class WTap extends Module {
         return forwardImpulse(movementInput) >= 0.8F
                 && !player.horizontalCollision
                 && (player.getFoodData().getFoodLevel() > 6.0F || player.getAbilities().flying)
-                && (player.isSprinting()
-                || !player.isUsingItem() && !player.hasEffect(MobEffects.BLINDNESS) && mc.options.keySprint.isDown());
+                && !player.isUsingItem()
+                && !player.hasEffect(MobEffects.BLINDNESS);
+    }
+
+    private void resumeSprint(ClientInput input) {
+        var player = mc.player;
+        Input keyPresses = input.keyPresses == null ? Input.EMPTY : input.keyPresses;
+        if (player == null || player.isSprinting() || forwardImpulse(keyPresses) < 0.8F) {
+            resumeTicks = 0;
+            return;
+        }
+
+        InputUtil.applyInput(input, new Input(
+                keyPresses.forward(),
+                keyPresses.backward(),
+                keyPresses.left(),
+                keyPresses.right(),
+                keyPresses.jump(),
+                keyPresses.shift(),
+                true
+        ));
     }
 
     private void stopForward(ClientInput input) {
@@ -126,6 +154,7 @@ public class WTap extends Module {
     }
 
     private void resetActive() {
+        resumeTicks = 0;
         active = false;
         stopForward = false;
         delayTicks = 0L;
