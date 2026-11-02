@@ -6,7 +6,6 @@ import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.movement.MovementFix;
 import com.instrumentalist.krs.utils.math.MSTimer;
-import com.instrumentalist.krs.utils.move.InputUtil;
 import com.instrumentalist.krs.utils.value.FloatValue;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.KeyboardInput;
@@ -125,7 +124,7 @@ public class WTap extends Module {
             return;
         }
 
-        InputUtil.applyInput(input, new Input(
+        MovementFix.overrideInput(input, new Input(
                 keyPresses.forward(),
                 keyPresses.backward(),
                 keyPresses.left(),
@@ -138,7 +137,7 @@ public class WTap extends Module {
 
     private void stopForward(ClientInput input) {
         Input keyPresses = input.keyPresses == null ? Input.EMPTY : input.keyPresses;
-        InputUtil.applyInput(input, new Input(
+        MovementFix.overrideInput(input, new Input(
                 false,
                 false,
                 keyPresses.left(),

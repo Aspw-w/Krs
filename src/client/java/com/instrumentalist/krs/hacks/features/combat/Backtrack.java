@@ -30,13 +30,16 @@ import com.instrumentalist.krs.utils.input.Keys;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Optional;
 
 public class Backtrack extends Module {
     private static final int MAX_STORED_PACKETS = 512;
     private static final double MIN_LINE_DISTANCE_SQUARED = 0.05D * 0.05D;
     private static final Object TARGET_LINE = new Object();
     private static final Object SELF_LINE = new Object();
+    private static final long COMBAT_WINDOW_MILLIS = 1_000L;
+    private static final double REACH_MARGIN = 0.3D;
+    private static final double MAX_DRIFT = 4.0D;
+    private static final float READY_ATTACK_STRENGTH = 0.9F;
 
     @Setting
     private final IntValue trackDelay = new IntValue("Track Delay", 200, 0, 2000, "ms");
@@ -55,6 +58,8 @@ public class Backtrack extends Module {
     private float simulatedYaw = 0.0F;
     private float simulatedPitch = 0.0F;
     private volatile boolean needFreeze = false;
+    private long lastAttackMillis;
+    private boolean attackedWhileFrozen;
 
     public Backtrack() {
         super("Backtrack", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
@@ -120,7 +125,10 @@ public class Backtrack extends Module {
     public void onAttack(AttackEvent event) {
         Entity target = event.entity;
         if (target != null && target != mc.player && !(target instanceof FakePlayerEntity)) {
+            if (needFreeze && isTarget(target))
+                attackedWhileFrozen = true;
             setTarget(target);
+            lastAttackMillis = System.currentTimeMillis();
         }
     }
 
@@ -161,26 +169,8 @@ public class Backtrack extends Module {
 
             Entity target = lastAttackedEntity;
             Vec3 position = getTrackedPosition(target);
-            if (target == null || position == null) {
-                releasePackets();
-                return;
-            }
-
-            if (isServerPositionInReleaseRange(position)) {
-                releasePackets();
-                return;
-            }
-
-            if (timer.currentTime() < Math.clamp(trackDelay.get(), 0, 2000))
-                return;
-
-            AABB targetBox = makeBoundingBox(target, position);
-            double range = getLookingTargetRange(targetBox);
-            if (range == Double.MAX_VALUE) {
-                range = Math.sqrt(targetBox.distanceToSqr(mc.player.getEyePosition())) + 0.075D;
-            }
-
-            if (range <= 1.5D || timer.hasTimePassed(100L) && range >= 1.5D) {
+            if (target == null || position == null || attackedWhileFrozen || shouldRelease(target, position)) {
+                attackedWhileFrozen = false;
                 releasePackets();
             }
         } catch (Exception ignored) {
@@ -201,11 +191,7 @@ public class Backtrack extends Module {
         double beforeRange = Math.sqrt(beforeBox.distanceToSqr(mc.player.getEyePosition()));
         double afterRange = Math.sqrt(afterBox.distanceToSqr(mc.player.getEyePosition()));
 
-        if (!needFreeze && packet.hasPosition() && beforeRange <= 8.0D
-                && afterRange >= 1.5D
-                && afterRange <= 7.5D
-                && afterRange > beforeRange + 0.02D
-                && (!(entity instanceof Player player) || player.hurtTime <= getCalculatedMaxHurtTime())) {
+        if (!needFreeze && packet.hasPosition() && shouldStartFreeze(entity, beforeRange, afterRange)) {
             startFreeze();
             storePacket(event, packet, entity, afterPosition);
             return;
@@ -286,12 +272,47 @@ public class Backtrack extends Module {
             return;
         }
 
-        if (needFreeze && isServerPositionInReleaseRange(position))
+        if (needFreeze && shouldRelease(entity, position))
             releasePackets();
+    }
+
+    private boolean shouldStartFreeze(Entity entity, double beforeRange, double afterRange) {
+        double reach = mc.player.entityInteractionRange();
+        if (System.currentTimeMillis() - lastAttackMillis > COMBAT_WINDOW_MILLIS)
+            return false;
+        if (beforeRange > reach + REACH_MARGIN || afterRange <= reach || afterRange > reach + MAX_DRIFT)
+            return false;
+        if (afterRange <= beforeRange + 0.02D)
+            return false;
+        if (entity instanceof Player player && player.hurtTime > getCalculatedMaxHurtTime())
+            return false;
+        return ticksUntilAttackReady() * 50L <= Math.clamp(trackDelay.get(), 0, 2000);
+    }
+
+    private boolean shouldRelease(Entity target, Vec3 serverPosition) {
+        if (timer.hasTimePassed(Math.clamp(trackDelay.get(), 0, 2000)))
+            return true;
+
+        Vec3 eye = mc.player.getEyePosition();
+        double reach = mc.player.entityInteractionRange();
+        double realRange = Math.sqrt(makeBoundingBox(target, serverPosition).distanceToSqr(eye));
+        double shownRange = Math.sqrt(target.getBoundingBox().distanceToSqr(eye));
+        return realRange <= reach - 0.1D
+                || shownRange > reach + REACH_MARGIN
+                || serverPosition.distanceTo(target.position()) > MAX_DRIFT;
+    }
+
+    private int ticksUntilAttackReady() {
+        for (int ticks = 0; ticks <= 40; ticks++) {
+            if (mc.player.getAttackStrengthScale(ticks) >= READY_ATTACK_STRENGTH)
+                return ticks;
+        }
+        return 40;
     }
 
     private void startFreeze() {
         timer.reset();
+        attackedWhileFrozen = false;
         needFreeze = true;
     }
 
@@ -423,12 +444,6 @@ public class Backtrack extends Module {
         return simulatedPosition;
     }
 
-    private boolean isServerPositionInReleaseRange(Vec3 position) {
-        double releaseRange = 3.5D;
-        return mc.player != null && position != null
-                && position.distanceToSqr(mc.player.position()) <= releaseRange * releaseRange;
-    }
-
     private AABB makeBoundingBox(Entity entity, Vec3 position) {
         double halfWidth = entity.getBbWidth() / 2.0D;
         double minY = position.y - 0.1D;
@@ -441,13 +456,6 @@ public class Backtrack extends Module {
                 maxY,
                 position.z + halfWidth
         );
-    }
-
-    private double getLookingTargetRange(AABB box) {
-        Vec3 eyePos = mc.player.getEyePosition();
-        Vec3 reachVec = eyePos.add(mc.player.getViewVector(1.0F).scale(8.0D));
-        Optional<Vec3> hit = box.clip(eyePos, reachVec);
-        return hit.map(eyePos::distanceTo).orElse(Double.MAX_VALUE);
     }
 
     private int getCalculatedMaxHurtTime() {

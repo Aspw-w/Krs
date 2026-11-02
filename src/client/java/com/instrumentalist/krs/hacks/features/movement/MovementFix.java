@@ -86,6 +86,16 @@ public class MovementFix extends Module {
         return rawInput;
     }
 
+    public static void overrideInput(ClientInput input, Input keyPresses) {
+        if (input == null)
+            return;
+
+        InputUtil.applyInput(input, keyPresses);
+        correctedInput = input.keyPresses;
+        sprintConditionInput = input.keyPresses;
+        inputOverridden = !correctedInput.equals(rawInput);
+    }
+
     public static float getCorrectionDirectionError(float movementYaw, float targetYaw) {
         int sector = correctionSector(movementYaw, targetYaw);
         float correctedMovementYaw = targetYaw + (sector - 4) * 45.0F;
