@@ -41,7 +41,7 @@ public class SigmaBitcoinMiner extends Module {
 
     @Override
     public void onTick(TickEvent event) {
-        if (mc.player == null || mc.level == null) return;
+        /*if (mc.player == null || mc.level == null) return;
 
         HitResult ray = mc.player.pick(5.0D, 0.0F, false);
         if (ray.getType() != HitResult.Type.BLOCK) return;
@@ -54,6 +54,6 @@ public class SigmaBitcoinMiner extends Module {
         if (interactionManager == null) return;
 
         interactionManager.continueDestroyBlock(pos, side);
-        PlayerUtil.INSTANCE.swingHand(InteractionHand.MAIN_HAND);
+        PlayerUtil.INSTANCE.swingHand(InteractionHand.MAIN_HAND);*/
     }
 }
