@@ -1,6 +1,6 @@
 package com.instrumentalist.krs.utils.rotation;
 
-import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
+import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
 import com.instrumentalist.mixin.oringo.ILegacySwing;
 import com.instrumentalist.mixin.injector.LivingEntityAccessor;
 import com.instrumentalist.mixin.injector.SwingStateAccessor;

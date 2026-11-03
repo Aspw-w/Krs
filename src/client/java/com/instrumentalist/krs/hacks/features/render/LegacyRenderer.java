@@ -1,13 +1,10 @@
-package com.instrumentalist.krs.hacks.features.dev;
+package com.instrumentalist.krs.hacks.features.render;
 
 import com.instrumentalist.krs.events.features.TickEvent;
 import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.render.FullBright;
-import com.instrumentalist.krs.hacks.features.render.OldHitting;
-import com.instrumentalist.krs.hacks.features.render.ViewModel;
 import com.instrumentalist.krs.utils.input.Keys;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import net.minecraft.client.Camera;
@@ -97,7 +94,7 @@ public class LegacyRenderer extends Module {
     private static Boolean lastBiomeBlendState = null;
 
     public LegacyRenderer() {
-        super("Legacy Renderer", ModuleCategory.Dev, Keys.KEY_UNKNOWN, false, true);
+        super("Legacy Renderer", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

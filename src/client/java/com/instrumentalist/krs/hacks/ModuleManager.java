@@ -95,7 +95,7 @@ public class ModuleManager implements EventListener {
                 new NoWeb(), new NoBlockEffects(), new AntiLevitation(), new FastFall(),
                 new Spider(), new AutoRocket(), new AutoTotem(), new ItemDropChanger(), new VisualSpoofer(),
                 new XCarry(), new PortalGodMode(), new ChestTP(), new SurroundTP(),
-                new NoBreakReset(), new PacketMine(), new TrueSight(), new AutoTool(), new DurabilityAlert(), new HUDHider()
+                new NoBreakReset(), new PacketMine(), new TrueSight(), new AutoTool(), new DurabilityAlert(), new HUDHider(), new LegacyRenderer()
         ));
 
         devModules.addAll(List.of(
@@ -104,7 +104,7 @@ public class ModuleManager implements EventListener {
                 new VeinMiner(), new TunnelMiner(), new GhostHand(),
                 new LengBreaker(), new Harvester(), new AutoMine(), new AutoToolSaver(), new CityBreaker(), new BreakESP(),
                 new AutoWeapon(), new AutoGapple(), new AutoShield(), new TriggerBot(), new AimAssist(),
-                new BowAimbot(), new AntiFireball(), new PopCounter(), new AutoXP(), new CrystalAura(), new LegacyRenderer()
+                new BowAimbot(), new AntiFireball(), new PopCounter(), new AutoXP(), new CrystalAura()
         ));
 
         allModules.addAll(modules);

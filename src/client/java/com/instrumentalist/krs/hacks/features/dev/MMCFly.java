@@ -42,18 +42,17 @@ public class MMCFly extends Module {
     public void onMotion(MotionEvent event) {
         if (mc.player == null) return;
         TimerUtil.timerSpeed = 0.5f;
-        ChatUtil.printChat("[sex] " + mc.player.getDeltaMovement());
         if (mc.player.getDeltaMovement().y <= -0.3) {
-            ChatUtil.printChat("[sex] df");
             event.y += Double.MAX_VALUE;
+            ChatUtil.printChat("Process Bruscato Packet");
             PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(event.x, event.y - 0.01, event.z, true, true));
             PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(event.x, event.y - 0.05, event.z, false, true));
             event.onGround = true;
             mc.player.setOnGround(true);
         } else {
             if (mc.player.tickCount % 11 == 0) {
+                ChatUtil.printChat("ONLY works COMPLETELY on SWORD DUELS MODE");
                 event.y += Double.MAX_VALUE;
-                ChatUtil.printChat("[tungtung] 67fg + " + event.y);
             }
         }
     }

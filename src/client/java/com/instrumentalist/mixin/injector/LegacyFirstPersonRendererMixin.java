@@ -1,6 +1,6 @@
 package com.instrumentalist.mixin.injector;
 
-import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
+import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.renderer.FirstPersonHandsAndItemsRenderer;
