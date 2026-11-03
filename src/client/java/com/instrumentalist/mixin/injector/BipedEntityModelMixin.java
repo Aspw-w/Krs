@@ -1,5 +1,6 @@
 package com.instrumentalist.mixin.injector;
 
+import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
 import com.instrumentalist.krs.hacks.features.render.OldHitting;
 import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
 import com.instrumentalist.krs.utils.render.custommodel.CustomModelRenderer;
@@ -11,6 +12,7 @@ import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
@@ -75,6 +77,14 @@ public abstract class BipedEntityModelMixin<T extends HumanoidRenderState> exten
     @WrapMethod(method = "setupAnim(Lnet/minecraft/client/renderer/entity/state/HumanoidRenderState;)V")
     private void krs$fitCustomModelParts(T state, Operation<Void> original) {
         original.call(state);
+
+        if (state instanceof AvatarRenderState && LegacyRenderer.isPlayerAnimationsActive()) {
+            boolean oldHittingBlock = !GuiEntityRenderGuard.isActive()
+                    && ((IEntityRenderState) state).client$getEntity() instanceof LocalPlayer
+                    && OldHitting.shouldBlock();
+            LegacyRenderer.applyPlayerModel(state, this.head, this.body, this.rightArm, this.leftArm, this.rightLeg, this.leftLeg, oldHittingBlock);
+        }
+
         CustomModelRenderer.fitBodyParts(state, this.head, this.body, this.rightArm, this.leftArm, this.rightLeg, this.leftLeg);
     }
 

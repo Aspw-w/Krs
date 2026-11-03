@@ -13,6 +13,8 @@ import com.instrumentalist.krs.hacks.features.movement.Step;
 import com.instrumentalist.krs.hacks.features.render.ViewModel;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.render.OldHittingRenderGuard;
+import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
+import com.instrumentalist.mixin.oringo.ILegacySwing;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -26,12 +28,101 @@ import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
+import net.minecraft.world.entity.player.Player;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LivingEntity.class)
-public abstract class LivingEntityMixin extends EntityMixin {
+public abstract class LivingEntityMixin extends EntityMixin implements ILegacySwing {
+
+    @Unique
+    private int krs$swingProgressInt;
+
+    @Unique
+    private boolean krs$isSwingInProgress;
+
+    @Unique
+    private float krs$swingProgress;
+
+    @Unique
+    private float krs$prevSwingProgress;
+
+    @Unique
+    private boolean krs$pendingSwing;
+
+    @Override
+    public float krs$getLegacySwing(float partialTicks) {
+        float f = this.krs$swingProgress - this.krs$prevSwingProgress;
+
+        if (f < 0.0F) ++f;
+
+        return this.krs$prevSwingProgress + f * partialTicks;
+    }
+
+    @Override
+    public boolean krs$isLegacySwinging() {
+        return this.krs$swingProgress > 0.0F;
+    }
+
+    @Inject(method = "swing(Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/item/component/SwingAnimation;Z)Z", at = @At("HEAD"))
+    private void legacyRendererSwingHook(InteractionHand hand, SwingAnimation animation, boolean sendToSwingingEntity, CallbackInfoReturnable<Boolean> cir) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (!self.level().isClientSide() || LegacyRenderer.suppressSwing) return;
+
+        if (self instanceof LocalPlayer) {
+            this.krs$pendingSwing = true;
+            return;
+        }
+
+        krs$startLegacySwing(self);
+    }
+
+    @Unique
+    private void krs$startLegacySwing(LivingEntity self) {
+        if (!this.krs$isSwingInProgress || this.krs$swingProgressInt >= LegacyRenderer.armSwingAnimationEnd(self) / 2 || this.krs$swingProgressInt < 0) {
+            this.krs$swingProgressInt = -1;
+            this.krs$isSwingInProgress = true;
+        }
+    }
+
+    @Inject(method = "baseTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity$SwingState;tick()V", shift = At.Shift.AFTER))
+    private void legacyRendererSwingTickHook(CallbackInfo ci) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (!self.level().isClientSide()) return;
+
+        this.krs$prevSwingProgress = this.krs$swingProgress;
+        int i = LegacyRenderer.armSwingAnimationEnd(self);
+
+        if (this.krs$isSwingInProgress) {
+            ++this.krs$swingProgressInt;
+
+            if (this.krs$swingProgressInt >= i) {
+                this.krs$swingProgressInt = 0;
+                this.krs$isSwingInProgress = false;
+            }
+        } else {
+            this.krs$swingProgressInt = 0;
+        }
+
+        this.krs$swingProgress = (float) this.krs$swingProgressInt / (float) i;
+
+        if (this.krs$pendingSwing) {
+            this.krs$pendingSwing = false;
+            krs$startLegacySwing(self);
+        }
+    }
+
+    @Inject(method = "tickHeadTurn", at = @At("HEAD"), cancellable = true)
+    private void legacyRendererHeadTurnHook(float yBodyRotT, CallbackInfo ci) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (!(self instanceof Player) || !self.level().isClientSide() || !LegacyRenderer.isPlayerAnimationsActive()) return;
+
+        ci.cancel();
+        LegacyRenderer.updateDistance(self, this.krs$isLegacySwinging());
+    }
 
     @Shadow protected abstract float getJumpPower();
 

@@ -2,6 +2,7 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
 import com.instrumentalist.krs.hacks.features.render.AntiBlind;
 import com.instrumentalist.krs.hacks.features.render.CameraNoClip;
 import com.instrumentalist.krs.hacks.features.movement.LongJump;
@@ -36,6 +37,28 @@ public abstract class CameraMixin implements IMinecraft {
 
     @Shadow
     private Entity entity;
+
+    @Shadow
+    private float eyeHeight;
+
+    @Shadow
+    private float eyeHeightOld;
+
+    @Inject(method = "alignWithEntity", at = @At("HEAD"))
+    private void legacyRendererFrameEyeHeightHook(float partialTicks, CallbackInfo ci) {
+        legacyRendererEyeHeightHook(ci);
+    }
+
+    @Inject(method = "tick", at = @At("RETURN"))
+    private void legacyRendererEyeHeightHook(CallbackInfo ci) {
+        if (this.entity == null || !LegacyRenderer.isCameraActive()) return;
+
+        float height = LegacyRenderer.eyeHeight(this.entity);
+        if (Float.isNaN(height)) return;
+
+        this.eyeHeightOld = height;
+        this.eyeHeight = height;
+    }
 
     @Shadow
     public abstract void setPosition(Vec3 position);

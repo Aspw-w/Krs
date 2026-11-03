@@ -1,6 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
 import com.instrumentalist.krs.hacks.features.render.OldHitting;
 import com.instrumentalist.krs.hacks.features.render.ViewModel;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
@@ -10,6 +11,7 @@ import net.minecraft.client.player.FirstPersonHandsAndItems;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.state.level.FirstPersonHandsAndItemsRenderState;
 import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
@@ -20,6 +22,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * First person held item state. Split out of {@code ItemInHandRenderer} in 26.3; the rendering half lives in
@@ -159,6 +162,77 @@ public abstract class FirstPersonHandsAndItemsMixin {
             updateSpoofedHeldItems(player, itemStack, spoofStateActive);
             replaceVisibleItemsWithoutEquipAnimation(player);
         }
+    }
+
+    @Unique
+    private static boolean krs$legacyEquals(ItemStack a, ItemStack b) {
+        return a == b || a.isEmpty() && b.isEmpty();
+    }
+
+    @Inject(method = "extractRenderState", at = @At("TAIL"))
+    private void legacyRendererSwapScaleHook(LocalPlayer player, float partialTicks, FirstPersonHandsAndItemsRenderState state, CallbackInfo ci) {
+        if (!LegacyRenderer.isEquipAnimationActive()) return;
+
+        state.mainHandSwapScale = 1.0F;
+        state.offHandSwapScale = 1.0F;
+    }
+
+    @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
+    private void legacyRendererEquipHook(LocalPlayer player, CallbackInfo ci) {
+        if (player == null || !LegacyRenderer.isEquipAnimationActive()) return;
+
+        ci.cancel();
+        this.oMainHandHeight = this.mainHandHeight;
+        this.oOffHandHeight = this.offHandHeight;
+        ItemStack itemstack = getMainHandTarget(player);
+        ItemStack itemstack1 = player.getOffhandItem();
+
+        if (player.isHandsBusy()) {
+            LegacyRenderer.tickCooledAttackStrength(player);
+            this.mainHandHeight = Mth.clamp(this.mainHandHeight - 0.4F, 0.0F, 1.0F);
+            this.offHandHeight = Mth.clamp(this.offHandHeight - 0.4F, 0.0F, 1.0F);
+        } else {
+            float f = LegacyRenderer.tickCooledAttackStrength(player);
+            this.mainHandHeight += Mth.clamp((krs$legacyEquals(this.mainHandItem, itemstack) ? f * f * f : 0.0F) - this.mainHandHeight, -0.4F, 0.4F);
+            this.offHandHeight += Mth.clamp((float) (krs$legacyEquals(this.offHandItem, itemstack1) ? 1 : 0) - this.offHandHeight, -0.4F, 0.4F);
+        }
+
+        if (this.mainHandHeight < 0.1F)
+            this.mainHandItem = itemstack;
+
+        if (this.offHandHeight < 0.1F)
+            this.offHandItem = itemstack1;
+
+        if (this.krs$pendingMainHandReset) {
+            this.mainHandHeight = 0.0F;
+            this.krs$pendingMainHandReset = false;
+        }
+
+        if (this.krs$pendingOffHandReset) {
+            this.offHandHeight = 0.0F;
+            this.krs$pendingOffHandReset = false;
+        }
+    }
+
+    @Unique
+    private boolean krs$pendingMainHandReset;
+
+    @Unique
+    private boolean krs$pendingOffHandReset;
+
+    @Inject(method = "itemUsed", at = @At("HEAD"), cancellable = true)
+    private void legacyRendererItemUsedHook(InteractionHand hand, CallbackInfo ci) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (!LegacyRenderer.isEquipAnimationActive() || player == null || OldHitting.shouldBlock()
+                || shouldKeepOldEatSwingItemVisible(player) || PlayerUtil.INSTANCE.getSpoofSlot() != null)
+            return;
+
+        ci.cancel();
+
+        if (hand == InteractionHand.MAIN_HAND)
+            this.krs$pendingMainHandReset = true;
+        else
+            this.krs$pendingOffHandReset = true;
     }
 
     @Inject(method = "tick", at = @At("RETURN"))

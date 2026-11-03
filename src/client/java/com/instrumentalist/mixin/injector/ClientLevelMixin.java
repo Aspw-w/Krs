@@ -1,7 +1,11 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
 import com.instrumentalist.krs.hacks.features.render.TrueSight;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import net.minecraft.client.OptionInstance;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
@@ -16,6 +20,11 @@ import java.util.NoSuchElementException;
 
 @Mixin(ClientLevel.class)
 public abstract class ClientLevelMixin {
+
+    @WrapOperation(method = "calculateBlockTint", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/OptionInstance;get()Ljava/lang/Object;"))
+    private Object legacyRendererBiomeBlendHook(OptionInstance<?> instance, Operation<Object> original) {
+        return LegacyRenderer.biomeBlendRadius(instance, original.call(instance));
+    }
 
     @ModifyReturnValue(method = "getMarkerParticleTarget", at = @At("RETURN"))
     private Block krs$trueSightBarriers(Block original) {

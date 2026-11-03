@@ -1,6 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
 import com.instrumentalist.krs.hacks.features.render.Capes;
 import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
 import com.instrumentalist.krs.utils.render.custommodel.CustomModelRenderer;
@@ -24,6 +25,12 @@ public abstract class PlayerCapeModelMixin extends PlayerModel {
     }
 
     @Shadow @Final private ModelPart cape;
+
+    @Inject(method = "setupAnim(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;)V", at = @At("TAIL"))
+    private void legacyRendererCapeModelHook(AvatarRenderState state, CallbackInfo ci) {
+        if (LegacyRenderer.isPlayerAnimationsActive())
+            LegacyRenderer.applyCapeModel(state, this.body, this.cape);
+    }
 
     @Inject(method = "setupAnim(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;)V", at = @At("TAIL"))
     private void krs$customModelCapeSize(AvatarRenderState state, CallbackInfo ci) {

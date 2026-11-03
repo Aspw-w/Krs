@@ -1,6 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
 import com.instrumentalist.krs.hacks.features.render.AntiBlind;
 import com.instrumentalist.krs.hacks.features.render.FullBright;
 import net.minecraft.client.renderer.LightmapRenderStateExtractor;
@@ -32,5 +33,7 @@ public abstract class LightmapTextureManagerMixin {
             state.needsUpdate = true;
             state.darknessEffectScale = 0f;
         }
+        if (state.needsUpdate && LegacyRenderer.isLightmapActive())
+            LegacyRenderer.computeLightmap(delta);
     }
 }

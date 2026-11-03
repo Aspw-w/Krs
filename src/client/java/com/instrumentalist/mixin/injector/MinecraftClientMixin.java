@@ -10,6 +10,10 @@ import com.instrumentalist.krs.events.features.TickEvent;
 import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.events.features.WorldLeaveEvent;
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import net.minecraft.world.item.component.SwingAnimation;
 import com.instrumentalist.krs.hacks.features.level.NoPlaceCooldown;
 import com.instrumentalist.krs.hacks.features.render.Camera;
 import com.instrumentalist.krs.hacks.features.dev.GhostHand;
@@ -52,6 +56,16 @@ import net.minecraft.world.phys.HitResult;
 
 @Mixin(Minecraft.class)
 public abstract class MinecraftClientMixin implements IMinecraft {
+
+    @WrapOperation(method = "startUseItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;swing(Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/item/component/SwingAnimation;Z)Z", ordinal = 0))
+    private boolean legacyRendererEntityUseSwingHook(LocalPlayer player, InteractionHand hand, SwingAnimation animation, boolean sendToSwingingEntity, Operation<Boolean> original) {
+        return LegacyRenderer.callWithoutSwing(() -> original.call(player, hand, animation, sendToSwingingEntity));
+    }
+
+    @WrapOperation(method = "startUseItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;swing(Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/item/component/SwingAnimation;Z)Z", ordinal = 2))
+    private boolean legacyRendererItemUseSwingHook(LocalPlayer player, InteractionHand hand, SwingAnimation animation, boolean sendToSwingingEntity, Operation<Boolean> original) {
+        return LegacyRenderer.callWithoutSwing(() -> original.call(player, hand, animation, sendToSwingingEntity));
+    }
 
     @Shadow @Nullable public LocalPlayer player;
 

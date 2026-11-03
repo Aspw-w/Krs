@@ -1,5 +1,9 @@
 package com.instrumentalist.mixin.injector;
 
+import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
+import com.instrumentalist.mixin.oringo.ILegacySwing;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import net.minecraft.world.phys.Vec3;
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.hacks.ModuleManager;
@@ -11,6 +15,7 @@ import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.client.entity.ClientAvatarEntity;
 import net.minecraft.client.entity.ClientAvatarState;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
@@ -29,6 +34,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(AvatarRenderer.class)
 public abstract class PlayerEntityRendererMixin implements IMinecraft {
+
+    @Inject(method = "extractCapeState", at = @At("HEAD"), cancellable = true)
+    private static void legacyRendererCapeHook(Avatar avatar, AvatarRenderState state, float tickDelta, CallbackInfo ci) {
+        if (!LegacyRenderer.isPlayerAnimationsActive() || !(avatar instanceof ClientAvatarEntity clientAvatar)) return;
+
+        ci.cancel();
+        float bodyYaw = krs$getCapeBodyYaw(avatar, tickDelta, avatar.yBodyRotO + (avatar.yBodyRot - avatar.yBodyRotO) * tickDelta);
+        LegacyRenderer.applyCape(state, avatar, clientAvatar.avatarState(), tickDelta, bodyYaw);
+    }
 
     @Inject(method = "extractCapeState", at = @At("HEAD"), cancellable = true)
     private static void capeModifier(Avatar avatar, AvatarRenderState state, float tickDelta, CallbackInfo ci) {
@@ -89,6 +103,24 @@ public abstract class PlayerEntityRendererMixin implements IMinecraft {
             return Client.rotationManager.getInterpolatedReturningBodyYaw(tickDelta);
 
         return Client.rotationManager.getInterpolatedYaw(tickDelta);
+    }
+
+    @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V", at = @At("RETURN"))
+    private void legacyRendererSwimHook(Avatar avatar, AvatarRenderState state, float f, CallbackInfo info) {
+        if (!LegacyRenderer.isPlayerAnimationsActive()) return;
+
+        state.swimAmount = 0.0F;
+        state.isVisuallySwimming = false;
+        state.isCrouching = avatar.isShiftKeyDown();
+        state.swingAnimation = ((ILegacySwing) avatar).krs$getLegacySwing(f);
+    }
+
+    @ModifyReturnValue(method = "getRenderOffset(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;)Lnet/minecraft/world/phys/Vec3;", at = @At("RETURN"))
+    private Vec3 legacyRendererSneakOffsetHook(Vec3 original, AvatarRenderState state) {
+        if (!state.isCrouching || !LegacyRenderer.isPlayerAnimationsActive() || mc.player == null || state.id != mc.player.getId())
+            return original;
+
+        return original.add(0.0, state.scale * 2.0F / 16.0, 0.0);
     }
 
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V", at = @At("RETURN"))

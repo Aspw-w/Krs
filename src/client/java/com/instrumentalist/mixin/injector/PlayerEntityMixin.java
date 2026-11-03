@@ -1,6 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.utils.IMinecraft;
+import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.BlockEdgeEvent;
 import com.instrumentalist.krs.events.features.UpdateEvent;
@@ -26,6 +27,12 @@ import net.minecraft.world.phys.Vec3;
 
 @Mixin(Player.class)
 public abstract class PlayerEntityMixin implements IMinecraft {
+
+    @Inject(method = {"resetAttackStrengthTicker", "resetOnlyAttackStrengthTicker"}, at = @At("HEAD"))
+    private void legacyRendererCooldownResetHook(CallbackInfo ci) {
+        if ((Object) this == mc.player)
+            LegacyRenderer.pendingCooldownReset = true;
+    }
 
     @Inject(method = "aiStep", at = @At("HEAD"), cancellable = true)
     private void updateEvent(CallbackInfo ci) {

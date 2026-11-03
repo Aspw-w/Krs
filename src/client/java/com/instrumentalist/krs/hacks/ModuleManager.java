@@ -104,7 +104,7 @@ public class ModuleManager implements EventListener {
                 new VeinMiner(), new TunnelMiner(), new GhostHand(),
                 new LengBreaker(), new Harvester(), new AutoMine(), new AutoToolSaver(), new CityBreaker(), new BreakESP(),
                 new AutoWeapon(), new AutoGapple(), new AutoShield(), new TriggerBot(), new AimAssist(),
-                new BowAimbot(), new AntiFireball(), new PopCounter(), new AutoXP(), new CrystalAura()
+                new BowAimbot(), new AntiFireball(), new PopCounter(), new AutoXP(), new CrystalAura(), new LegacyRenderer()
         ));
 
         allModules.addAll(modules);

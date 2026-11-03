@@ -6,6 +6,7 @@ import com.instrumentalist.krs.events.features.Render3DEvent;
 import com.instrumentalist.krs.events.features.RenderEvent;
 import com.instrumentalist.krs.events.features.FrameBufferEvent;
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.hacks.features.render.*;
 import com.instrumentalist.krs.utils.render.DebugOverlayRenderer;
@@ -223,6 +224,20 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
 
         if (Zoom.shouldZoom())
             ci.cancel();
+    }
+
+    @Inject(at = @At("RETURN"), method = "bobView(Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V")
+    private void legacyRendererCameraPitchHook(CameraRenderState cameraRenderState, PoseStack matrices, CallbackInfo ci) {
+        if (!LegacyRenderer.isCameraActive() || !cameraRenderState.entityRenderState.isPlayer || mc.player == null || mc.getCameraEntity() != mc.player)
+            return;
+
+        matrices.rotate(Axis.XP.rotationDegrees(LegacyRenderer.cameraPitch(cameraRenderState.cameraEntityPartialTicks)));
+    }
+
+    @Inject(method = "extractOptions", at = @At("RETURN"))
+    private void legacyRendererChunkFadeHook(CallbackInfo ci) {
+        if (LegacyRenderer.isNoChunkFadeActive())
+            this.gameRenderState.optionsRenderState.chunkSectionFadeInTime = 0.0D;
     }
 
     @Inject(method = "bobHurt", at = @At("HEAD"), cancellable = true)

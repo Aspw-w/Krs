@@ -25,6 +25,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 
 import com.instrumentalist.krs.hacks.features.level.ItemDropChanger;
+import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.player.LocalPlayer;
@@ -33,6 +34,12 @@ import net.minecraft.world.item.component.SwingAnimation;
 
 @Mixin(MultiPlayerGameMode.class)
 public abstract class ClientPlayerInteractionManagerMixin {
+
+    @WrapOperation(method = "dropItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;swing(Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/item/component/SwingAnimation;Z)Z"))
+    private boolean legacyRendererDropSwingHook(LocalPlayer player, InteractionHand hand, SwingAnimation animation, boolean sendToSwingingEntity, Operation<Boolean> original) {
+        return LegacyRenderer.callWithoutSwing(() -> original.call(player, hand, animation, sendToSwingingEntity));
+    }
+
 
     @Shadow
     public int destroyDelay;

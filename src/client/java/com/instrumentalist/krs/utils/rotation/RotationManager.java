@@ -1,5 +1,7 @@
 package com.instrumentalist.krs.utils.rotation;
 
+import com.instrumentalist.krs.hacks.features.dev.LegacyRenderer;
+import com.instrumentalist.mixin.oringo.ILegacySwing;
 import com.instrumentalist.mixin.injector.LivingEntityAccessor;
 import com.instrumentalist.mixin.injector.SwingStateAccessor;
 
@@ -724,9 +726,16 @@ public class RotationManager {
             return;
         }
 
-        float bodyTarget = renderBodyYaw;
         double deltaX = mc.player.getX() - mc.player.xo;
         double deltaZ = mc.player.getZ() - mc.player.zo;
+
+        if (LegacyRenderer.isPlayerAnimationsActive()) {
+            renderBodyYaw = LegacyRenderer.updateDistance(renderBodyYaw, headYaw, deltaX, deltaZ, ((ILegacySwing) mc.player).krs$isLegacySwinging());
+            fixRenderBodyYawInterpolation();
+            return;
+        }
+
+        float bodyTarget = renderBodyYaw;
         float horizontalDistanceSqr = (float) (deltaX * deltaX + deltaZ * deltaZ);
 
         if (horizontalDistanceSqr > 0.0025000002F) {

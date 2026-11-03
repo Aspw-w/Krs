@@ -124,3 +124,4 @@ accessible	method	net/minecraft/world/entity/Display	setTransformation	(Lcom/moj
 accessible	method	net/minecraft/world/entity/Display$BlockDisplay	setBlockState	(Lnet/minecraft/world/level/block/state/BlockState;)V
 accessible	method	net/minecraft/world/entity/Display	setBrightnessOverride	(Lnet/minecraft/util/Brightness;)V
 accessible	method	net/minecraft/world/entity/Display	setViewRange	(F)V
+accessible	field	net/minecraft/client/multiplayer/ClientLevel	skyFlashTime	I
