@@ -8,6 +8,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.OptionInstance;
 import net.minecraft.client.renderer.extract.LevelExtractor;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.util.ARGB;
@@ -32,6 +33,11 @@ public abstract class LevelExtractorMixin {
 
         this.levelRenderState.cloudColor = LegacyRenderer.cloudColor(level, worldPartialTicks);
         this.levelRenderState.cloudHeight = LegacyRenderer.cloudHeight(level, this.levelRenderState.cloudHeight);
+    }
+
+    @WrapOperation(method = {"extractVisibleEntities", "extractVisibleBlockEntities"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/OptionInstance;get()Ljava/lang/Object;"))
+    private Object legacyRendererChunkFadeHook(OptionInstance<?> instance, Operation<Object> original) {
+        return LegacyRenderer.chunkSectionFadeInTime(instance, original.call(instance));
     }
 
     // Since 26.3 the portal effect intensity is interpolated while the player state is extracted.

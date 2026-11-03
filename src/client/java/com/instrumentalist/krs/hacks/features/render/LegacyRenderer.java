@@ -538,6 +538,13 @@ public class LegacyRenderer extends Module {
         return original;
     }
 
+    public static Object chunkSectionFadeInTime(OptionInstance<?> option, Object original) {
+        if (option == mc.options.chunkSectionFadeInTime() && isNoChunkFadeActive())
+            return 0.0D;
+
+        return original;
+    }
+
     public static float celestialAngle(ClientLevel level, float partialTicks) {
         if (level.dimension() == Level.NETHER) return 0.5F;
         if (level.dimension() == Level.END || level.dimensionType().defaultClock().isEmpty()) return 0.0F;
