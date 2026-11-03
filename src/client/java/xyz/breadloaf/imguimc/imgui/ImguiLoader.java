@@ -6,6 +6,7 @@ import com.mojang.logging.LogUtils;
 import imgui.*;
 import imgui.flag.*;
 import imgui.gl3.ImGuiImplGl3;
+import net.minecraft.util.Util;
 import org.lwjgl.sdl.SDLVideo;
 import org.lwjgl.sdl.SDL_Event;
 import org.lwjgl.opengl.GL11;
@@ -72,7 +73,10 @@ public class ImguiLoader {
             imGuiSdl = new ImGuiImplSdl();
             imGuiSdl.init(handle);
             imGuiGl3 = new ImGuiImplGl3();
-            imGuiGl3.init();
+            if (Util.getPlatform() == Util.OS.OSX)
+                imGuiGl3.init("#version 410 core");
+            else
+                imGuiGl3.init();
             applyDisplayScale();
             initialized = true;
         } catch (RuntimeException | Error error) {
