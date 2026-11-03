@@ -47,6 +47,7 @@ public class MMCFly extends Module {
             ChatUtil.printChat("[sex] df");
             event.y += Double.MAX_VALUE;
             PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(event.x, event.y - 0.01, event.z, true, true));
+            PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(event.x, event.y - 0.05, event.z, false, true));
             event.onGround = true;
             mc.player.setOnGround(true);
         } else {
