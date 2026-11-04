@@ -21,6 +21,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import com.instrumentalist.krs.utils.input.Keys;
+import com.instrumentalist.mixin.injector.MultiPlayerGameModeAccessor;
 
 public class Criticals extends Module {
     @Setting
@@ -69,7 +70,7 @@ public class Criticals extends Module {
         }
 
         boolean canSpoof = canSpoofGround(player);
-        if (canSpoof && player.onGround() && isInCombat()
+        if (canSpoof && player.onGround() && isInCombat() && !isDestroying()
                 && mc.level.noCollision(player, player.getBoundingBox().move(0.0D, 2.0, 0.0D))) {
             hoverOffset = hoverOffset < 1 + 0.1 ? 2.0 : hoverOffset - 0.1;
             event.y += hoverOffset;
@@ -112,6 +113,10 @@ public class Criticals extends Module {
     private boolean isInCombat() {
         return System.currentTimeMillis() - lastAttackMillis < 10000L
                 || ModuleManager.getModuleState(KillAura.class) && KillAura.closestEntity != null;
+    }
+
+    private boolean isDestroying() {
+        return mc.gameMode != null && ((MultiPlayerGameModeAccessor) mc.gameMode).krs$isDestroying();
     }
 
     private double predictFallDistance(LocalPlayer player, double y) {
