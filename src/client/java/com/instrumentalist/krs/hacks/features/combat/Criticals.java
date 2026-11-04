@@ -99,7 +99,23 @@ public class Criticals extends Module {
         if (target == null || !canJump(player, target))
             return;
 
+        performJump(player);
+    }
+
+    private void performJump(LocalPlayer player) {
+        if (jumpHeight.get() >= BASE_JUMP_POWER - 1.0E-4F) {
+            player.input.makeJump();
+            return;
+        }
+
         MovementUtil.tryJump(jumpHeight.get());
+    }
+
+    private float effectiveJumpPower(LocalPlayer player) {
+        if (jumpHeight.get() >= BASE_JUMP_POWER - 1.0E-4F)
+            return BASE_JUMP_POWER + player.getJumpBoostPower();
+
+        return jumpHeight.get();
     }
 
     @Override
@@ -229,12 +245,12 @@ public class Criticals extends Module {
         if (target.distanceToSqr(player) > (double) jumpRange.get() * jumpRange.get())
             return false;
 
-        double checkHeight = Math.max(BASE_JUMP_POWER, jumpHeight.get());
+        double checkHeight = Math.max(BASE_JUMP_POWER, effectiveJumpPower(player));
         return mc.level.noCollision(player, player.getBoundingBox().move(0.0D, checkHeight, 0.0D));
     }
 
     private boolean hasGoodJumpTiming(LocalPlayer player) {
-        float airTicks = (float) (2.0D * jumpHeight.get() / JUMP_GRAVITY);
+        float airTicks = (float) (2.0D * effectiveJumpPower(player) / JUMP_GRAVITY);
         float remainingCooldown = player.getCurrentItemAttackStrengthDelay() - player.attackStrengthTicker;
         return remainingCooldown <= airTicks;
     }
