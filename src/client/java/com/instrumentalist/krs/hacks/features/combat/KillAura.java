@@ -681,7 +681,7 @@ public class KillAura extends Module {
             return;
         }
 
-        boolean attackReady = attackCooldownMath(closestEntity);
+        boolean attackReady = attackCooldownMath(closestEntity) && !Criticals.shouldDelayAttack();
         boolean shieldBreakOnly = false;
         if (!attackReady && canBreakShield(closestEntity)) {
             attackReady = true;
