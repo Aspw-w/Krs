@@ -15,6 +15,7 @@ import net.minecraft.client.OptionInstance;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.entity.ClientAvatarState;
@@ -74,6 +75,9 @@ public class LegacyRenderer extends Module {
 
     @Setting
     public static final BooleanValue weather = new BooleanValue("Weather", true);
+
+    @Setting
+    public static final BooleanValue hitParticles = new BooleanValue("Hit Particles", true);
 
     @Setting
     public static final BooleanValue playerAnimations = new BooleanValue("Player Animations", true);
@@ -268,6 +272,10 @@ public class LegacyRenderer extends Module {
         return active() && water.get();
     }
 
+    public static boolean isHitParticlesActive() {
+        return active() && hitParticles.get();
+    }
+
     public static boolean isWeatherActive() {
         return active() && weather.get();
     }
@@ -388,6 +396,12 @@ public class LegacyRenderer extends Module {
 
         if (state.isCrouching)
             cape.y += 2.0F;
+    }
+
+    public static int serverResponseTicks(LocalPlayer player) {
+        PlayerInfo info = player.connection.getPlayerInfo(player.getUUID());
+        int latency = info != null ? Math.max(info.getLatency(), 0) : 0;
+        return 1 + Mth.ceil((float) latency / 50.0F);
     }
 
     public static float tickCooledAttackStrength(LocalPlayer player) {

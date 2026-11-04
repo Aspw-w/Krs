@@ -49,6 +49,7 @@ import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemUseAnimation;
 import net.minecraft.world.phys.BlockHitResult;
@@ -65,6 +66,16 @@ public abstract class MinecraftClientMixin implements IMinecraft {
     @WrapOperation(method = "startUseItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;swing(Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/item/component/SwingAnimation;Z)Z", ordinal = 2))
     private boolean legacyRendererItemUseSwingHook(LocalPlayer player, InteractionHand hand, SwingAnimation animation, boolean sendToSwingingEntity, Operation<Boolean> original) {
         return LegacyRenderer.callWithoutSwing(() -> original.call(player, hand, animation, sendToSwingingEntity));
+    }
+
+    @WrapOperation(method = "continueAttack", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;continueDestroyBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/core/Direction;)Z"))
+    private boolean legacyRendererCreativeHitParticlesHook(MultiPlayerGameMode instance, BlockPos pos, Direction direction, Operation<Boolean> original) {
+        boolean result = original.call(instance, pos, direction);
+
+        if (result && this.level != null && this.player != null && this.player.getAbilities().instabuild && LegacyRenderer.isHitParticlesActive())
+            this.level.addBreakingBlockEffects(pos, direction, false);
+
+        return result;
     }
 
     @Shadow @Nullable public LocalPlayer player;

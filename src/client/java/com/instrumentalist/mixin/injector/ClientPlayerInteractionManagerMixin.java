@@ -31,9 +31,28 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.component.SwingAnimation;
+import net.minecraft.world.item.ItemStack;
+import com.instrumentalist.mixin.oringo.ILegacyHeldItems;
+import net.minecraft.world.inventory.InventoryMenu;
 
 @Mixin(MultiPlayerGameMode.class)
 public abstract class ClientPlayerInteractionManagerMixin {
+
+    @Inject(method = "dropItem", at = @At("HEAD"))
+    private void legacyRendererDropEquipHook(LocalPlayer player, boolean all, CallbackInfo ci) {
+        ItemStack visible = player.getInventory().getSelectedItem();
+        if (visible.isEmpty()) return;
+
+        ((ILegacyHeldItems) player.firstPersonHandsAndItems()).krs$scheduleMainHandReequip(visible.copy(), LegacyRenderer.serverResponseTicks(player));
+    }
+
+    @Inject(method = "handleCreativeModeItemAdd", at = @At("TAIL"))
+    private void legacyRendererCreativeSlotEquipHook(ItemStack clicked, int slot, CallbackInfo ci) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || slot != InventoryMenu.USE_ROW_SLOT_START + player.getInventory().getSelectedSlot()) return;
+
+        ((ILegacyHeldItems) player.firstPersonHandsAndItems()).krs$scheduleSyncedMainHandReequip(player.getInventory().getSelectedItem(), LegacyRenderer.serverResponseTicks(player));
+    }
 
     @WrapOperation(method = "dropItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;swing(Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/item/component/SwingAnimation;Z)Z"))
     private boolean legacyRendererDropSwingHook(LocalPlayer player, InteractionHand hand, SwingAnimation animation, boolean sendToSwingingEntity, Operation<Boolean> original) {

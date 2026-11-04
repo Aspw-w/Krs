@@ -6,6 +6,7 @@ import com.instrumentalist.krs.hacks.features.render.OldHitting;
 import com.instrumentalist.krs.hacks.features.render.ViewModel;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.utils.render.FirstPersonItemOverrides;
+import com.instrumentalist.mixin.oringo.ILegacyHeldItems;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.FirstPersonHandsAndItems;
 import net.minecraft.client.player.LocalPlayer;
@@ -29,7 +30,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * {@link HeldItemRendererMixin}.
  */
 @Mixin(FirstPersonHandsAndItems.class)
-public abstract class FirstPersonHandsAndItemsMixin {
+public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems {
 
     @Shadow private ItemStack mainHandItem;
 
@@ -186,6 +187,22 @@ public abstract class FirstPersonHandsAndItemsMixin {
         this.oOffHandHeight = this.offHandHeight;
         ItemStack itemstack = getMainHandTarget(player);
         ItemStack itemstack1 = player.getOffhandItem();
+        boolean holdRaised = false;
+
+        if (this.krs$reequipDelay >= 0) {
+            this.mainHandItem = this.krs$reequipStack;
+
+            if (this.krs$reequipDelay > 0) {
+                this.krs$reequipDelay--;
+                holdRaised = true;
+            } else {
+                this.krs$reequipDelay = -1;
+                this.krs$reequipStack = ItemStack.EMPTY;
+            }
+        } else if (this.mainHandItem == this.krs$lastVisibleMainHandRef && this.mainHandItem.isEmpty() && !this.krs$lastVisibleMainHand.isEmpty()) {
+            this.mainHandItem = this.krs$lastVisibleMainHand;
+            this.krs$lastVisibleMainHandRef = null;
+        }
 
         if (player.isHandsBusy()) {
             LegacyRenderer.tickCooledAttackStrength(player);
@@ -193,15 +210,21 @@ public abstract class FirstPersonHandsAndItemsMixin {
             this.offHandHeight = Mth.clamp(this.offHandHeight - 0.4F, 0.0F, 1.0F);
         } else {
             float f = LegacyRenderer.tickCooledAttackStrength(player);
-            this.mainHandHeight += Mth.clamp((krs$legacyEquals(this.mainHandItem, itemstack) ? f * f * f : 0.0F) - this.mainHandHeight, -0.4F, 0.4F);
+            this.mainHandHeight += Mth.clamp((holdRaised || krs$legacyEquals(this.mainHandItem, itemstack) ? f * f * f : 0.0F) - this.mainHandHeight, -0.4F, 0.4F);
             this.offHandHeight += Mth.clamp((float) (krs$legacyEquals(this.offHandItem, itemstack1) ? 1 : 0) - this.offHandHeight, -0.4F, 0.4F);
         }
 
-        if (this.mainHandHeight < 0.1F)
+        if (this.mainHandHeight < 0.1F && !holdRaised)
             this.mainHandItem = itemstack;
 
         if (this.offHandHeight < 0.1F)
             this.offHandItem = itemstack1;
+
+        if (!this.mainHandItem.isEmpty()) {
+            this.krs$lastVisibleMainHandRef = this.mainHandItem;
+            if (!ItemStack.matches(this.krs$lastVisibleMainHand, this.mainHandItem))
+                this.krs$lastVisibleMainHand = this.mainHandItem.copy();
+        }
 
         if (this.krs$pendingMainHandReset) {
             this.mainHandHeight = 0.0F;
@@ -212,6 +235,33 @@ public abstract class FirstPersonHandsAndItemsMixin {
             this.offHandHeight = 0.0F;
             this.krs$pendingOffHandReset = false;
         }
+    }
+
+    @Unique
+    private ItemStack krs$lastVisibleMainHand = ItemStack.EMPTY;
+
+    @Unique
+    private ItemStack krs$lastVisibleMainHandRef;
+
+    @Unique
+    private ItemStack krs$reequipStack = ItemStack.EMPTY;
+
+    @Unique
+    private int krs$reequipDelay = -1;
+
+    @Override
+    public void krs$scheduleMainHandReequip(ItemStack visible, int delay) {
+        if (visible.isEmpty() || !LegacyRenderer.isEquipAnimationActive()) return;
+
+        this.krs$reequipStack = visible;
+        this.krs$reequipDelay = delay;
+    }
+
+    @Override
+    public void krs$scheduleSyncedMainHandReequip(ItemStack current, int delay) {
+        if (this.mainHandItem != current) return;
+
+        krs$scheduleMainHandReequip(current.copy(), delay);
     }
 
     @Unique
