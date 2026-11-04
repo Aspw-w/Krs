@@ -6,7 +6,10 @@ import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.utils.input.Keys;
+import com.instrumentalist.krs.utils.render.LegacyAtmosphere;
+import com.instrumentalist.krs.utils.render.LegacyWater;
 import com.instrumentalist.krs.utils.value.BooleanValue;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import net.minecraft.client.Camera;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.client.model.HumanoidModel;
@@ -30,7 +33,10 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.BiomeSpecialEffects;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.material.FogType;
@@ -61,6 +67,15 @@ public class LegacyRenderer extends Module {
     public static final BooleanValue noChunkFade = new BooleanValue("No Chunk Fade", true);
 
     @Setting
+    public static final BooleanValue shading = new BooleanValue("Shading", true);
+
+    @Setting
+    public static final BooleanValue water = new BooleanValue("Water", true);
+
+    @Setting
+    public static final BooleanValue weather = new BooleanValue("Weather", true);
+
+    @Setting
     public static final BooleanValue playerAnimations = new BooleanValue("Player Animations", true);
 
     @Setting
@@ -73,7 +88,7 @@ public class LegacyRenderer extends Module {
     public static final BooleanValue firstPerson = new BooleanValue("First Person", true);
 
     private static final float CLOUD_HEIGHT = 128.0F + 0.33F;
-    private static final double VOID_FOG_Y_FACTOR = 0.03125D;
+    private static final int SWAMP_WATER_COLOR = 0xE0FFAE;
     private static final SimplexNoise TEMPERATURE_NOISE = new SimplexNoise(new Random(1234L));
 
     private static float torchFlickerX;
@@ -92,6 +107,13 @@ public class LegacyRenderer extends Module {
     public static volatile boolean lightmapPending = false;
 
     private static Boolean lastBiomeBlendState = null;
+    private static Boolean lastShadingState = null;
+    private static Boolean lastWaterState = null;
+
+    private static Vector3f legacySkyColor = new Vector3f();
+    private static double legacyHorizonDistance;
+    private static boolean legacySkyPending;
+    private static boolean vanillaDarkDisc;
 
     public LegacyRenderer() {
         super("Legacy Renderer", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, true);
@@ -182,11 +204,31 @@ public class LegacyRenderer extends Module {
     }
 
     private static void reloadTintsIfNeeded() {
-        boolean state = isBiomeBlendActive();
-        if (lastBiomeBlendState != null && lastBiomeBlendState == state) return;
-        lastBiomeBlendState = state;
+        boolean biomeBlendState = isBiomeBlendActive();
+        boolean shadingState = isShadingActive();
+        boolean waterState = isWaterActive();
+        boolean changed = false;
 
-        if (mc.level != null && mc.levelExtractor != null)
+        if (lastBiomeBlendState == null || lastBiomeBlendState != biomeBlendState) {
+            lastBiomeBlendState = biomeBlendState;
+            changed = true;
+        }
+
+        if (lastShadingState == null || lastShadingState != shadingState) {
+            lastShadingState = shadingState;
+            changed = true;
+
+            if (mc.level != null)
+                mc.gameRenderer.lighting().updateLevel(cardinalLightingType(mc.level.dimensionType().cardinalLightType()));
+        }
+
+        if (lastWaterState == null || lastWaterState != waterState) {
+            lastWaterState = waterState;
+            changed = true;
+            LegacyWater.refresh(waterState);
+        }
+
+        if (changed && mc.level != null && mc.levelExtractor != null)
             mc.levelExtractor.allChanged();
     }
 
@@ -216,6 +258,40 @@ public class LegacyRenderer extends Module {
 
     public static boolean isNoChunkFadeActive() {
         return active() && noChunkFade.get();
+    }
+
+    public static boolean isShadingActive() {
+        return active() && shading.get();
+    }
+
+    public static boolean isWaterActive() {
+        return active() && water.get();
+    }
+
+    public static boolean isWeatherActive() {
+        return active() && weather.get();
+    }
+
+    public static boolean isWaterConfigured() {
+        return ModuleManager.getModuleState(LegacyRenderer.class) && water.get();
+    }
+
+    public static CardinalLighting cardinalLighting(CardinalLighting original) {
+        return isShadingActive() ? CardinalLighting.DEFAULT : original;
+    }
+
+    public static CardinalLighting.Type cardinalLightingType(CardinalLighting.Type original) {
+        return ModuleManager.getModuleState(LegacyRenderer.class) && shading.get() ? CardinalLighting.Type.DEFAULT : original;
+    }
+
+    public static int waterColor(Biome biome, int original) {
+        if (!isWaterActive()) return original;
+
+        return biome.getSpecialEffects().grassColorModifier() == BiomeSpecialEffects.GrassColorModifier.SWAMP ? SWAMP_WATER_COLOR : 0xFFFFFF;
+    }
+
+    public static boolean shouldSkipSky() {
+        return isSkyActive() && mc.options.getEffectiveRenderDistance() < 4;
     }
 
     public static boolean isPlayerAnimationsActive() {
@@ -294,6 +370,7 @@ public class LegacyRenderer extends Module {
         float f3 = (float) (d0 * d4 - d2 * d3) * 100.0F;
 
         if (f2 < 0.0F) f2 = 0.0F;
+        f2 = Mth.clamp(f2, 0.0F, 180.0F);
 
         float f4 = avatarState.getInterpolatedBob(partialTicks);
         f1 = f1 + Mth.sin(avatarState.getInterpolatedWalkDistance(partialTicks) * 6.0F) * 32.0F * f4;
@@ -314,6 +391,11 @@ public class LegacyRenderer extends Module {
     }
 
     public static float tickCooledAttackStrength(LocalPlayer player) {
+        if (pendingCooldownReset) {
+            ticksSinceLastSwing = 0;
+            pendingCooldownReset = false;
+        }
+
         float f = Mth.clamp(((float) ticksSinceLastSwing + 1.0F) / player.getCurrentItemAttackStrengthDelay(), 0.0F, 1.0F);
 
         ++ticksSinceLastSwing;
@@ -324,11 +406,6 @@ public class LegacyRenderer extends Module {
                 ticksSinceLastSwing = 0;
 
             itemStackMainHand = itemstack.copy();
-        }
-
-        if (pendingCooldownReset) {
-            ticksSinceLastSwing = 0;
-            pendingCooldownReset = false;
         }
 
         return f;
@@ -895,7 +972,7 @@ public class LegacyRenderer extends Module {
         green *= f13;
         blue *= f13;
 
-        double d1 = (entity.yo + (entity.getY() - entity.yo) * (double) partialTicks - level.getMinY()) * VOID_FOG_Y_FACTOR;
+        double d1 = (entity.yo + (entity.getY() - entity.yo) * (double) partialTicks - level.getMinY()) / level.getLevelData().voidDarknessOnsetRange();
         MobEffectInstance blindness = living != null ? living.getEffect(MobEffects.BLINDNESS) : null;
 
         if (blindness != null) {
@@ -993,6 +1070,31 @@ public class LegacyRenderer extends Module {
 
         float[] colors = sunriseSunsetColors(level, celestialAngle);
         state.sunriseAndSunsetColor = colors != null ? new Vector4f(colors[0], colors[1], colors[2], colors[3]) : new Vector4f(0.0F);
+
+        legacySkyColor = new Vector3f(state.skyColor);
+        legacyHorizonDistance = mc.player != null ? mc.player.getEyePosition(partialTicks).y - level.getLevelData().getHorizonHeight(level) : 0.0D;
+        legacySkyPending = true;
+        vanillaDarkDisc = state.shouldRenderDarkDisc;
+        state.shouldRenderDarkDisc = true;
+    }
+
+    public static boolean renderUpperSky(RenderPass renderPass) {
+        return legacySkyPending && LegacyAtmosphere.renderUpperSky(renderPass, legacySkyColor);
+    }
+
+    public static boolean renderLowerSky(RenderPass renderPass) {
+        if (!legacySkyPending) return false;
+
+        legacySkyPending = false;
+        return LegacyAtmosphere.renderLowerSky(renderPass, legacySkyColor, legacyHorizonDistance);
+    }
+
+    public static boolean vanillaDarkDisc() {
+        return vanillaDarkDisc;
+    }
+
+    public static int cloudRange(int original, int renderDistance) {
+        return Math.min(original, Math.min(24, renderDistance * 4));
     }
 
     public static float cloudHeight(ClientLevel level, float original) {

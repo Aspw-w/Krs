@@ -14,6 +14,7 @@ import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -127,7 +128,10 @@ public abstract class CameraMixin implements IMinecraft {
         }
 
         detached = true;
-        setPosition(entity.getEyePosition(partialTicks));
+        if (LegacyRenderer.isCameraActive() && !Float.isNaN(LegacyRenderer.eyeHeight(entity)))
+            setPosition(entity.getPosition(partialTicks).add(0.0D, Mth.lerp(partialTicks, this.eyeHeightOld, this.eyeHeight), 0.0D));
+        else
+            setPosition(entity.getEyePosition(partialTicks));
         setRotation(yaw, pitch);
         move(-getMaxZoom(krs$thirdPersonDistance()), 0.0F, 0.0F);
     }

@@ -28,6 +28,8 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
+import net.minecraft.world.level.CardinalLighting;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.client.Minecraft;
@@ -234,10 +236,20 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
         matrices.rotate(Axis.XP.rotationDegrees(LegacyRenderer.cameraPitch(cameraRenderState.cameraEntityPartialTicks)));
     }
 
+    @ModifyArg(method = "setLevel", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/Lighting;updateLevel(Lnet/minecraft/world/level/CardinalLighting$Type;)V"))
+    private CardinalLighting.Type legacyRendererEntityLightingHook(CardinalLighting.Type type) {
+        return LegacyRenderer.cardinalLightingType(type);
+    }
+
     @Inject(method = "extractOptions", at = @At("RETURN"))
     private void legacyRendererChunkFadeHook(CallbackInfo ci) {
         if (LegacyRenderer.isNoChunkFadeActive())
             this.gameRenderState.optionsRenderState.chunkSectionFadeInTime = 0.0D;
+
+        if (LegacyRenderer.isCloudsActive() && LegacyRenderer.isFogActive()) {
+            var options = this.gameRenderState.optionsRenderState;
+            options.cloudRange = LegacyRenderer.cloudRange(options.cloudRange, options.renderDistance);
+        }
     }
 
     @Inject(method = "bobHurt", at = @At("HEAD"), cancellable = true)

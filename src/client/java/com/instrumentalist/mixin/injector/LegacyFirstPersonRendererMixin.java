@@ -1,8 +1,11 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
+import com.instrumentalist.mixin.oringo.ILegacySwing;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.FirstPersonHandsAndItemsRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
@@ -43,7 +46,8 @@ public abstract class LegacyFirstPersonRendererMixin {
 
         if (state.isScoping) return;
 
-        float f = avatar.swingAnimation;
+        LocalPlayer player = Minecraft.getInstance().player;
+        float f = player != null ? ((ILegacySwing) player).krs$getLegacySwing(partialTicks) : avatar.swingAnimation;
         InteractionHand enumhand = state.attackHand;
         float f1 = avatar.xRot;
         boolean flag = true;
@@ -58,8 +62,8 @@ public abstract class LegacyFirstPersonRendererMixin {
             }
         }
 
-        poseStack.rotateDegrees(Axis.XP, (state.viewXRot - state.xBob) * 0.1F);
-        poseStack.rotateDegrees(Axis.YP, (state.viewYRot - state.yBob) * 0.1F);
+        poseStack.rotateDegrees(Axis.XP, ((player != null ? player.getXRot() : state.viewXRot) - state.xBob) * 0.1F);
+        poseStack.rotateDegrees(Axis.YP, ((player != null ? player.getYRot() : state.viewYRot) - state.yBob) * 0.1F);
 
         if (flag) {
             float f3 = enumhand == InteractionHand.MAIN_HAND ? f : 0.0F;

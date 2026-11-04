@@ -50,9 +50,6 @@ public abstract class LivingEntityMixin extends EntityMixin implements ILegacySw
     @Unique
     private float krs$prevSwingProgress;
 
-    @Unique
-    private boolean krs$pendingSwing;
-
     @Override
     public float krs$getLegacySwing(float partialTicks) {
         float f = this.krs$swingProgress - this.krs$prevSwingProgress;
@@ -72,12 +69,15 @@ public abstract class LivingEntityMixin extends EntityMixin implements ILegacySw
         LivingEntity self = (LivingEntity) (Object) this;
         if (!self.level().isClientSide() || LegacyRenderer.suppressSwing) return;
 
-        if (self instanceof LocalPlayer) {
-            this.krs$pendingSwing = true;
-            return;
-        }
-
         krs$startLegacySwing(self);
+    }
+
+    @WrapOperation(method = "drop(Lnet/minecraft/world/item/ItemStack;ZLnet/minecraft/util/Prediction;)Lnet/minecraft/world/entity/item/ItemEntity;", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;swing(Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/item/component/SwingAnimation;Z)Z"))
+    private boolean legacyRendererDropSwingHook(LivingEntity instance, InteractionHand hand, SwingAnimation animation, boolean sendToSwingingEntity, Operation<Boolean> original) {
+        if (!(instance instanceof LocalPlayer))
+            return original.call(instance, hand, animation, sendToSwingingEntity);
+
+        return LegacyRenderer.callWithoutSwing(() -> original.call(instance, hand, animation, sendToSwingingEntity));
     }
 
     @Unique
@@ -108,11 +108,6 @@ public abstract class LivingEntityMixin extends EntityMixin implements ILegacySw
         }
 
         this.krs$swingProgress = (float) this.krs$swingProgressInt / (float) i;
-
-        if (this.krs$pendingSwing) {
-            this.krs$pendingSwing = false;
-            krs$startLegacySwing(self);
-        }
     }
 
     @Inject(method = "tickHeadTurn", at = @At("HEAD"), cancellable = true)

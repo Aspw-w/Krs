@@ -9,6 +9,7 @@ import net.minecraft.client.OptionInstance;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,6 +25,11 @@ public abstract class ClientLevelMixin {
     @WrapOperation(method = "calculateBlockTint", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/OptionInstance;get()Ljava/lang/Object;"))
     private Object legacyRendererBiomeBlendHook(OptionInstance<?> instance, Operation<Object> original) {
         return LegacyRenderer.biomeBlendRadius(instance, original.call(instance));
+    }
+
+    @ModifyReturnValue(method = "cardinalLighting", at = @At("RETURN"))
+    private CardinalLighting legacyRendererCardinalLightingHook(CardinalLighting original) {
+        return LegacyRenderer.cardinalLighting(original);
     }
 
     @ModifyReturnValue(method = "getMarkerParticleTarget", at = @At("RETURN"))
