@@ -330,11 +330,17 @@ public class LegacyRenderer extends Module {
     }
 
     public static int armSwingAnimationEnd(LivingEntity entity) {
+        int end;
         MobEffectInstance haste = entity.getEffect(MobEffects.HASTE);
-        if (haste != null) return 6 - (1 + haste.getAmplifier());
 
-        MobEffectInstance fatigue = entity.getEffect(MobEffects.MINING_FATIGUE);
-        return fatigue != null ? 6 + (1 + fatigue.getAmplifier()) * 2 : 6;
+        if (haste != null) {
+            end = 6 - (1 + haste.getAmplifier());
+        } else {
+            MobEffectInstance fatigue = entity.getEffect(MobEffects.MINING_FATIGUE);
+            end = fatigue != null ? 6 + (1 + fatigue.getAmplifier()) * 2 : 6;
+        }
+
+        return Math.max(1, ViewModel.hookSwingSpeed(end, entity));
     }
 
     public static void updateDistance(LivingEntity entity, boolean swinging) {
