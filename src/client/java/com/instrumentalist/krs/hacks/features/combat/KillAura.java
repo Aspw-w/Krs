@@ -688,12 +688,7 @@ public class KillAura extends Module {
             return;
         }
 
-        boolean attackReady = attackCooldownMath(closestEntity);
-        boolean shieldBreakOnly = false;
-        if (!attackReady && canBreakShield(closestEntity)) {
-            attackReady = true;
-            shieldBreakOnly = true;
-        }
+        boolean legacyAutoBlock = "1.8".equals(currentAutoBlockMode);
         boolean canHitAtRotation = !rotations.get() || noHitCheck.get() || tpReach.get() || randomTp.get();
         if (!canHitAtRotation) {
             canHitAtRotation = canAttackThroughWalls
@@ -701,7 +696,17 @@ public class KillAura extends Module {
                     : canHitVisibleAtRotation;
         }
 
-        if (autoBlock && canAutoBlock && (!attackReady || !canHitAtRotation)) {
+        boolean attackReady = legacyAutoBlock && !canHitAtRotation
+                ? isAttackReady(closestEntity)
+                : attackCooldownMath(closestEntity);
+        boolean shieldBreakOnly = false;
+        if (!attackReady && canBreakShield(closestEntity)) {
+            attackReady = true;
+            shieldBreakOnly = true;
+        }
+
+        if (autoBlock && canAutoBlock && (!attackReady || !canHitAtRotation)
+                && (!legacyAutoBlock || !attackReady && hasLegacyBlockWindow(closestEntity))) {
             startAutoBlock(currentAutoBlockMode, yaw, pitch, closestEntity, false);
             playVisualSwing(closestEntity);
             return;
@@ -809,10 +814,45 @@ public class KillAura extends Module {
             case "spoof":
             case "delayed":
             case "post attack":
-            case "1.8":
                 if (canAutoBlock)
                     startAutoBlock(autoBlockMode, yaw, pitch, blockTarget, true);
                 break;
+
+            case "1.8":
+                if (canAutoBlock && hasLegacyBlockWindow(blockTarget))
+                    startAutoBlock(autoBlockMode, yaw, pitch, blockTarget, true);
+                break;
+        }
+    }
+
+    private boolean hasLegacyBlockWindow(Entity target) {
+        return ticksUntilAttackReady(target) >= 2;
+    }
+
+    private int ticksUntilAttackReady(Entity target) {
+        switch (apsMode.get().toLowerCase(Locale.ROOT)) {
+            case "cooldown": {
+                float threshold = quickCooldown.get() ? 0.8f : 1f;
+                for (int ticks = 0; ticks < 100; ticks++) {
+                    if (mc.player.getAttackStrengthScale(ticks) >= threshold)
+                        return ticks;
+                }
+                return 100;
+            }
+
+            case "randomized cps": {
+                if (lastAttackTime == 0)
+                    return 0;
+
+                long remaining = lastAttackTime + randomDelay - System.currentTimeMillis();
+                return remaining <= 0 ? 0 : (int) ((remaining + 49L) / 50L);
+            }
+
+            case "hurt math":
+                return target instanceof LivingEntity livingEntity ? Math.max(0, livingEntity.hurtTime - 5) : 0;
+
+            default:
+                return 0;
         }
     }
 
@@ -1168,6 +1208,9 @@ public class KillAura extends Module {
     }
 
     private boolean shouldFinishAutoBlock(String mode, Entity target) {
+        if ("1.8".equals(mode))
+            return blockTick >= 1 && ticksUntilAttackReady(target) <= 1;
+
         int minimumTicks = "delayed".equals(mode) ? 2 : 1;
         return blockTick >= minimumTicks && isAttackReady(target);
     }
