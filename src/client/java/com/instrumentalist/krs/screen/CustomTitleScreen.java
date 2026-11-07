@@ -512,8 +512,10 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         double mouseX = event.x();
         double mouseY = event.y();
         int button = event.button();
-        float centerX = (NanoVGManager.getScaledScreenWidth() / 2f) - 100f;
-        float centerY = (NanoVGManager.getScaledScreenHeight() / 2f) - 34f;
+        // Must match renderUiButton: a 220x38 button at
+        // (centerX - 110, centerY + y - 34).
+        float centerX = NanoVGManager.getScaledScreenWidth() / 2f;
+        float centerY = NanoVGManager.getScaledScreenHeight() / 2f;
 
         if (button == Keys.MOUSE_BUTTON_LEFT) {
             if (isMusicSliderHovered(mouseX, mouseY)) {
@@ -528,7 +530,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
                 String label = menuButton.label;
                 float y = 45f * i;
 
-                if (isHovered(mouseX, mouseY, centerX, centerY + y, 200f, 38f)) {
+                if (isHovered(mouseX, mouseY, centerX - 110f, centerY + y - 34f, 220f, 42f)) {
                     switch (label) {
                         case "Single Player":
                             mc.gui.setScreen(new SelectWorldScreen(this));
