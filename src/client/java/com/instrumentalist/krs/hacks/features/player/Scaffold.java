@@ -7,6 +7,7 @@ import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.network.protocol.game.ClientboundSetPlayerInventoryPacket;
 import java.util.ArrayDeque;
+import net.minecraft.world.inventory.InventoryMenu;
 import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.BlockEdgeEvent;
@@ -997,13 +998,41 @@ public class Scaffold extends Module {
             return;
         }
 
-        boolean inventoryUpdate = event.packet instanceof ClientboundSetPlayerInventoryPacket
-                || event.packet instanceof ClientboundContainerSetSlotPacket slotPacket && slotPacket.getContainerId() == 0
-                || event.packet instanceof ClientboundContainerSetContentPacket contentPacket && contentPacket.containerId() == 0;
-        if (inventoryUpdate) {
+        if (event.packet instanceof ClientboundContainerSetContentPacket contentPacket && contentPacket.containerId() == 0) {
             for (PendingPlacement placement : pendingPlacements)
                 placement.overwritten = true;
+            return;
         }
+
+        Integer updatedSlot = null;
+        if (event.packet instanceof ClientboundSetPlayerInventoryPacket inventoryPacket)
+            updatedSlot = scaffoldSlotFromInventoryIndex(inventoryPacket.slot());
+        else if (event.packet instanceof ClientboundContainerSetSlotPacket slotPacket && slotPacket.getContainerId() == 0)
+            updatedSlot = scaffoldSlotFromMenuIndex(slotPacket.getSlot());
+
+        if (updatedSlot == null)
+            return;
+
+        for (PendingPlacement placement : pendingPlacements) {
+            if (placement.slot == updatedSlot)
+                placement.overwritten = true;
+        }
+    }
+
+    private static Integer scaffoldSlotFromInventoryIndex(int index) {
+        if (index == OFFHAND_INVENTORY_INDEX)
+            return OFFHAND_SLOT;
+        if (index >= 0 && index < 9)
+            return index;
+        return null;
+    }
+
+    private static Integer scaffoldSlotFromMenuIndex(int index) {
+        if (index == InventoryMenu.SHIELD_SLOT)
+            return OFFHAND_SLOT;
+        if (index >= InventoryMenu.USE_ROW_SLOT_START && index < InventoryMenu.USE_ROW_SLOT_END)
+            return index - InventoryMenu.USE_ROW_SLOT_START;
+        return null;
     }
 
     private static final class PendingPlacement {
