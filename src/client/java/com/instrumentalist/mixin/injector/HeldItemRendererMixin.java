@@ -401,6 +401,8 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
 
                 matrices.pushPose();
                 try {
+                    matrices.translate(direction * OldHitting.itemPositionX.get(), OldHitting.itemPositionY.get(), OldHitting.itemPositionZ.get());
+
                     ItemStack renderedItem = substituteMainHand ? player.getMainHandItem() : item;
                     float renderedEquipProgress = substituteMainHand
                             ? state.mainHandSwapScale * (1.0F - Mth.lerp(tickDelta, state.oldMainHandHeight, state.mainHandHeight))
@@ -419,6 +421,10 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
                         this.applySwordAnimation(matrices, arm, renderedEquipProgress, renderedSwingProgress);
                         this.applyFirstPersonDisplayTransform(matrices, arm);
                     }
+
+                    float blockingItemScale = Mth.clamp(1.0F + OldHitting.itemSize.get(), 0.1F, 3.0F);
+                    if (blockingItemScale != 1.0F)
+                        matrices.scale(blockingItemScale, blockingItemScale, blockingItemScale);
 
                     state.mainHandRenderState.submit(matrices, submitter, light, OverlayTexture.NO_OVERLAY, 0);
                 } finally {

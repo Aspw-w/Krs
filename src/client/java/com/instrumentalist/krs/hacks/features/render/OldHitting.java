@@ -8,6 +8,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.combat.KillAura;
 import com.instrumentalist.krs.utils.math.ToolUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
+import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.world.entity.HumanoidArm;
@@ -25,6 +26,18 @@ public class OldHitting extends Module {
 
     @Setting
     private static final ListValue thirdPersonMode = new ListValue("Third Person Mode", new String[]{"Vanilla", "Legacy Vanilla"}, "Legacy Vanilla");
+
+    @Setting
+    public static final FloatValue itemSize = new FloatValue("Item Size", 0f, -2f, 2f);
+
+    @Setting
+    public static final FloatValue itemPositionX = new FloatValue("Item Position X", 0f, -2f, 2f);
+
+    @Setting
+    public static final FloatValue itemPositionY = new FloatValue("Item Position Y", 0f, -2f, 2f);
+
+    @Setting
+    public static final FloatValue itemPositionZ = new FloatValue("Item Position Z", 0f, -2f, 2f);
 
     @Setting
     private static final BooleanValue noEquipAnimation = new BooleanValue("No Equip Animation", true);
