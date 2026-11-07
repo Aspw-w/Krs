@@ -54,8 +54,8 @@ public class Hypixel2020Speed implements SpeedEvent {
                 }
 
                 TimerUtil.timerSpeed = 1.1f;
-                if (mc.player.hurtTime >= 7) {
-                    MovementUtil.strafe(Math.max(0.5f, MovementUtil.getSpeed()));
+                if (mc.player.hurtTime >= 8) {
+                    MovementUtil.strafe(Math.max(0.4f, MovementUtil.getSpeed()));
                 } else if (mc.player.fallDistance > 0.1) {
                     MovementUtil.strafe(Math.max(0.3f, MovementUtil.getSpeed()));
                 } else {
