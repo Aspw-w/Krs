@@ -42,6 +42,10 @@ public final class PlayerUtil implements IMinecraft {
         this.spoofSlot = spoofSlot;
     }
 
+    public boolean hasVisualSpoofSlot() {
+        return spoofSlot != null && spoofSlot >= 0 && spoofSlot <= 8;
+    }
+
     public BlockHitResult blockHitResult(BlockPos pos) {
         Direction direction = getBlockHitDirection(pos);
         Vec3 hitPos = Vec3.atCenterOf(pos).add(

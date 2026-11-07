@@ -6,6 +6,9 @@ import com.instrumentalist.krs.events.features.RenderHudEvent;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.AntiBlind;
 import com.instrumentalist.krs.hacks.features.render.Interface;
+import com.instrumentalist.krs.utils.entity.PlayerUtil;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -55,6 +58,20 @@ public abstract class InGameHudMixin implements IMinecraft {
 
         RenderHudEvent event = new RenderHudEvent(tickCounter.getGameTimeDeltaPartialTick(true));
         Client.eventManager.call(event);
+    }
+
+    @ModifyExpressionValue(method = "extractItemHotbar", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Inventory;getSelectedSlot()I"))
+    private int krs$spoofHotbarSelection(int original) {
+        if (this.minecraft.player != null && this.minecraft.getCameraEntity() == this.minecraft.player && PlayerUtil.INSTANCE.hasVisualSpoofSlot())
+            return PlayerUtil.INSTANCE.getSpoofSlot();
+        return original;
+    }
+
+    @ModifyExpressionValue(method = "tick()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Inventory;getSelectedItem()Lnet/minecraft/world/item/ItemStack;"))
+    private ItemStack krs$spoofToolHighlight(ItemStack original) {
+        if (this.minecraft.player != null && PlayerUtil.INSTANCE.hasVisualSpoofSlot())
+            return this.minecraft.player.getInventory().getItem(PlayerUtil.INSTANCE.getSpoofSlot());
+        return original;
     }
 
     @Inject(at = @At("HEAD"), method = "extractTextureOverlay(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/resources/Identifier;F)V", cancellable = true)
