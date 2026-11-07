@@ -11,7 +11,10 @@ import net.minecraft.client.player.LocalPlayer;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.utils.math.BehaviorUtils;
 import com.instrumentalist.krs.utils.math.TickTimer;
-import com.instrumentalist.krs.utils.move.MovementUtil;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import net.minecraft.client.gui.screens.inventory.ContainerScreen;
 import net.minecraft.core.Holder;
@@ -83,7 +86,7 @@ public class AutoPot extends Module {
     public void onUpdate(UpdateEvent event) {
         var player = mc.player;
         if (player == null
-                || !MovementUtil.isBlockBelow() && !wasRotating
+                || !isGroundDirectlyBelow(player)
                 || mc.gui.screen() instanceof ContainerScreen
                 || resetPotiHaveAEffect
                 || potted
@@ -188,7 +191,10 @@ public class AutoPot extends Module {
         wasRotating = true;
         throwing = true;
 
-        if (ModuleManager.rotTick < 1) return;
+        if (ModuleManager.rotTick < 1
+                || Client.rotationManager.getServerPitch() < 85f
+                || Client.rotationManager.getRotationPitch() < 85f)
+            return;
 
         PacketUtil.sendPacket(new ServerboundUseItemPacket(
                 InteractionHand.MAIN_HAND,
@@ -201,6 +207,32 @@ public class AutoPot extends Module {
 
         potTimer.reset();
         potted = true;
+    }
+
+    private static boolean isGroundDirectlyBelow(LocalPlayer player) {
+        var level = mc.level;
+        if (level == null || !player.onGround() || player.isInWater() || player.isInLava())
+            return false;
+
+        double feetY = player.getY();
+        BlockPos pos = BlockPos.containing(player.getX(), feetY - 0.01, player.getZ());
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir())
+            return false;
+
+        VoxelShape shape = state.getCollisionShape(level, pos);
+        if (shape.isEmpty())
+            return false;
+
+        double localX = player.getX() - pos.getX();
+        double localZ = player.getZ() - pos.getZ();
+        for (AABB box : shape.toAabbs()) {
+            if (localX < box.minX || localX > box.maxX || localZ < box.minZ || localZ > box.maxZ)
+                continue;
+            if (Math.abs(pos.getY() + box.maxY - feetY) <= 0.05)
+                return true;
+        }
+        return false;
     }
 
     private static void markAction(LocalPlayer player) {

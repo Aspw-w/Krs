@@ -564,6 +564,11 @@ public class RotationManager {
         return !isRotating && isReturning;
     }
 
+    public float getServerPitch() {
+        ensureServerRotationInitialized();
+        return serverPitch;
+    }
+
     public float getRotationYaw() {
         return getClientYaw();
     }
