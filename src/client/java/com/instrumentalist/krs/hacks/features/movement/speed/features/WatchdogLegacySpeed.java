@@ -69,7 +69,7 @@ public class WatchdogLegacySpeed implements SpeedEvent {
                         break;
 
                     case 7:
-                        MovementUtil.setVelocityY(-0.8);
+                        MovementUtil.setVelocityY(-0.5);
                         break;
                 }
 
