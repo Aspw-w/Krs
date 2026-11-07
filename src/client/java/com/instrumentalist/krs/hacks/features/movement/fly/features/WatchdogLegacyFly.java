@@ -185,9 +185,9 @@ public class WatchdogLegacyFly implements FlyEvent {
         player.getAbilities().flying = false;
         MovementUtil.setVelocityY(0.0);
 
-        if (moveSpeed >= 1) {
+        if (moveSpeed >= 1.1) {
             TimerUtil.timerSpeed = 1.5f;
-        } else if (moveSpeed >= 0.7) {
+        } else if (moveSpeed >= 0.9) {
             TimerUtil.timerSpeed = 1.3f;
         } else {
             TimerUtil.timerSpeed = 1.1f;
