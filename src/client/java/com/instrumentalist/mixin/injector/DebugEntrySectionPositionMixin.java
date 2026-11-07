@@ -1,5 +1,6 @@
 package com.instrumentalist.mixin.injector;
 
+import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
 import net.minecraft.client.Minecraft;
@@ -24,7 +25,7 @@ public abstract class DebugEntrySectionPositionMixin {
             return;
 
         ci.cancel();
-        BlockPos blockPos = BlockPos.containing(Freecam.getCamPos(Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true)));
+        BlockPos blockPos = BlockPos.containing(Freecam.getCamPos(TimerUtil.selfPartialTick(Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true))));
         displayer.addToGroup(
                 DebugEntryPosition.GROUP,
                 String.format(Locale.ROOT, "Section-relative: %02d %02d %02d", blockPos.getX() & 15, blockPos.getY() & 15, blockPos.getZ() & 15)

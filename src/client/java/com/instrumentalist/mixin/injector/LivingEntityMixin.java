@@ -92,7 +92,7 @@ public abstract class LivingEntityMixin extends EntityMixin implements ILegacySw
 
     @WrapOperation(method = "baseTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity$SwingState;tick()V"))
     private void krs$timerIndependentSwingTick(LivingEntity.SwingState instance, Operation<Void> original) {
-        if (((LivingEntity) (Object) this).level().isClientSide() && TimerUtil.isActive())
+        if ((Object) this instanceof LocalPlayer && TimerUtil.isActive())
             ((ITimerScaledTick) instance).krs$tickScaled(TimerUtil.realTickStep());
         else original.call(instance);
     }
@@ -106,7 +106,7 @@ public abstract class LivingEntityMixin extends EntityMixin implements ILegacySw
         int i = LegacyRenderer.armSwingAnimationEnd(self);
 
         if (this.krs$isSwingInProgress) {
-            this.krs$swingProgressTicks += TimerUtil.realTickStep();
+            this.krs$swingProgressTicks += self instanceof LocalPlayer ? TimerUtil.realTickStep() : 1.0F;
 
             if (this.krs$swingProgressTicks >= i) {
                 this.krs$swingProgressTicks = 0;

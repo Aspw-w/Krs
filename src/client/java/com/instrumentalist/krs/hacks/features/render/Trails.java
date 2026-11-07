@@ -111,7 +111,7 @@ public class Trails extends Module {
         projectedCount = 0;
         if (mc.player == null || mc.level == null || !hasSamples || !RenderUtil.shouldRenderWorldHudOverlays()) return;
 
-        double now = tickCounter - 1 + event.partialTicks;
+        double now = tickCounter - 1 + event.selfPartialTicks;
         double headTime = now - DELAY;
         double tailTime = Math.max(now - LENGTH, firstTick);
         double endTime = now - LAG;

@@ -45,7 +45,7 @@ public abstract class PlayerEntityMixin implements IMinecraft {
     @Inject(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Player;getMainHandItem()Lnet/minecraft/world/item/ItemStack;", ordinal = 0))
     private void krs$timerIndependentAttackStrength(CallbackInfo ci) {
         Player self = (Player) (Object) this;
-        if (!self.level().isClientSide()) return;
+        if (!(self instanceof LocalPlayer)) return;
 
         float step = TimerUtil.realTickStep();
         LivingEntityAccessor accessor = (LivingEntityAccessor) self;
@@ -79,7 +79,7 @@ public abstract class PlayerEntityMixin implements IMinecraft {
     @Inject(method = "getAttackStrengthScale", at = @At("HEAD"), cancellable = true)
     private void krs$timerIndependentAttackStrengthScale(float a, CallbackInfoReturnable<Float> cir) {
         Player self = (Player) (Object) this;
-        if (!self.level().isClientSide() || (int) this.krs$preciseAttackStrengthTicks != self.attackStrengthTicker) return;
+        if (!(self instanceof LocalPlayer) || (int) this.krs$preciseAttackStrengthTicks != self.attackStrengthTicker) return;
 
         cir.setReturnValue(Mth.clamp((this.krs$preciseAttackStrengthTicks + a * TimerUtil.realTickStep()) / self.getCurrentItemAttackStrengthDelay(), 0.0F, 1.0F));
     }
@@ -87,14 +87,14 @@ public abstract class PlayerEntityMixin implements IMinecraft {
     @Inject(method = "getItemSwapScale", at = @At("HEAD"), cancellable = true)
     private void krs$timerIndependentItemSwapScale(float a, CallbackInfoReturnable<Float> cir) {
         Player self = (Player) (Object) this;
-        if (!self.level().isClientSide() || (int) this.krs$preciseItemSwapTicks != ((LivingEntityAccessor) self).krs$getItemSwapTicker()) return;
+        if (!(self instanceof LocalPlayer) || (int) this.krs$preciseItemSwapTicks != ((LivingEntityAccessor) self).krs$getItemSwapTicker()) return;
 
         cir.setReturnValue(Mth.clamp((this.krs$preciseItemSwapTicks + a * TimerUtil.realTickStep()) / self.getCurrentItemAttackStrengthDelay(), 0.0F, 1.0F));
     }
 
     @WrapOperation(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemCooldowns;tick()V"))
     private void krs$timerIndependentItemCooldowns(ItemCooldowns instance, Operation<Void> original) {
-        if (((Player) (Object) this).level().isClientSide())
+        if ((Object) this instanceof LocalPlayer)
             ((ITimerScaledTick) instance).krs$tickScaled(TimerUtil.realTickStep());
         else original.call(instance);
     }

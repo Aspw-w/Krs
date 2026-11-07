@@ -1,5 +1,6 @@
 package com.instrumentalist.mixin.injector;
 
+import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -33,7 +34,7 @@ public abstract class DebugEntryPositionMixin {
             return;
 
         ci.cancel();
-        Vec3 position = Freecam.getCamPos(minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true));
+        Vec3 position = Freecam.getCamPos(TimerUtil.selfPartialTick(minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true)));
         float yaw = Freecam.getCamYaw();
         float pitch = Freecam.getCamPitch();
         BlockPos blockPos = BlockPos.containing(position);

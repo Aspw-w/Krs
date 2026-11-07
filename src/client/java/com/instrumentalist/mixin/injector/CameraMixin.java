@@ -1,6 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.utils.IMinecraft;
+import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
 import com.instrumentalist.krs.hacks.features.render.AntiBlind;
@@ -44,6 +45,14 @@ public abstract class CameraMixin implements IMinecraft {
 
     @Shadow
     private float eyeHeightOld;
+
+    @ModifyReturnValue(method = "getCameraEntityPartialTicks", at = @At("RETURN"))
+    private float krs$selfCameraPartialTicks(float original) {
+        if (mc.level == null || this.entity == null || mc.level.tickRateManager().isEntityFrozen(this.entity))
+            return original;
+
+        return TimerUtil.partialTickFor(this.entity, original);
+    }
 
     @Inject(method = "alignWithEntity", at = @At("HEAD"))
     private void legacyRendererFrameEyeHeightHook(float partialTicks, CallbackInfo ci) {
@@ -94,7 +103,7 @@ public abstract class CameraMixin implements IMinecraft {
         if (!ModuleManager.getModuleState(Freecam.class) || !Freecam.getCanFly())
             return;
 
-        float partialTicks = deltaTracker.getGameTimeDeltaPartialTick(true);
+        float partialTicks = TimerUtil.selfPartialTick(deltaTracker.getGameTimeDeltaPartialTick(true));
         detached = true;
         setPosition(Freecam.getCamPos(partialTicks));
         setRotation(Freecam.getCamYaw(), Freecam.getCamPitch());
@@ -119,7 +128,7 @@ public abstract class CameraMixin implements IMinecraft {
         if (!com.instrumentalist.krs.hacks.features.render.Camera.isFreeLooking() || entity == null || ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly())
             return;
 
-        float partialTicks = deltaTracker.getGameTimeDeltaPartialTick(true);
+        float partialTicks = TimerUtil.selfPartialTick(deltaTracker.getGameTimeDeltaPartialTick(true));
         float yaw = com.instrumentalist.krs.hacks.features.render.Camera.getLookYaw();
         float pitch = com.instrumentalist.krs.hacks.features.render.Camera.getLookPitch();
         if (mc.options.getCameraType().isMirrored()) {

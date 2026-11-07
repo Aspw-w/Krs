@@ -3,6 +3,10 @@ package com.instrumentalist.mixin.injector;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
 import com.instrumentalist.krs.hacks.features.render.AntiBlind;
+import com.instrumentalist.krs.utils.math.TimerUtil;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.sugar.Local;
+import net.minecraft.world.entity.Entity;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.Camera;
@@ -21,6 +25,24 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LevelExtractor.class)
 public abstract class LevelExtractorMixin {
+
+    @ModifyExpressionValue(method = "extractVisibleEntities", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/DeltaTracker;getGameTimeDeltaPartialTick(Z)F"))
+    private float krs$selfEntityPartialTicks(float original, @Local Entity entity) {
+        var level = Minecraft.getInstance().level;
+        if (level == null || level.tickRateManager().isEntityFrozen(entity))
+            return original;
+
+        return TimerUtil.partialTickFor(entity, original);
+    }
+
+    @ModifyExpressionValue(method = "extractPlayerState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/DeltaTracker;getGameTimeDeltaPartialTick(Z)F"))
+    private float krs$selfPlayerPartialTicks(float original) {
+        var player = Minecraft.getInstance().player;
+        if (player == null || player.level().tickRateManager().isEntityFrozen(player))
+            return original;
+
+        return TimerUtil.selfPartialTick(original);
+    }
 
     @Shadow
     @Final

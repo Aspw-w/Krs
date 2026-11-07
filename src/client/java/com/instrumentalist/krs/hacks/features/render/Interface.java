@@ -3090,7 +3090,7 @@ public class Interface extends Module {
         if (actualTargetEntitiesData.isEmpty()) return;
 
         Vec3 cameraPos = mc.gameRenderer.mainCamera().position();
-        Vec3 forward = mc.player.getViewVector(partialTicks);
+        Vec3 forward = mc.player.getViewVector(event.selfPartialTicks);
         Vec3 right = forward.cross(new Vec3(0, 1, 0)).normalize().scale(0.7);
 
         for (int i = 0; i < actualTargetEntitiesData.size();) {

@@ -14,6 +14,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import com.instrumentalist.krs.utils.math.TimerUtil;
+import net.minecraft.world.level.entity.EntityTickList;
+import java.util.function.Consumer;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -21,6 +24,20 @@ import java.util.NoSuchElementException;
 
 @Mixin(ClientLevel.class)
 public abstract class ClientLevelMixin {
+
+    @WrapOperation(method = "tickEntities", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/entity/EntityTickList;forEach(Ljava/util/function/Consumer;)V"))
+    private void krs$splitTimerEntityTicks(EntityTickList instance, Consumer<Entity> action, Operation<Void> original) {
+        if (TimerUtil.selfTick && TimerUtil.worldTick) {
+            original.call(instance, action);
+            return;
+        }
+
+        Consumer<Entity> filtered = entity -> {
+            if (TimerUtil.isSelfEntity(entity) ? TimerUtil.selfTick : TimerUtil.worldTick)
+                action.accept(entity);
+        };
+        original.call(instance, filtered);
+    }
 
     @WrapOperation(method = "calculateBlockTint", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/OptionInstance;get()Ljava/lang/Object;"))
     private Object legacyRendererBiomeBlendHook(OptionInstance<?> instance, Operation<Object> original) {

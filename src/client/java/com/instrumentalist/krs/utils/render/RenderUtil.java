@@ -1,6 +1,7 @@
 package com.instrumentalist.krs.utils.render;
 
 import com.instrumentalist.krs.utils.GuiInputBlocker;
+import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.utils.math.Tuple;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
@@ -253,6 +254,6 @@ public final class RenderUtil {
 
     public Vec3 getLerpedPos(Entity entity, float partialTicks) {
         if (entity.isRemoved()) return entity.position();
-        return entity.getPosition(partialTicks);
+        return entity.getPosition(TimerUtil.partialTickFor(entity, partialTicks));
     }
 }

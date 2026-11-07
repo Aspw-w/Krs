@@ -4,6 +4,7 @@ import com.instrumentalist.krs.hacks.features.player.AirPlace;
 import com.instrumentalist.krs.hacks.features.combat.AutoPot;
 import com.instrumentalist.krs.hacks.features.combat.FastEat;
 import com.instrumentalist.krs.utils.IMinecraft;
+import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.utils.GuiInputBlocker;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.HandleInputEvent;
@@ -243,16 +244,19 @@ public abstract class MinecraftClientMixin implements IMinecraft {
 
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
     private void tickEvent(CallbackInfo ci) {
+        TimerUtil.beginClientTick();
         krs$syncAllowCursorChanges();
         GuiInputBlocker.syncNanoVGClickGuiMovementKeys();
 
-        if (Client.eventManager == null || !Client.eventManager.hasListeners(TickEvent.class))
+        if (!TimerUtil.selfTick || Client.eventManager == null || !Client.eventManager.hasListeners(TickEvent.class))
             return;
 
         TickEvent event = new TickEvent();
         Client.eventManager.call(event);
-        if (event.isCancelled())
+        if (event.isCancelled()) {
+            TimerUtil.endClientTick();
             ci.cancel();
+        }
     }
 
     @Unique

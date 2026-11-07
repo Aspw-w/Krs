@@ -202,7 +202,7 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
             return;
 
         RenderUtil.INSTANCE.beginWorldProjection();
-        Render3DEvent event = new Render3DEvent(krs$eventPoseStack(), cameraState.cameraEntityPartialTicks);
+        Render3DEvent event = new Render3DEvent(krs$eventPoseStack(), Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true), cameraState.cameraEntityPartialTicks);
         Client.eventManager.call(event);
     }
 

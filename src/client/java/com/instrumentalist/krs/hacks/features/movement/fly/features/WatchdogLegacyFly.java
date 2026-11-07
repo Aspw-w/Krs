@@ -90,7 +90,6 @@ public class WatchdogLegacyFly implements FlyEvent {
 
             player.jumpFromGround();
             TimerUtil.timerSpeed = 0.8f;
-            MovementUtil.strafe(0.5f);
             moveSpeed = 1.2;
         } else {
             startTime = System.currentTimeMillis();
@@ -187,7 +186,9 @@ public class WatchdogLegacyFly implements FlyEvent {
         MovementUtil.setVelocityY(0.0);
 
         if (moveSpeed >= 1) {
-            TimerUtil.timerSpeed = 2.5f;
+            TimerUtil.timerSpeed = 1.5f;
+        } else if (moveSpeed >= 0.7) {
+            TimerUtil.timerSpeed = 1.3f;
         } else {
             TimerUtil.timerSpeed = 1.1f;
         }
