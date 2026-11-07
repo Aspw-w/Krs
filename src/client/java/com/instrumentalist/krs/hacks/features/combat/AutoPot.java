@@ -232,7 +232,7 @@ public class AutoPot extends Module {
     }
 
     private static boolean isBadEffect(Holder<MobEffect> effect) {
-        return effect.value().getCategory() == MobEffectCategory.HARMFUL;
+        return effect.value().getCategory() == MobEffectCategory.HARMFUL || effect.is(MobEffects.JUMP_BOOST);
     }
 
     public static List<Holder<MobEffect>> getRequestedPotions() {
