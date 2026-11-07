@@ -31,7 +31,7 @@ import java.util.Map;
 
 public class Criticals extends Module {
     @Setting
-    private final ListValue mode = new ListValue("Mode", new String[]{"Packet", "Less Packet", "Hypixel 2020", "Cubecraft"}, "Packet");
+    private final ListValue mode = new ListValue("Mode", new String[]{"Packet", "Less Packet", "Watchdog Legacy", "Cubecraft"}, "Packet");
 
     @Setting
     private final BooleanValue cooldownCheck = new BooleanValue("Cooldown Check", false, () -> mode.get().equalsIgnoreCase("packet") || mode.get().equalsIgnoreCase("less packet"));
@@ -39,7 +39,7 @@ public class Criticals extends Module {
     private final double[] packetValues = new double[]{0.0625D, 0.0D, 0.05D, 0.0D};
     private final double[] lessPacketValues = new double[]{0.0625D, 0.0D};
 
-    private final Map<Integer, Integer> hypixel2020Critted = new HashMap<>();
+    private final Map<Integer, Integer> watchdogLegacyCritted = new HashMap<>();
 
     private double hoverOffset;
     private double serverFallDistance;
@@ -58,13 +58,13 @@ public class Criticals extends Module {
 
     @Override
     public void onDisable() {
-        hypixel2020Critted.clear();
+        watchdogLegacyCritted.clear();
         resetNoGround();
     }
 
     @Override
     public void onWorld(WorldEvent event) {
-        hypixel2020Critted.clear();
+        watchdogLegacyCritted.clear();
         resetNoGround();
     }
 
@@ -138,17 +138,17 @@ public class Criticals extends Module {
         return Math.max(0.0D, drop) + upwardVelocity * upwardVelocity / (2.0D * 0.08D);
     }
 
-    private boolean isHypixel2020Critted(Entity entity) {
-        Integer hurtTimeAtCrit = hypixel2020Critted.get(entity.getId());
+    private boolean isWatchdogLegacyCritted(Entity entity) {
+        Integer hurtTimeAtCrit = watchdogLegacyCritted.get(entity.getId());
         if (hurtTimeAtCrit == null)
             return false;
 
         if (!(entity instanceof LivingEntity living) || living.hurtTime > hurtTimeAtCrit) {
-            hypixel2020Critted.remove(entity.getId());
+            watchdogLegacyCritted.remove(entity.getId());
             return false;
         }
 
-        hypixel2020Critted.put(entity.getId(), living.hurtTime);
+        watchdogLegacyCritted.put(entity.getId(), living.hurtTime);
         return true;
     }
 
@@ -204,13 +204,13 @@ public class Criticals extends Module {
                 }
                 break;
 
-            case "hypixel 2020":
-                if (event.entity == null || isHypixel2020Critted(event.entity) || ModuleManager.getModuleState(SpeedModule.class))
+            case "watchdog legacy":
+                if (event.entity == null || isWatchdogLegacyCritted(event.entity) || ModuleManager.getModuleState(SpeedModule.class))
                     break;
                 for (double critY : lessPacketValues) {
                     PacketUtil.sendPacketAsSilent(new ServerboundMovePlayerPacket.Pos(pos.x, pos.y + critY, pos.z, false, horizontalCollision));
                 }
-                hypixel2020Critted.put(event.entity.getId(), event.entity instanceof LivingEntity living ? living.hurtTime : 0);
+                watchdogLegacyCritted.put(event.entity.getId(), event.entity instanceof LivingEntity living ? living.hurtTime : 0);
                 break;
         }
     }

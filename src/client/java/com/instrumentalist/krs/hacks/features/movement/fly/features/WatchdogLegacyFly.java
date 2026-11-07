@@ -17,11 +17,11 @@ import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
-public class Hypixel2020Fly implements FlyEvent {
+public class WatchdogLegacyFly implements FlyEvent {
 
     @Override
     public String getName() {
-        return "Hypixel 2020";
+        return "Watchdog Legacy";
     }
 
     private enum State {

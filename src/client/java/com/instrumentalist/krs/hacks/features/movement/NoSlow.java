@@ -32,7 +32,7 @@ import java.util.Locale;
 public class NoSlow extends Module {
 
     @Setting
-    private static final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "Hypixel NCP", "Hypixel 2020"}, "Vanilla");
+    private static final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "Hypixel NCP", "Watchdog Legacy"}, "Vanilla");
 
     @Setting
     private static final BooleanValue sneak = new BooleanValue("Sneak", false, () -> mode.get().equalsIgnoreCase("vanilla"));
@@ -67,7 +67,7 @@ public class NoSlow extends Module {
         if (mode.get().equalsIgnoreCase("hypixel ncp") && !ToolUtil.INSTANCE.isSword(player.getMainHandItem()) && player.isUsingItem() && player.onGround())
             event.y += player.tickCount % 2 == 0 ? 0.03 : 1E-5;
 
-        if (mode.get().equalsIgnoreCase("hypixel 2020")) {
+        if (mode.get().equalsIgnoreCase("watchdog legacy")) {
             event.callInPost = true;
 
             if (!isBlocking(player)) return;
@@ -160,7 +160,7 @@ public class NoSlow extends Module {
         switch (mode.get().toLowerCase(Locale.ROOT)) {
             case "vanilla":
                 return shouldNoSlowSneak() || shouldNoSlowUseItem();
-            case "hypixel ncp", "hypixel 2020":
+            case "hypixel ncp", "watchdog legacy":
                 return shouldNoSlowUseItem();
         }
         return false;
@@ -177,7 +177,7 @@ public class NoSlow extends Module {
                 return fastUseItem;
             case "hypixel ncp":
                 return !ToolUtil.INSTANCE.isSword(player.getMainHandItem()) && !player.isShiftKeyDown() && fastUseItem;
-            case "hypixel 2020": {
+            case "watchdog legacy": {
                 ItemUseAnimation animation = player.getUseItem().getUseAnimation();
                 return animation == ItemUseAnimation.EAT
                         || animation == ItemUseAnimation.DRINK

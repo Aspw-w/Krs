@@ -11,13 +11,13 @@ import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 
-public class Hypixel2020Speed implements SpeedEvent {
+public class WatchdogLegacySpeed implements SpeedEvent {
 
     private static boolean flagged = false;
 
     @Override
     public String getName() {
-        return "Hypixel 2020";
+        return "Watchdog Legacy";
     }
 
     public static void reset() {

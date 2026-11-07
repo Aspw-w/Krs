@@ -10,7 +10,7 @@ import com.instrumentalist.krs.hacks.features.exploit.*;
 import com.instrumentalist.krs.hacks.features.exploit.disabler.DisablerModule;
 import com.instrumentalist.krs.hacks.features.movement.*;
 import com.instrumentalist.krs.hacks.features.movement.fly.FlyModule;
-import com.instrumentalist.krs.hacks.features.movement.fly.features.Hypixel2020Fly;
+import com.instrumentalist.krs.hacks.features.movement.fly.features.WatchdogLegacyFly;
 import com.instrumentalist.krs.hacks.features.movement.speed.SpeedModule;
 import com.instrumentalist.krs.hacks.features.nulling.PluginsDetector;
 import com.instrumentalist.krs.hacks.features.player.*;
@@ -264,7 +264,7 @@ public class ModuleManager implements EventListener {
 
         Packet<?> packet = event.packet;
 
-        Hypixel2020Fly.trackPearl(packet);
+        WatchdogLegacyFly.trackPearl(packet);
 
         if (gettingTransactions && packet instanceof ServerboundPongPacket) {
             transactionCounter += 1;

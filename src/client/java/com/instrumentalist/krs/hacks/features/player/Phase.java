@@ -38,7 +38,7 @@ public class Phase extends Module {
     private static final int VANILLA_CORRECTION_COOLDOWN_TICKS = 5;
 
     @Setting
-    private final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "NCP", "AAC 4", "Hypixel", "Hypixel 2020", "Intave"}, "NCP");
+    private final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "NCP", "AAC 4", "Hypixel", "Watchdog Legacy", "Intave"}, "NCP");
 
     private boolean isClipping = false;
     private final TickTimer phaseTimer = new TickTimer();
@@ -104,7 +104,7 @@ public class Phase extends Module {
             event.cancel();
     }
 
-    private void updateHypixel2020Phase(LocalPlayer player, MotionEvent event) {
+    private void updateWatchdogLegacyPhase(LocalPlayer player, MotionEvent event) {
         if (event.post || mc.level == null) return;
 
         if (player.isShiftKeyDown()) {
@@ -163,8 +163,8 @@ public class Phase extends Module {
         var level = mc.level;
         if (player == null || level == null) return;
 
-        if (mode.get().equalsIgnoreCase("hypixel 2020")) {
-            updateHypixel2020Phase(player, event);
+        if (mode.get().equalsIgnoreCase("watchdog legacy")) {
+            updateWatchdogLegacyPhase(player, event);
             return;
         }
 

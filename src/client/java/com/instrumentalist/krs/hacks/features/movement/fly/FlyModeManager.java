@@ -54,8 +54,8 @@ public class FlyModeManager {
             case "float":
                 currentMode = new FloatFly();
                 break;
-            case "hypixel 2020":
-                currentMode = new Hypixel2020Fly();
+            case "watchdog legacy":
+                currentMode = new WatchdogLegacyFly();
                 break;
             case "ncp boost":
                 currentMode = new NCPBoostFly();

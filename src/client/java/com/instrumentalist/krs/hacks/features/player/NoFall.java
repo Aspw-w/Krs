@@ -22,7 +22,7 @@ import java.util.Locale;
 
 public class NoFall extends Module {
     @Setting
-    private final ListValue mode = new ListValue("Mode", new String[]{"Packet", "Less Packet", "Spoof", "No Ground", "Hypixel NCP", "Hypixel 2020", "Cubecraft", "Grim 1.9+"}, "Packet");
+    private final ListValue mode = new ListValue("Mode", new String[]{"Packet", "Less Packet", "Spoof", "No Ground", "Hypixel NCP", "Watchdog Legacy", "Cubecraft", "Grim 1.9+"}, "Packet");
 
     @Setting
     private final BooleanValue modifiedGrim = new BooleanValue("Modified Grim", false, () -> mode.get().equalsIgnoreCase("grim 1.9+"));
@@ -187,7 +187,7 @@ public class NoFall extends Module {
                     }
                 }
             }
-            case "hypixel 2020" -> {
+            case "watchdog legacy" -> {
                 if (!event.post && player.fallDistance > 2F)
                     event.onGround = player.tickCount % 2 == 0;
             }

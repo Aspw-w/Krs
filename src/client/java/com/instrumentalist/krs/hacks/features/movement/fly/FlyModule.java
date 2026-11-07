@@ -23,7 +23,7 @@ public class FlyModule extends Module {
     @Setting
     private static final ListValue flyMode = new ListValue(
             "Fly Mode",
-            new String[]{"Vanilla", "Creative", "Airwalk", "Jetpack", "Float", "NCP Boost", "Hypixel 2020", "Negative Packet", "2b2tJP Control Fast", "Modern MMC", "Vulcan Glide", "Verus Jetpack", "Matrix", "Grim 1.9-1.18.1"},
+            new String[]{"Vanilla", "Creative", "Airwalk", "Jetpack", "Float", "NCP Boost", "Watchdog Legacy", "Negative Packet", "2b2tJP Control Fast", "Modern MMC", "Vulcan Glide", "Verus Jetpack", "Matrix", "Grim 1.9-1.18.1"},
             "Vanilla"
     );
 
@@ -105,8 +105,8 @@ public class FlyModule extends Module {
             matrixFly.reset();
         } else if (flyModeManager.currentMode instanceof Grim19To1181Fly grim19To1181Fly) {
             grim19To1181Fly.reset();
-        } else if (flyModeManager.currentMode instanceof Hypixel2020Fly) {
-            Hypixel2020Fly.enable();
+        } else if (flyModeManager.currentMode instanceof WatchdogLegacyFly) {
+            WatchdogLegacyFly.enable();
         }
     }
 
@@ -142,8 +142,8 @@ public class FlyModule extends Module {
             matrixFly.disable();
         } else if (flyModeManager.currentMode instanceof Grim19To1181Fly grim19To1181Fly) {
             grim19To1181Fly.disable();
-        } else if (flyModeManager.currentMode instanceof Hypixel2020Fly) {
-            Hypixel2020Fly.disable();
+        } else if (flyModeManager.currentMode instanceof WatchdogLegacyFly) {
+            WatchdogLegacyFly.disable();
         } else if (flyModeManager.currentMode instanceof VulcanGlideFly) {
             VulcanGlideFly.ticks = 0;
         } else if (flyModeManager.currentMode instanceof NCPBoostFly) {
