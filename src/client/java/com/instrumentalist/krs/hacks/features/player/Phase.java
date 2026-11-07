@@ -38,7 +38,7 @@ public class Phase extends Module {
     private static final int VANILLA_CORRECTION_COOLDOWN_TICKS = 5;
 
     @Setting
-    private final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "NCP", "AAC 4", "Hypixel", "Intave"}, "NCP");
+    private final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "NCP", "AAC 4", "Hypixel", "Hypixel 2020", "Intave"}, "NCP");
 
     private boolean isClipping = false;
     private final TickTimer phaseTimer = new TickTimer();
@@ -104,6 +104,48 @@ public class Phase extends Module {
             event.cancel();
     }
 
+    private void updateHypixel2020Phase(LocalPlayer player, MotionEvent event) {
+        if (event.post || mc.level == null) return;
+
+        if (player.isShiftKeyDown()) {
+            player.setPos(player.getX(), player.getY() - 4.0, player.getZ());
+            toggle();
+            return;
+        }
+
+        if (!MovementUtil.isMoving()) return;
+
+        double direction = Math.toRadians(MovementUtil.getPlayerDirection());
+        double sin = -Math.sin(direction);
+        double cos = Math.cos(direction);
+
+        if (player.horizontalCollision) {
+            double endX = 0.0;
+            double endZ = 0.0;
+            for (double d = 0.0; d <= 1.0; d += 0.02) {
+                double x = sin * d;
+                double z = cos * d;
+                if (!mc.level.noCollision(player, player.getBoundingBox().move(x, 0.0, z))) {
+                    endX = x;
+                    endZ = z;
+                    player.setPos(player.getX() + x * 0.001, player.getY(), player.getZ() + z * 0.001);
+                }
+            }
+            player.setPos(player.getX() + endX * 0.01, player.getY(), player.getZ() + endZ * 0.01);
+        }
+
+        boolean inWall = false;
+        for (double d = 0.0; d <= 0.1; d += 0.02) {
+            if (!mc.level.noCollision(player, player.getBoundingBox().move(sin * d, 0.0, cos * d))) {
+                inWall = true;
+                break;
+            }
+        }
+
+        if (inWall && player.onGround())
+            player.setPos(player.getX() + sin * 0.2873, player.getY(), player.getZ() + cos * 0.2873);
+    }
+
     @Override
     public void onReceivedPacket(ReceivedPacketEvent event) {
         if (mode.get().equalsIgnoreCase("vanilla")
@@ -120,6 +162,11 @@ public class Phase extends Module {
         var player = mc.player;
         var level = mc.level;
         if (player == null || level == null) return;
+
+        if (mode.get().equalsIgnoreCase("hypixel 2020")) {
+            updateHypixel2020Phase(player, event);
+            return;
+        }
 
         if (mode.get().equalsIgnoreCase("hypixel")) {
             if (!player.horizontalCollision && !isClipping) return;

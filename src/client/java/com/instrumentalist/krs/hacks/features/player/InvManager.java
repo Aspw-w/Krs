@@ -3,6 +3,8 @@ package com.instrumentalist.krs.hacks.features.player;
 import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
+import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.combat.AutoPot;
 import com.instrumentalist.krs.hacks.features.exploit.disabler.features.HypixelDisabler;
 import com.instrumentalist.krs.utils.math.RandomUtil;
 import com.instrumentalist.krs.utils.math.ToolUtil;
@@ -14,6 +16,9 @@ import net.minecraft.client.gui.screens.inventory.FurnaceScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.effect.MobEffectCategory;
+import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -24,9 +29,14 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.BasePressurePlateBlock;
 import com.instrumentalist.krs.utils.input.Keys;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 public class InvManager extends Module {
@@ -47,6 +57,9 @@ public class InvManager extends Module {
     private final IntValue minArmorDelay = new IntValue("Min Armor Delay", 0, 0, 10);
 
     @Setting
+    private final IntValue blockRefill = new IntValue("Block Refill", 16, 1, 64);
+
+    @Setting
     private final BooleanValue cleaner = new BooleanValue("Cleaner", true);
 
     @Setting
@@ -57,6 +70,14 @@ public class InvManager extends Module {
     private final ItemStack[] hotbarTargets = new ItemStack[9];
     private final ItemStack[] cleanerTargets = new ItemStack[9];
     private final EnumMap<EquipmentSlot, ArmorCandidate> armorCandidates = new EnumMap<>(EquipmentSlot.class);
+    private final boolean[] excessSlots = new boolean[36];
+
+    private static final int MAX_THROWABLE_STACKS = 2;
+    private static final int MAX_BLOCK_STACKS = 3;
+    private static final int MAX_HARMFUL_POTIONS = 3;
+    private static final int GOLDEN_APPLE_SLOT = 4;
+    private static final int ACTION_GAP_TICKS = 2;
+    private static int lastClickTick = Integer.MIN_VALUE / 2;
 
     private static boolean cleaning = false;
 
@@ -104,14 +125,31 @@ public class InvManager extends Module {
             return;
         }
 
+        var inventory = player.getInventory();
+
+        if (getTicksSinceClick(player) > 0 && handleBlockBorrow(player, gameMode, inventory)) {
+            cleaning = true;
+            return;
+        }
+
         if (tickCounter > 0) {
             cleaning = true;
             tickCounter--;
             return;
         }
 
-        var inventory = player.getInventory();
-        java.util.Arrays.fill(hotbarTargets, null);
+        if (isAutoPotActing(player)) {
+            cleaning = false;
+            return;
+        }
+
+        if (handlePotionBorrow(player, gameMode, inventory)) {
+            cleaning = true;
+            tickCounter = nextItemDelay();
+            return;
+        }
+
+        Arrays.fill(hotbarTargets, null);
 
         for (int i = 0; i < Math.min(36, inventory.getContainerSize()); i++) {
             ItemStack stack = inventory.getItem(i);
@@ -145,6 +183,12 @@ public class InvManager extends Module {
                     return;
                 }
             }
+        }
+
+        if (sortGoldenApple(player, gameMode, inventory)) {
+            cleaning = true;
+            tickCounter = nextItemDelay();
+            return;
         }
 
         armorCandidates.clear();
@@ -182,13 +226,15 @@ public class InvManager extends Module {
                 cleaning = true;
                 int slotIndex = inventoryIndex < 9 ? inventoryIndex + 36 : inventoryIndex;
                 gameMode.handleContainerInput(player.containerMenu.containerId, slotIndex, 0, ContainerInput.QUICK_MOVE, player);
+                markClick(player);
                 tickCounter = nextArmorDelay();
                 return;
             }
         }
 
         if (cleaner.get()) {
-            java.util.Arrays.fill(cleanerTargets, null);
+            Arrays.fill(cleanerTargets, null);
+            markExcessSlots(inventory);
 
             for (int i = 0; i <= 35; i++) {
                 ItemStack stack = inventory.getItem(i);
@@ -202,17 +248,18 @@ public class InvManager extends Module {
 
             for (int i = 0; i <= 35; i++) {
                 ItemStack stack = inventory.getItem(i);
-                if (!stack.isEmpty()
-                        && (!(stack.getItem() instanceof BlockItem) || stack.getItem() == Items.CHEST)
+                boolean excess = excessSlots[i];
+                if (!stack.isEmpty() && (excess
+                        || (!(stack.getItem() instanceof BlockItem) || stack.getItem() == Items.CHEST)
                         && !(stack.getItem() instanceof SpawnEggItem)
                         && !(stack.getItem() instanceof PotionItem)
                         && !(stack.getItem() instanceof SplashPotionItem)
                         && !(stack.getItem() instanceof LingeringPotionItem)
                         && !isAllowedCleanerItem(stack.getItem())
-                        && !containsCleanerTarget(stack)) {
+                        && !containsCleanerTarget(stack))) {
                     cleaning = true;
                     int slot = i < 9 ? i + 36 : i;
-                    dropItem(player, gameMode, slot, stack.getCount() > 1);
+                    dropItem(player, gameMode, slot, excess || stack.getCount() > 1);
                     tickCounter = nextItemDelay();
                     return;
                 }
@@ -220,6 +267,220 @@ public class InvManager extends Module {
         }
 
         cleaning = false;
+    }
+
+    private boolean handleBlockBorrow(LocalPlayer player, MultiPlayerGameMode gameMode, Container inventory) {
+        if (!ModuleManager.getModuleState(Scaffold.class) || Scaffold.countUsableHotbarBlocks(inventory) >= blockRefill.get())
+            return false;
+
+        int inventoryIndex = -1;
+        for (int i = 9; i < Math.min(36, inventory.getContainerSize()); i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (!isScaffoldBlockStack(stack)) continue;
+
+            if (inventoryIndex == -1 || stack.getCount() > inventory.getItem(inventoryIndex).getCount())
+                inventoryIndex = i;
+        }
+        if (inventoryIndex == -1) return false;
+
+        int hotbarSlot = findBorrowHotbarSlot(player, inventory);
+        if (hotbarSlot == -1) return false;
+
+        swapItems(player, gameMode, inventoryIndex, hotbarSlot);
+        return true;
+    }
+
+    private static boolean isScaffoldBlockStack(ItemStack stack) {
+        return stack.getItem() instanceof BlockItem blockItem && Scaffold.isScaffoldBlock(blockItem.getBlock());
+    }
+
+    private boolean isAutoPotActing(LocalPlayer player) {
+        return ModuleManager.getModuleState(AutoPot.class)
+                && (AutoPot.isThrowing() || AutoPot.getTicksSinceAction(player) < ACTION_GAP_TICKS);
+    }
+
+    public static int getTicksSinceClick(LocalPlayer player) {
+        int ticks = player.tickCount - lastClickTick;
+        return ticks < 0 ? Integer.MAX_VALUE : ticks;
+    }
+
+    private static void markClick(LocalPlayer player) {
+        lastClickTick = player.tickCount;
+    }
+
+    private boolean handlePotionBorrow(LocalPlayer player, MultiPlayerGameMode gameMode, Container inventory) {
+        if (!ModuleManager.getModuleState(AutoPot.class) || AutoPot.isThrowing() || AutoPot.getRequestedPotions().isEmpty() || hasRequestedPotionInHotbar(inventory))
+            return false;
+
+        int inventoryIndex = -1;
+        for (int i = 9; i < Math.min(36, inventory.getContainerSize()); i++) {
+            if (AutoPot.isRequestedPotion(inventory.getItem(i))) {
+                inventoryIndex = i;
+                break;
+            }
+        }
+        if (inventoryIndex == -1) return false;
+
+        int hotbarSlot = findBorrowHotbarSlot(player, inventory);
+        if (hotbarSlot == -1) return false;
+
+        swapItems(player, gameMode, inventoryIndex, hotbarSlot);
+        return true;
+    }
+
+    private boolean hasRequestedPotionInHotbar(Container inventory) {
+        for (int i = 0; i <= 8; i++) {
+            if (AutoPot.isRequestedPotion(inventory.getItem(i)))
+                return true;
+        }
+        return false;
+    }
+
+    private int findBorrowHotbarSlot(LocalPlayer player, Container inventory) {
+        int selected = player.getInventory().getSelectedSlot();
+        int fallback = -1;
+
+        for (int i = 8; i >= 0; i--) {
+            if (i == selected || i == GOLDEN_APPLE_SLOT || isToolHotbarSlot(i) || isScaffoldBlockStack(inventory.getItem(i))) continue;
+
+            if (inventory.getItem(i).isEmpty())
+                return i;
+
+            if (fallback == -1)
+                fallback = i;
+        }
+        return fallback;
+    }
+
+    private boolean sortGoldenApple(LocalPlayer player, MultiPlayerGameMode gameMode, Container inventory) {
+        int bestIndex = -1;
+        for (int i = 0; i < Math.min(36, inventory.getContainerSize()); i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (getGoldenAppleRank(stack) == 0) continue;
+
+            if (bestIndex == -1 || compareGoldenApples(stack, inventory.getItem(bestIndex)) > 0)
+                bestIndex = i;
+        }
+
+        if (bestIndex == -1 || bestIndex == GOLDEN_APPLE_SLOT) return false;
+
+        ItemStack current = inventory.getItem(GOLDEN_APPLE_SLOT);
+        if (getGoldenAppleRank(current) >= getGoldenAppleRank(inventory.getItem(bestIndex))) return false;
+
+        swapItems(player, gameMode, bestIndex, GOLDEN_APPLE_SLOT);
+        return true;
+    }
+
+    private int compareGoldenApples(ItemStack apple1, ItemStack apple2) {
+        int rank = Integer.compare(getGoldenAppleRank(apple1), getGoldenAppleRank(apple2));
+        if (rank != 0) return rank;
+
+        return Integer.compare(apple1.getCount(), apple2.getCount());
+    }
+
+    private static int getGoldenAppleRank(ItemStack stack) {
+        if (stack.getItem() == Items.ENCHANTED_GOLDEN_APPLE) return 2;
+        if (stack.getItem() == Items.GOLDEN_APPLE) return 1;
+        return 0;
+    }
+
+    private boolean isToolHotbarSlot(int slot) {
+        return slot == ToolUtil.TOOL_SWORD || slot == ToolUtil.TOOL_PICKAXE || slot == ToolUtil.TOOL_AXE || slot == ToolUtil.TOOL_SHOVEL;
+    }
+
+    private void markExcessSlots(Container inventory) {
+        Arrays.fill(excessSlots, false);
+
+        List<Integer> throwables = new ArrayList<>();
+        List<Integer> blocks = new ArrayList<>();
+        List<Integer> harmfulPotions = new ArrayList<>();
+        int bestRod = -1;
+        boolean hasWaterBucket = false;
+
+        for (int i = 0; i <= 35; i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (stack.isEmpty()) continue;
+
+            Item item = stack.getItem();
+            if (isLimitedThrowable(item)) {
+                throwables.add(i);
+            } else if (item == Items.FISHING_ROD) {
+                if (bestRod == -1 || compareRods(stack, inventory.getItem(bestRod)) > 0)
+                    bestRod = i;
+            } else if (item == Items.WATER_BUCKET) {
+                if (hasWaterBucket) excessSlots[i] = true;
+                hasWaterBucket = true;
+            } else if (isHarmfulPotion(stack)) {
+                harmfulPotions.add(i);
+            } else if (item instanceof BlockItem blockItem) {
+                if (blockItem.getBlock() instanceof BasePressurePlateBlock)
+                    excessSlots[i] = true;
+                else if (Scaffold.isScaffoldBlock(blockItem.getBlock()))
+                    blocks.add(i);
+            }
+        }
+
+        for (int i = 0; i <= 35; i++) {
+            if (i != bestRod && inventory.getItem(i).getItem() == Items.FISHING_ROD)
+                excessSlots[i] = true;
+        }
+
+        markStacksOverLimit(inventory, throwables, MAX_THROWABLE_STACKS);
+        if (!ModuleManager.getModuleState(Scaffold.class)) {
+            int blockLimit = MAX_BLOCK_STACKS;
+            if (mc.player != null && blocks.remove(Integer.valueOf(mc.player.getInventory().getSelectedSlot())))
+                blockLimit--;
+            markStacksOverLimit(inventory, blocks, blockLimit);
+        }
+        markItemsOverLimit(inventory, harmfulPotions, MAX_HARMFUL_POTIONS);
+    }
+
+    private void markItemsOverLimit(Container inventory, List<Integer> slots, int limit) {
+        int kept = 0;
+        for (int slot : slots) {
+            int count = inventory.getItem(slot).getCount();
+            if (kept + count <= limit) kept += count;
+            else excessSlots[slot] = true;
+        }
+    }
+
+    private static boolean isHarmfulPotion(ItemStack stack) {
+        Item item = stack.getItem();
+        if (!(item instanceof PotionItem) && !(item instanceof SplashPotionItem) && !(item instanceof LingeringPotionItem))
+            return false;
+
+        boolean harmful = false;
+        PotionContents potionContents = stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
+        for (var effectInstance : potionContents.getAllEffects()) {
+            MobEffectCategory category = effectInstance.getEffect().value().getCategory();
+            if (category == MobEffectCategory.BENEFICIAL) return false;
+            if (category == MobEffectCategory.HARMFUL) harmful = true;
+        }
+        return harmful;
+    }
+
+    private void markStacksOverLimit(Container inventory, List<Integer> slots, int limit) {
+        if (slots.size() <= limit) return;
+
+        slots.sort(Comparator.<Integer>comparingInt(i -> inventory.getItem(i).getCount()).reversed().thenComparingInt(i -> i));
+        for (int i = limit; i < slots.size(); i++)
+            excessSlots[slots.get(i)] = true;
+    }
+
+    private int compareRods(ItemStack rod1, ItemStack rod2) {
+        int enchantments = Integer.compare(getEnchantmentScore(rod1), getEnchantmentScore(rod2));
+        if (enchantments != 0) return enchantments;
+
+        int durability1 = rod1.getMaxDamage() - rod1.getDamageValue();
+        int durability2 = rod2.getMaxDamage() - rod2.getDamageValue();
+        return Integer.compare(durability1, durability2);
+    }
+
+    private static boolean isLimitedThrowable(Item item) {
+        return item == Items.SNOWBALL
+                || item == Items.EGG
+                || item == Items.BLUE_EGG
+                || item == Items.BROWN_EGG;
     }
 
     private int findItemInHotbar(Container inventory, ItemStack targetStack) {
@@ -400,11 +661,14 @@ public class InvManager extends Module {
     private void swapItems(LocalPlayer player, MultiPlayerGameMode gameMode, int from, int to) {
         int syncId = player.containerMenu.containerId;
         int fromSlot = from < 9 ? from + 36 : from;
-        if (fromSlot != to + 36)
+        if (fromSlot != to + 36) {
             gameMode.handleContainerInput(syncId, fromSlot, to, ContainerInput.SWAP, player);
+            markClick(player);
+        }
     }
 
     private void dropItem(LocalPlayer player, MultiPlayerGameMode gameMode, int slot, boolean wholeStack) {
+        markClick(player);
         if (!player.hasInfiniteMaterials()) {
             int button = wholeStack ? 1 : 0;
             gameMode.handleContainerInput(player.containerMenu.containerId, slot, button, ContainerInput.THROW, player);

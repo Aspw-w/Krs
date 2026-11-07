@@ -1,5 +1,7 @@
 package com.instrumentalist.krs.hacks.features.movement;
 
+import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.movement.fly.FlyModule;
 import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.ReceivedPacketEvent;
@@ -64,7 +66,7 @@ public class AntiVoid extends Module {
     public void onUpdate(UpdateEvent event) {
         var player = mc.player;
         updateSafeBlockHighlight();
-        if (player == null || canTick > 0 || !EntityExtension.isFallingToVoid(player) || player.tickCount <= 50 || player.getAbilities().flying || player.isShiftKeyDown() || player.isSpectator() || player.isInWater()) {
+        if (player == null || canTick > 0 || !EntityExtension.isFallingToVoid(player) || player.tickCount <= 50 || player.getAbilities().flying || player.isShiftKeyDown() || player.isSpectator() || player.isInWater() || ModuleManager.getModuleState(FlyModule.class)) {
             if (unSafeY != null) {
                 BlinkUtil.INSTANCE.sync(true, false);
                 BlinkUtil.INSTANCE.stopBlink();
@@ -114,7 +116,7 @@ public class AntiVoid extends Module {
 
         if (event.packet instanceof ClientboundPlayerPositionPacket && BlinkUtil.INSTANCE.getBlinking() && unSafeY != null) {
             canTick = 80;
-            Client.notificationManager.addNotification("Temporary disabled", "AntiVoid flagged (wait for " + canTick + "s to re-activate)");
+            Client.notificationManager.addNotification("Temporary disabled", "AntiVoid flagged (reactivating...)");
             BlinkUtil.INSTANCE.sync(true);
             BlinkUtil.INSTANCE.stopBlink();
             if (stopXZ.get())

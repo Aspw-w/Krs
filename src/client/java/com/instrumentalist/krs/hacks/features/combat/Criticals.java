@@ -8,6 +8,7 @@ import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.movement.fly.FlyModule;
+import com.instrumentalist.krs.hacks.features.movement.speed.SpeedModule;
 import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
@@ -15,6 +16,8 @@ import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.MaceItem;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
@@ -23,15 +26,20 @@ import net.minecraft.world.phys.Vec3;
 import com.instrumentalist.krs.utils.input.Keys;
 import com.instrumentalist.mixin.injector.MultiPlayerGameModeAccessor;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class Criticals extends Module {
     @Setting
-    private final ListValue mode = new ListValue("Mode", new String[]{"Packet", "Less Packet", "Cubecraft"}, "Packet");
+    private final ListValue mode = new ListValue("Mode", new String[]{"Packet", "Less Packet", "Hypixel 2020", "Cubecraft"}, "Packet");
 
     @Setting
     private final BooleanValue cooldownCheck = new BooleanValue("Cooldown Check", false, () -> mode.get().equalsIgnoreCase("packet") || mode.get().equalsIgnoreCase("less packet"));
 
     private final double[] packetValues = new double[]{0.0625D, 0.0D, 0.05D, 0.0D};
     private final double[] lessPacketValues = new double[]{0.0625D, 0.0D};
+
+    private final Map<Integer, Integer> hypixel2020Critted = new HashMap<>();
 
     private double hoverOffset;
     private double serverFallDistance;
@@ -50,11 +58,13 @@ public class Criticals extends Module {
 
     @Override
     public void onDisable() {
+        hypixel2020Critted.clear();
         resetNoGround();
     }
 
     @Override
     public void onWorld(WorldEvent event) {
+        hypixel2020Critted.clear();
         resetNoGround();
     }
 
@@ -128,6 +138,20 @@ public class Criticals extends Module {
         return Math.max(0.0D, drop) + upwardVelocity * upwardVelocity / (2.0D * 0.08D);
     }
 
+    private boolean isHypixel2020Critted(Entity entity) {
+        Integer hurtTimeAtCrit = hypixel2020Critted.get(entity.getId());
+        if (hurtTimeAtCrit == null)
+            return false;
+
+        if (!(entity instanceof LivingEntity living) || living.hurtTime > hurtTimeAtCrit) {
+            hypixel2020Critted.remove(entity.getId());
+            return false;
+        }
+
+        hypixel2020Critted.put(entity.getId(), living.hurtTime);
+        return true;
+    }
+
     private void resetNoGround() {
         hoverOffset = 0.0D;
         serverFallDistance = 0.0D;
@@ -178,6 +202,15 @@ public class Criticals extends Module {
                 for (double critY : lessPacketValues) {
                     PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(pos.x, pos.y + critY, pos.z, false, horizontalCollision));
                 }
+                break;
+
+            case "hypixel 2020":
+                if (event.entity == null || isHypixel2020Critted(event.entity) || ModuleManager.getModuleState(SpeedModule.class))
+                    break;
+                for (double critY : lessPacketValues) {
+                    PacketUtil.sendPacketAsSilent(new ServerboundMovePlayerPacket.Pos(pos.x, pos.y + critY, pos.z, false, horizontalCollision));
+                }
+                hypixel2020Critted.put(event.entity.getId(), event.entity instanceof LivingEntity living ? living.hurtTime : 0);
                 break;
         }
     }

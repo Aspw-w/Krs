@@ -5,7 +5,9 @@ import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.player.InvManager;
 import com.instrumentalist.krs.hacks.features.player.Scaffold;
+import net.minecraft.client.player.LocalPlayer;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.utils.math.BehaviorUtils;
 import com.instrumentalist.krs.utils.math.TickTimer;
@@ -17,6 +19,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
@@ -35,6 +38,10 @@ public class AutoPot extends Module {
     private boolean resetPotiHaveAEffect = false;
     private int oldSlot = -1;
     private final TickTimer potTimer = new TickTimer();
+    private static final List<Holder<MobEffect>> requestedPotions = new ArrayList<>();
+    private static boolean throwing = false;
+    private static int lastActionTick = Integer.MIN_VALUE / 2;
+    private static final int ACTION_GAP_TICKS = 2;
 
     private final List<Holder<MobEffect>> potions = List.of(
             MobEffects.SPEED,
@@ -44,7 +51,6 @@ public class AutoPot extends Module {
             MobEffects.INVISIBILITY,
             MobEffects.WATER_BREATHING,
             MobEffects.STRENGTH,
-            MobEffects.JUMP_BOOST,
             MobEffects.INSTANT_HEALTH
     );
     private final ArrayList<Holder<MobEffect>> potionOrder = new ArrayList<>(potions.size());
@@ -65,6 +71,8 @@ public class AutoPot extends Module {
         wasRotating = false;
         oldSlot = -1;
         potTimer.reset();
+        requestedPotions.clear();
+        throwing = false;
     }
 
     @Override
@@ -84,16 +92,21 @@ public class AutoPot extends Module {
             if (wasRotating) {
                 Client.rotationManager.stopRotation();
                 BehaviorUtils.noKillAura = false;
-                if (oldSlot != -1) {
-                    if (player != null)
-                        player.getInventory().setSelectedSlot(oldSlot);
-                    oldSlot = -1;
-                }
+            }
+            if (wasRotating || oldSlot != -1)
                 PlayerUtil.INSTANCE.stopSpoof();
+            if (oldSlot != -1) {
+                if (player != null) {
+                    player.getInventory().setSelectedSlot(oldSlot);
+                    markAction(player);
+                }
+                oldSlot = -1;
             }
             potted = false;
             resetPotiHaveAEffect = false;
             wasRotating = false;
+            requestedPotions.clear();
+            throwing = false;
             return;
         }
 
@@ -109,18 +122,25 @@ public class AutoPot extends Module {
                 needPots.add(effect);
         }
 
+        requestedPotions.clear();
+        requestedPotions.addAll(needPots);
+        throwing = wasRotating || oldSlot != -1;
+
         if (needPots.isEmpty()) {
             if (wasRotating) {
                 Client.rotationManager.stopRotation();
                 BehaviorUtils.noKillAura = false;
-                if (oldSlot != -1) {
-                    player.getInventory().setSelectedSlot(oldSlot);
-                    oldSlot = -1;
-                }
+            }
+            if (wasRotating || oldSlot != -1)
                 PlayerUtil.INSTANCE.stopSpoof();
+            if (oldSlot != -1) {
+                player.getInventory().setSelectedSlot(oldSlot);
+                markAction(player);
+                oldSlot = -1;
             }
             potted = false;
             wasRotating = false;
+            throwing = false;
             return;
         }
 
@@ -129,28 +149,29 @@ public class AutoPot extends Module {
             return;
         }
 
+        if (!wasRotating && ModuleManager.getModuleState(InvManager.class) && InvManager.getTicksSinceClick(player) < ACTION_GAP_TICKS)
+            return;
+
         ItemStack mainHandStack = player.getMainHandItem();
         if (!(mainHandStack.getItem() instanceof SplashPotionItem)) {
             int hotbarIndex = findPotInHotbar(inventory, needPots);
             if (hotbarIndex != -1) {
-                oldSlot = inventory.getSelectedSlot();
+                if (oldSlot == -1)
+                    oldSlot = inventory.getSelectedSlot();
                 PlayerUtil.INSTANCE.doSpoof(oldSlot);
                 inventory.setSelectedSlot(hotbarIndex);
+                markAction(player);
+                throwing = true;
+            } else if (oldSlot != -1) {
+                PlayerUtil.INSTANCE.stopSpoof();
+                oldSlot = -1;
+                throwing = wasRotating;
             }
             return;
         }
 
         if (mainHandStack.getItem() instanceof SplashPotionItem) {
-            PotionContents potionContents = mainHandStack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
-            boolean containsEffect = false;
-            for (var effectInstance : potionContents.getAllEffects()) {
-                if (needPots.contains(effectInstance.getEffect())) {
-                    containsEffect = true;
-                    break;
-                }
-            }
-
-            if (!containsEffect) {
+            if (!isThrowablePotion(mainHandStack, needPots)) {
                 resetPotiHaveAEffect = true;
                 wasRotating = true;
                 return;
@@ -165,6 +186,7 @@ public class AutoPot extends Module {
         }
         Client.rotationManager.startRotation(player.getYRot(), 90f, 180f);
         wasRotating = true;
+        throwing = true;
 
         if (ModuleManager.rotTick < 1) return;
 
@@ -175,27 +197,61 @@ public class AutoPot extends Module {
                 Client.rotationManager.getRotationPitch()
         ));
 
+        markAction(player);
+
         potTimer.reset();
         potted = true;
     }
 
+    private static void markAction(LocalPlayer player) {
+        lastActionTick = player.tickCount;
+    }
+
+    public static int getTicksSinceAction(LocalPlayer player) {
+        int ticks = player.tickCount - lastActionTick;
+        return ticks < 0 ? Integer.MAX_VALUE : ticks;
+    }
+
     private int findPotInHotbar(Inventory inventory, List<Holder<MobEffect>> needPots) {
         for (int i = 0; i <= 8; i++) {
-            ItemStack stack = inventory.getItem(i);
-            if (stack.getItem() == Items.SPLASH_POTION) {
-                for (Holder<MobEffect> effect : needPots) {
-                    if (hasEffect(stack, effect)) return i;
-                }
-            }
+            if (isThrowablePotion(inventory.getItem(i), needPots)) return i;
         }
         return -1;
     }
 
-    private boolean hasEffect(ItemStack stack, Holder<MobEffect> effect) {
+    private static boolean isThrowablePotion(ItemStack stack, List<Holder<MobEffect>> wanted) {
+        if (stack.getItem() != Items.SPLASH_POTION) return false;
+
+        boolean hasWanted = false;
         PotionContents potionContents = stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
         for (var effectInstance : potionContents.getAllEffects()) {
-            if (effectInstance.getEffect() == effect) return true;
+            if (isBadEffect(effectInstance.getEffect())) return false;
+            if (wanted.contains(effectInstance.getEffect())) hasWanted = true;
         }
-        return false;
+        return hasWanted;
+    }
+
+    private static boolean isBadEffect(Holder<MobEffect> effect) {
+        return effect.value().getCategory() == MobEffectCategory.HARMFUL;
+    }
+
+    public static List<Holder<MobEffect>> getRequestedPotions() {
+        return Collections.unmodifiableList(requestedPotions);
+    }
+
+    public static boolean isThrowing() {
+        return throwing;
+    }
+
+    public static boolean shouldBlockUse() {
+        var player = mc.player;
+        return player != null
+                && throwing
+                && ModuleManager.getModuleState(AutoPot.class)
+                && player.getMainHandItem().getItem() instanceof SplashPotionItem;
+    }
+
+    public static boolean isRequestedPotion(ItemStack stack) {
+        return isThrowablePotion(stack, requestedPotions);
     }
 }

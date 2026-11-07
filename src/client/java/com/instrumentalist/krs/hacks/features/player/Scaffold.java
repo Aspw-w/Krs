@@ -931,7 +931,7 @@ public class Scaffold extends Module {
         if (block.defaultBlockState().isAir()) return false;
 
         var item = block.asItem();
-        return !(block instanceof ChestBlock || block instanceof WebBlock || block instanceof CakeBlock || block instanceof CandleCakeBlock || block instanceof BrewingStandBlock || block instanceof EnderChestBlock || block instanceof ShulkerBoxBlock || block instanceof FurnaceBlock
+        return !(block instanceof FallingBlock || block instanceof ChestBlock || block instanceof WebBlock || block instanceof CakeBlock || block instanceof CandleCakeBlock || block instanceof BrewingStandBlock || block instanceof EnderChestBlock || block instanceof ShulkerBoxBlock || block instanceof FurnaceBlock
                 || block instanceof CraftingTableBlock || block instanceof CrafterBlock || block instanceof SmokerBlock || block instanceof BlastFurnaceBlock
                 || block instanceof CartographyTableBlock || block instanceof AnvilBlock || block instanceof BellBlock || block instanceof BeaconBlock
                 || block instanceof DragonEggBlock || block instanceof LeverBlock || block instanceof EnchantingTableBlock || block instanceof ButtonBlock

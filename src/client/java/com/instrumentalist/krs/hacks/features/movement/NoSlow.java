@@ -12,7 +12,11 @@ import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.ListValue;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.world.InteractionHand;
@@ -28,7 +32,7 @@ import java.util.Locale;
 public class NoSlow extends Module {
 
     @Setting
-    private static final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "Hypixel NCP"}, "Vanilla");
+    private static final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "Hypixel NCP", "Hypixel 2020"}, "Vanilla");
 
     @Setting
     private static final BooleanValue sneak = new BooleanValue("Sneak", false, () -> mode.get().equalsIgnoreCase("vanilla"));
@@ -62,6 +66,31 @@ public class NoSlow extends Module {
 
         if (mode.get().equalsIgnoreCase("hypixel ncp") && !ToolUtil.INSTANCE.isSword(player.getMainHandItem()) && player.isUsingItem() && player.onGround())
             event.y += player.tickCount % 2 == 0 ? 0.03 : 1E-5;
+
+        if (mode.get().equalsIgnoreCase("hypixel 2020")) {
+            event.callInPost = true;
+
+            if (!isBlocking(player)) return;
+
+            if (!event.post) {
+                PacketUtil.sendPacket(new ServerboundPlayerActionPacket(
+                        ServerboundPlayerActionPacket.Action.RELEASE_USE_ITEM,
+                        BlockPos.ZERO,
+                        Direction.DOWN
+                ));
+            } else {
+                PacketUtil.sendPacket(new ServerboundUseItemPacket(
+                        player.getUsedItemHand(),
+                        0,
+                        player.getYRot(),
+                        player.getXRot()
+                ));
+            }
+        }
+    }
+
+    private static boolean isBlocking(LocalPlayer player) {
+        return player.isUsingItem() && player.getUseItem().getUseAnimation() == ItemUseAnimation.BLOCK;
     }
 
     @Override
@@ -131,7 +160,7 @@ public class NoSlow extends Module {
         switch (mode.get().toLowerCase(Locale.ROOT)) {
             case "vanilla":
                 return shouldNoSlowSneak() || shouldNoSlowUseItem();
-            case "hypixel ncp":
+            case "hypixel ncp", "hypixel 2020":
                 return shouldNoSlowUseItem();
         }
         return false;
@@ -148,6 +177,13 @@ public class NoSlow extends Module {
                 return fastUseItem;
             case "hypixel ncp":
                 return !ToolUtil.INSTANCE.isSword(player.getMainHandItem()) && !player.isShiftKeyDown() && fastUseItem;
+            case "hypixel 2020": {
+                ItemUseAnimation animation = player.getUseItem().getUseAnimation();
+                return animation == ItemUseAnimation.EAT
+                        || animation == ItemUseAnimation.DRINK
+                        || animation == ItemUseAnimation.BLOCK
+                        || animation == ItemUseAnimation.BOW;
+            }
         }
 
         return false;

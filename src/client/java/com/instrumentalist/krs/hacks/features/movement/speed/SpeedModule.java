@@ -21,7 +21,7 @@ public class SpeedModule extends Module {
     @Setting
     private static final ListValue speedMode = new ListValue(
             "Speed Mode",
-            new String[]{"Vanilla", "Smooth Vanilla", "Hypixel NCP Hop", "Modern MMC", "5b5t", "Boost", "Flag Boost", "NCP", "Verus", "Vulcan", "Vulcan Old", "Miniblox"},
+            new String[]{"Vanilla", "Smooth Vanilla", "Hypixel NCP Hop", "Modern MMC", "5b5t", "Boost", "Flag Boost", "NCP", "Hypixel 2020","Verus", "Vulcan", "Vulcan Old", "Miniblox"},
             "Vanilla"
     );
 
@@ -64,6 +64,11 @@ public class SpeedModule extends Module {
 
             VulcanOldSpeed.reset();
         } else if (speedModeManager.currentMode instanceof NCPSpeed) {
+            if (mc.player != null)
+                MovementUtil.stopMoving();
+        } else if (speedModeManager.currentMode instanceof Hypixel2020Speed) {
+            Hypixel2020Speed.reset();
+            TimerUtil.reset();
             if (mc.player != null)
                 MovementUtil.stopMoving();
         } else if (speedModeManager.currentMode instanceof VerusSpeed) {

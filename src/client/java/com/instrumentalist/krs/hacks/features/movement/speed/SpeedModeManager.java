@@ -41,6 +41,9 @@ public class SpeedModeManager {
             case "ncp":
                 currentMode = new NCPSpeed();
                 break;
+            case "hypixel 2020":
+                currentMode = new Hypixel2020Speed();
+                break;
             case "flag boost":
                 currentMode = new FlagBoostSpeed();
                 break;

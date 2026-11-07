@@ -41,6 +41,7 @@ public class ChestStealer extends Module {
     private int closeCounter = 0;
     private int closeDelayTarget = -1;
     private boolean stealing = false;
+    private boolean ownsBlink = false;
     private final ArrayList<Integer> slotIndices = new ArrayList<>(27);
 
     public ChestStealer() {
@@ -62,10 +63,20 @@ public class ChestStealer extends Module {
         closeCounter = 0;
         closeDelayTarget = -1;
         stealing = false;
+        if (ownsBlink)
+            releaseBlink();
     }
 
     @Override
     public void onEnable() {
+    }
+
+    private void releaseBlink() {
+        if (BlinkUtil.INSTANCE.getBlinking()) {
+            BlinkUtil.INSTANCE.sync(true, false);
+            BlinkUtil.INSTANCE.stopBlink();
+        }
+        ownsBlink = false;
     }
 
     @Override
@@ -74,10 +85,8 @@ public class ChestStealer extends Module {
         var gameMode = mc.gameMode;
         if (player == null || gameMode == null) return;
 
-        if (!stealing && BlinkUtil.INSTANCE.getBlinking()) {
-            BlinkUtil.INSTANCE.sync(true, false);
-            BlinkUtil.INSTANCE.stopBlink();
-        }
+        if (!stealing && ownsBlink)
+            releaseBlink();
 
         if (tickCounter > 0) {
             tickCounter--;
@@ -92,6 +101,7 @@ public class ChestStealer extends Module {
 
             if (blink.get() && !stealing) {
                 BlinkUtil.INSTANCE.doBlink();
+                ownsBlink = true;
                 stealing = true;
             }
 
