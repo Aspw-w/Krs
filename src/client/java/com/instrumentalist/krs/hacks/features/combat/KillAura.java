@@ -149,7 +149,7 @@ public class KillAura extends Module {
     @Setting
     public static final ListValue autoBlockMode = new ListValue(
             "Auto Block Mode",
-            new String[]{"Vanilla", "Blink1", "Hypixel NCP", "Swap", "Legit", "Interact1", "Interact2", "Basic", "Spoof", "Delayed", "Post Attack", "1.8", "No Order"},
+            new String[]{"Vanilla", "Blink1", "Hypixel NCP", "Swap", "Legit", "Interact1", "Interact2", "Basic", "Spoof", "Delayed", "Post Attack", "1.8", "1.8 Full", "No Order"},
             "No Order"
     );
 
@@ -345,6 +345,7 @@ public class KillAura extends Module {
     private boolean wasBlinking = false;
     private boolean wasPacketBlocking = false;
     private boolean wasBlocking = false;
+    private boolean heldLegacyBlock = false;
     public static boolean isBlocking = false;
 
     private static final class TargetCandidate {
@@ -631,7 +632,7 @@ public class KillAura extends Module {
         boolean canAttackTarget = closest.squaredDistance() <= realAttackReachSquared
                 && (canAttackThroughWalls || hasTargetVisibility || canHitVisibleAtRotation);
 
-        if (!autoBlock && wasBlocking)
+        if (!autoBlock && wasBlocking || !skipsLegacyUnblock(currentAutoBlockMode) && heldLegacyBlock)
             resetAutoBlock();
 
         if (autoBlock) {
@@ -648,7 +649,7 @@ public class KillAura extends Module {
                 }
 
                 finishAutoBlock(currentAutoBlockMode, yaw, pitch);
-                if ("1.8".equals(currentAutoBlockMode)) {
+                if (isLegacyAutoBlockMode(currentAutoBlockMode)) {
                     playVisualSwing(closestEntity);
                     return;
                 }
@@ -680,6 +681,7 @@ public class KillAura extends Module {
                 case "spoof":
                 case "delayed":
                 case "1.8":
+                case "1.8 full":
                     if (canAutoBlock)
                         startAutoBlock(currentAutoBlockMode, yaw, pitch, closestEntity, false);
                     break;
@@ -688,7 +690,7 @@ public class KillAura extends Module {
             return;
         }
 
-        boolean legacyAutoBlock = "1.8".equals(currentAutoBlockMode);
+        boolean legacyAutoBlock = isLegacyAutoBlockMode(currentAutoBlockMode);
         boolean canHitAtRotation = !rotations.get() || noHitCheck.get() || tpReach.get() || randomTp.get();
         if (!canHitAtRotation) {
             canHitAtRotation = canAttackThroughWalls
@@ -819,6 +821,7 @@ public class KillAura extends Module {
                 break;
 
             case "1.8":
+            case "1.8 full":
                 if (canAutoBlock && hasLegacyBlockWindow(blockTarget))
                     startAutoBlock(autoBlockMode, yaw, pitch, blockTarget, true);
                 break;
@@ -1106,7 +1109,25 @@ public class KillAura extends Module {
         if (mode == null) return false;
 
         return switch (mode.toLowerCase(Locale.ROOT)) {
-            case "hypixel ncp", "swap", "legit", "interact1", "interact2", "basic", "spoof", "delayed", "post attack", "1.8" -> true;
+            case "hypixel ncp", "swap", "legit", "interact1", "interact2", "basic", "spoof", "delayed", "post attack", "1.8", "1.8 full" -> true;
+            default -> false;
+        };
+    }
+
+    private static boolean isLegacyAutoBlockMode(String mode) {
+        if (mode == null) return false;
+
+        return switch (mode.toLowerCase(Locale.ROOT)) {
+            case "1.8", "1.8 full" -> true;
+            default -> false;
+        };
+    }
+
+    private static boolean skipsLegacyUnblock(String mode) {
+        if (mode == null) return false;
+
+        return switch (mode.toLowerCase(Locale.ROOT)) {
+            case "1.8 full" -> true;
             default -> false;
         };
     }
@@ -1185,6 +1206,7 @@ public class KillAura extends Module {
                 break;
 
             case "1.8":
+            case "1.8 full":
                 sendLegacyAutoBlock(yaw, pitch);
                 break;
 
@@ -1198,6 +1220,7 @@ public class KillAura extends Module {
 
         wasPacketBlocking = true;
         wasBlocking = true;
+        heldLegacyBlock = false;
         blockTick = 1;
 
         if (usesBlink(mode)) {
@@ -1208,7 +1231,7 @@ public class KillAura extends Module {
     }
 
     private boolean shouldFinishAutoBlock(String mode, Entity target) {
-        if ("1.8".equals(mode))
+        if (isLegacyAutoBlockMode(mode))
             return blockTick >= 1 && ticksUntilAttackReady(target) <= 1;
 
         int minimumTicks = "delayed".equals(mode) ? 2 : 1;
@@ -1247,6 +1270,11 @@ public class KillAura extends Module {
             case "post attack":
             case "1.8":
                 releaseAutoBlock();
+                break;
+
+            case "1.8 full":
+                clearAutoBlockState();
+                heldLegacyBlock = true;
                 break;
 
             case "swap":
@@ -1314,7 +1342,7 @@ public class KillAura extends Module {
     }
 
     private String currentSwingOrder() {
-        return autoBlockMode.get().equalsIgnoreCase("1.8")
+        return isLegacyAutoBlockMode(autoBlockMode.get())
                 ? "1.8"
                 : swingOrderMode.get().toLowerCase(Locale.ROOT);
     }
@@ -1504,8 +1532,10 @@ public class KillAura extends Module {
     }
 
     private void resetAutoBlock() {
-        if (wasBlocking)
+        if (wasBlocking || heldLegacyBlock)
             releaseUsingItem();
+
+        heldLegacyBlock = false;
 
         wasPacketBlocking = false;
         wasBlocking = false;
@@ -1590,7 +1620,7 @@ public class KillAura extends Module {
     }
 
     private void resetPacketUnblocking() {
-        if (wasBlocking) {
+        if (wasBlocking || heldLegacyBlock) {
             resetAutoBlock();
             return;
         }
@@ -2227,7 +2257,7 @@ public class KillAura extends Module {
         if (closestEntity != null)
             Client.rotationManager.stopRotation();
 
-        if (wasBlocking) {
+        if (wasBlocking || heldLegacyBlock) {
             resetAutoBlock();
         } else if (autoBlockMode.get().equalsIgnoreCase("blink1") && wasBlinking) {
             BlinkUtil.INSTANCE.sync(true, true);
