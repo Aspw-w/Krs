@@ -7,6 +7,7 @@ import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.combat.KillAura;
 import com.instrumentalist.krs.utils.math.ToolUtil;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
@@ -80,7 +81,7 @@ public class NoSlow extends Module {
                 ));
             } else {
                 PacketUtil.sendPacket(new ServerboundUseItemPacket(
-                        player.getUsedItemHand(),
+                        player.isUsingItem() ? player.getUsedItemHand() : InteractionHand.MAIN_HAND,
                         0,
                         player.getYRot(),
                         player.getXRot()
@@ -90,7 +91,14 @@ public class NoSlow extends Module {
     }
 
     private static boolean isBlocking(LocalPlayer player) {
-        return player.isUsingItem() && player.getUseItem().getUseAnimation() == ItemUseAnimation.BLOCK;
+        return currentUseAnimation(player) == ItemUseAnimation.BLOCK;
+    }
+
+    private static ItemUseAnimation currentUseAnimation(LocalPlayer player) {
+        if (player.isUsingItem())
+            return player.getUseItem().getUseAnimation();
+
+        return KillAura.isServerBlocking() ? ItemUseAnimation.BLOCK : null;
     }
 
     @Override
@@ -168,17 +176,20 @@ public class NoSlow extends Module {
 
     public static boolean shouldNoSlowUseItem() {
         var player = mc.player;
-        if (player == null || !ModuleManager.getModuleState(NoSlow.class) || !player.isUsingItem())
+        if (player == null || !ModuleManager.getModuleState(NoSlow.class))
             return false;
 
-        boolean fastUseItem = isFastUseAnimation(player.getUseItem().getUseAnimation());
+        ItemUseAnimation animation = currentUseAnimation(player);
+        if (animation == null)
+            return false;
+
+        boolean fastUseItem = isFastUseAnimation(animation);
         switch (mode.get().toLowerCase(Locale.ROOT)) {
             case "vanilla":
                 return fastUseItem;
             case "hypixel ncp":
                 return !ToolUtil.INSTANCE.isSword(player.getMainHandItem()) && !player.isShiftKeyDown() && fastUseItem;
             case "watchdog legacy": {
-                ItemUseAnimation animation = player.getUseItem().getUseAnimation();
                 return animation == ItemUseAnimation.EAT
                         || animation == ItemUseAnimation.DRINK
                         || animation == ItemUseAnimation.BLOCK

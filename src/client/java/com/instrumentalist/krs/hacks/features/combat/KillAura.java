@@ -149,7 +149,7 @@ public class KillAura extends Module {
     @Setting
     public static final ListValue autoBlockMode = new ListValue(
             "Auto Block Mode",
-            new String[]{"Vanilla", "Blink1", "Hypixel NCP", "Swap", "Legit", "Interact1", "Interact2", "Basic", "Spoof", "Delayed", "Post Attack", "No Order"},
+            new String[]{"Vanilla", "Blink1", "Hypixel NCP", "Swap", "Legit", "Interact1", "Interact2", "Basic", "Spoof", "Delayed", "Post Attack", "1.8", "No Order"},
             "No Order"
     );
 
@@ -642,10 +642,16 @@ public class KillAura extends Module {
             } else if (wasBlocking) {
                 if (!canAttackTarget || !shouldFinishAutoBlock(currentAutoBlockMode, closestEntity)) {
                     blockTick++;
+                    if (canAttackTarget)
+                        playVisualSwing(closestEntity);
                     return;
                 }
 
                 finishAutoBlock(currentAutoBlockMode, yaw, pitch);
+                if ("1.8".equals(currentAutoBlockMode)) {
+                    playVisualSwing(closestEntity);
+                    return;
+                }
             }
         } else {
             isBlocking = true;
@@ -673,6 +679,7 @@ public class KillAura extends Module {
                 case "interact2":
                 case "spoof":
                 case "delayed":
+                case "1.8":
                     if (canAutoBlock)
                         startAutoBlock(currentAutoBlockMode, yaw, pitch, closestEntity, false);
                     break;
@@ -696,6 +703,7 @@ public class KillAura extends Module {
 
         if (autoBlock && canAutoBlock && (!attackReady || !canHitAtRotation)) {
             startAutoBlock(currentAutoBlockMode, yaw, pitch, closestEntity, false);
+            playVisualSwing(closestEntity);
             return;
         }
 
@@ -757,11 +765,20 @@ public class KillAura extends Module {
                 }
 
                 finishAttackCycle(currentAutoBlockMode, yaw, pitch, closestEntity, canAutoBlock);
-            } else if (visualSwing.get()) {
-                PlayerUtil.INSTANCE.swingHandWithoutPacket(InteractionHand.MAIN_HAND);
-                renderParticles(closestEntity);
+            } else {
+                playVisualSwing(closestEntity);
             }
+        } else {
+            playVisualSwing(closestEntity);
         }
+    }
+
+    private void playVisualSwing(Entity target) {
+        if (!visualSwing.get())
+            return;
+
+        PlayerUtil.INSTANCE.swingHandWithoutPacket(InteractionHand.MAIN_HAND);
+        renderParticles(target);
     }
 
     private void finishAttackCycle(String autoBlockMode, float yaw, float pitch, Entity blockTarget, boolean canAutoBlock) {
@@ -792,6 +809,7 @@ public class KillAura extends Module {
             case "spoof":
             case "delayed":
             case "post attack":
+            case "1.8":
                 if (canAutoBlock)
                     startAutoBlock(autoBlockMode, yaw, pitch, blockTarget, true);
                 break;
@@ -1048,7 +1066,7 @@ public class KillAura extends Module {
         if (mode == null) return false;
 
         return switch (mode.toLowerCase(Locale.ROOT)) {
-            case "hypixel ncp", "swap", "legit", "interact1", "interact2", "basic", "spoof", "delayed", "post attack" -> true;
+            case "hypixel ncp", "swap", "legit", "interact1", "interact2", "basic", "spoof", "delayed", "post attack", "1.8" -> true;
             default -> false;
         };
     }
@@ -1058,6 +1076,15 @@ public class KillAura extends Module {
         return mode.equalsIgnoreCase("vanilla")
                 || mode.equalsIgnoreCase("blink1")
                 || usesBlink(mode);
+    }
+
+    public static boolean isServerBlocking() {
+        KillAura killAura = ModuleManager.getModule(KillAura.class);
+        return killAura != null
+                && ModuleManager.getModuleState(KillAura.class)
+                && killAura.wasBlocking
+                && mc.player != null
+                && !mc.player.isUsingItem();
     }
 
     public static boolean isSendingSpreadTeleportPacket() {
@@ -1117,6 +1144,10 @@ public class KillAura extends Module {
                 interactWithFacingAutoBlock(yaw, pitch, blockHand);
                 break;
 
+            case "1.8":
+                sendLegacyAutoBlock(yaw, pitch);
+                break;
+
             default:
                 sendUseItemAutoBlock(yaw, pitch);
                 break;
@@ -1171,6 +1202,7 @@ public class KillAura extends Module {
             case "spoof":
             case "delayed":
             case "post attack":
+            case "1.8":
                 releaseAutoBlock();
                 break;
 
@@ -1221,6 +1253,27 @@ public class KillAura extends Module {
                 false
         ));
         sendSwordBlockPackets(yaw, pitch);
+    }
+
+    private void sendLegacyAutoBlock(float yaw, float pitch) {
+        EntityHitResult entityHit = rayTraceEntity(yaw, pitch, mc.player.entityInteractionRange());
+        if (entityHit != null) {
+            Entity entity = entityHit.getEntity();
+            PacketUtil.sendPacket(new ServerboundInteractPacket(
+                    entity.getId(),
+                    InteractionHand.MAIN_HAND,
+                    entityHit.getLocation().subtract(entity.position()),
+                    mc.player.isShiftKeyDown()
+            ));
+        }
+
+        PacketUtil.sendPacket(new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, 0, yaw, pitch));
+    }
+
+    private String currentSwingOrder() {
+        return autoBlockMode.get().equalsIgnoreCase("1.8")
+                ? "1.8"
+                : swingOrderMode.get().toLowerCase(Locale.ROOT);
     }
 
     private void sendSwordBlockPackets(float yaw, float pitch) {
@@ -1571,7 +1624,7 @@ public class KillAura extends Module {
                 steps,
                 totalMovePackets,
                 totalTicks,
-                swingOrderMode.get().toLowerCase(Locale.ROOT),
+                currentSwingOrder(),
                 autoBlockMode,
                 yaw,
                 pitch,
@@ -2005,7 +2058,7 @@ public class KillAura extends Module {
             }
         }
 
-        performAttack(target, swingOrderMode.get().toLowerCase(Locale.ROOT), resolvedPath == null);
+        performAttack(target, currentSwingOrder(), resolvedPath == null);
 
         if (resolvedPath != null && tpBack.get()) {
             Vec3 lastSent = resolvedPath.positions().isEmpty()
