@@ -15,6 +15,7 @@ import net.minecraft.world.effect.MobEffects;
 public class WatchdogLegacySpeed implements SpeedEvent {
 
     private static boolean flagged = false;
+    private static boolean boost = false;
 
     @Override
     public String getName() {
@@ -23,6 +24,7 @@ public class WatchdogLegacySpeed implements SpeedEvent {
 
     public static void reset() {
         flagged = false;
+        boost = false;
     }
 
     @Override
@@ -39,7 +41,7 @@ public class WatchdogLegacySpeed implements SpeedEvent {
 
         if (MovementUtil.isMoving()) {
             if (mc.player.onGround()) {
-                TimerUtil.timerSpeed = 1.8f;
+                TimerUtil.timerSpeed = 1.5f;
                 MovementUtil.setVelocityY(0.4);
 
                 int speedLevel = MovementUtil.getSpeedEffect();
@@ -50,27 +52,24 @@ public class WatchdogLegacySpeed implements SpeedEvent {
                 } else {
                     MovementUtil.strafe(0.57f);
                 }
+
+                boost = true;
             } else {
-                switch (MovementUtil.fallTicks) {
-                    case 3:
-                        MovementUtil.setVelocityY(0.145);
-                        break;
+                if (boost) {
+                    switch (MovementUtil.fallTicks) {
+                        case 5:
+                            MovementUtil.setVelocityY(-0.19);
+                            break;
 
-                    case 4:
-                        MovementUtil.setVelocityY(0.063);
-                        break;
+                        case 6:
+                            MovementUtil.setVelocityY(-0.26);
+                            break;
 
-                    case 5:
-                        MovementUtil.setVelocityY(-0.19);
-                        break;
-
-                    case 6:
-                        MovementUtil.setVelocityY(-0.26);
-                        break;
-
-                    case 7:
-                        MovementUtil.setVelocityY(-0.4);
-                        break;
+                        case 7:
+                            MovementUtil.setVelocityY(-0.5);
+                            boost = false;
+                            break;
+                    }
                 }
 
                 TimerUtil.timerSpeed = 1.1f;
