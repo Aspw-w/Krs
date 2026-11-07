@@ -10,6 +10,7 @@ import com.instrumentalist.krs.utils.ChatUtil;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.utils.move.MovementUtil;
+import net.minecraft.world.effect.MobEffects;
 
 public class WatchdogLegacySpeed implements SpeedEvent {
 
@@ -38,19 +39,38 @@ public class WatchdogLegacySpeed implements SpeedEvent {
 
         if (MovementUtil.isMoving()) {
             if (mc.player.onGround()) {
-                TimerUtil.timerSpeed = 1.5f;
+                TimerUtil.timerSpeed = 1.8f;
                 MovementUtil.setVelocityY(0.4);
-                MovementUtil.strafe((float) Math.max(
-                        0.5f + MovementUtil.getSpeedEffect() * 0.1,
-                        MovementUtil.getBaseMoveSpeed(0.2873)
-                ));
-            } else {
-                if (MovementUtil.fallTicks == 5) {
-                    MovementUtil.setVelocityY(-0.16);
-                }
 
-                if (MovementUtil.fallTicks == 8) {
-                    MovementUtil.setVelocityY(-0.4);
+                int speedLevel = MovementUtil.getSpeedEffect();
+                if (speedLevel >= 2) {
+                    MovementUtil.strafe(0.7f);
+                } else if (speedLevel == 1) {
+                    MovementUtil.strafe(0.68f);
+                } else {
+                    MovementUtil.strafe(0.57f);
+                }
+            } else {
+                switch (MovementUtil.fallTicks) {
+                    case 3:
+                        MovementUtil.setVelocityY(0.145);
+                        break;
+
+                    case 4:
+                        MovementUtil.setVelocityY(0.063);
+                        break;
+
+                    case 5:
+                        MovementUtil.setVelocityY(-0.19);
+                        break;
+
+                    case 6:
+                        MovementUtil.setVelocityY(-0.26);
+                        break;
+
+                    case 7:
+                        MovementUtil.setVelocityY(-0.8);
+                        break;
                 }
 
                 TimerUtil.timerSpeed = 1.1f;
