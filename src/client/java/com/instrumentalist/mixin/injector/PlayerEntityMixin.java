@@ -15,6 +15,14 @@ import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.instrumentalist.krs.utils.math.TimerUtil;
+import com.instrumentalist.mixin.oringo.ITimerScaledTick;
+import net.minecraft.util.Mth;
+import net.minecraft.world.item.ItemCooldowns;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -27,6 +35,69 @@ import net.minecraft.world.phys.Vec3;
 
 @Mixin(Player.class)
 public abstract class PlayerEntityMixin implements IMinecraft {
+
+    @Unique
+    private float krs$preciseAttackStrengthTicks;
+
+    @Unique
+    private float krs$preciseItemSwapTicks;
+
+    @Inject(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Player;getMainHandItem()Lnet/minecraft/world/item/ItemStack;", ordinal = 0))
+    private void krs$timerIndependentAttackStrength(CallbackInfo ci) {
+        Player self = (Player) (Object) this;
+        if (!self.level().isClientSide()) return;
+
+        float step = TimerUtil.realTickStep();
+        LivingEntityAccessor accessor = (LivingEntityAccessor) self;
+
+        this.krs$preciseAttackStrengthTicks = krs$advance(this.krs$preciseAttackStrengthTicks, self.attackStrengthTicker - 1, step);
+        self.attackStrengthTicker = (int) this.krs$preciseAttackStrengthTicks;
+
+        this.krs$preciseItemSwapTicks = krs$advance(this.krs$preciseItemSwapTicks, accessor.krs$getItemSwapTicker() - 1, step);
+        accessor.krs$setItemSwapTicker((int) this.krs$preciseItemSwapTicks);
+    }
+
+    @Unique
+    private static float krs$advance(float precise, int previous, float step) {
+        if ((int) precise != previous)
+            precise = previous;
+
+        return precise + step;
+    }
+
+    @Inject(method = "resetAttackStrengthTicker", at = @At("TAIL"))
+    private void krs$resetPreciseTickers(CallbackInfo ci) {
+        this.krs$preciseAttackStrengthTicks = 0f;
+        this.krs$preciseItemSwapTicks = 0f;
+    }
+
+    @Inject(method = "resetOnlyAttackStrengthTicker", at = @At("TAIL"))
+    private void krs$resetPreciseAttackTicker(CallbackInfo ci) {
+        this.krs$preciseAttackStrengthTicks = 0f;
+    }
+
+    @Inject(method = "getAttackStrengthScale", at = @At("HEAD"), cancellable = true)
+    private void krs$timerIndependentAttackStrengthScale(float a, CallbackInfoReturnable<Float> cir) {
+        Player self = (Player) (Object) this;
+        if (!self.level().isClientSide() || (int) this.krs$preciseAttackStrengthTicks != self.attackStrengthTicker) return;
+
+        cir.setReturnValue(Mth.clamp((this.krs$preciseAttackStrengthTicks + a * TimerUtil.realTickStep()) / self.getCurrentItemAttackStrengthDelay(), 0.0F, 1.0F));
+    }
+
+    @Inject(method = "getItemSwapScale", at = @At("HEAD"), cancellable = true)
+    private void krs$timerIndependentItemSwapScale(float a, CallbackInfoReturnable<Float> cir) {
+        Player self = (Player) (Object) this;
+        if (!self.level().isClientSide() || (int) this.krs$preciseItemSwapTicks != ((LivingEntityAccessor) self).krs$getItemSwapTicker()) return;
+
+        cir.setReturnValue(Mth.clamp((this.krs$preciseItemSwapTicks + a * TimerUtil.realTickStep()) / self.getCurrentItemAttackStrengthDelay(), 0.0F, 1.0F));
+    }
+
+    @WrapOperation(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemCooldowns;tick()V"))
+    private void krs$timerIndependentItemCooldowns(ItemCooldowns instance, Operation<Void> original) {
+        if (((Player) (Object) this).level().isClientSide())
+            ((ITimerScaledTick) instance).krs$tickScaled(TimerUtil.realTickStep());
+        else original.call(instance);
+    }
 
     @Inject(method = {"resetAttackStrengthTicker", "resetOnlyAttackStrengthTicker"}, at = @At("HEAD"))
     private void legacyRendererCooldownResetHook(CallbackInfo ci) {

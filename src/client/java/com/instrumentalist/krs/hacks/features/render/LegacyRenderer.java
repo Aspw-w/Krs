@@ -1,5 +1,6 @@
 package com.instrumentalist.krs.hacks.features.render;
 
+import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.events.features.TickEvent;
 import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
@@ -106,7 +107,7 @@ public class LegacyRenderer extends Module {
     public static final int[] lightmapColors = new int[256];
     public static boolean suppressSwing = false;
     public static boolean pendingCooldownReset = false;
-    private static int ticksSinceLastSwing;
+    private static float ticksSinceLastSwing;
     private static ItemStack itemStackMainHand = ItemStack.EMPTY;
     public static volatile boolean lightmapPending = false;
 
@@ -416,9 +417,9 @@ public class LegacyRenderer extends Module {
             pendingCooldownReset = false;
         }
 
-        float f = Mth.clamp(((float) ticksSinceLastSwing + 1.0F) / player.getCurrentItemAttackStrengthDelay(), 0.0F, 1.0F);
+        float f = Mth.clamp((ticksSinceLastSwing + 1.0F) / player.getCurrentItemAttackStrengthDelay(), 0.0F, 1.0F);
 
-        ++ticksSinceLastSwing;
+        ticksSinceLastSwing += TimerUtil.realTickStep();
         ItemStack itemstack = player.getMainHandItem();
 
         if (!ItemStack.matches(itemStackMainHand, itemstack)) {

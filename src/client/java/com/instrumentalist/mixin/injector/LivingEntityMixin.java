@@ -15,6 +15,8 @@ import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.render.OldHittingRenderGuard;
 import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
 import com.instrumentalist.mixin.oringo.ILegacySwing;
+import com.instrumentalist.mixin.oringo.ITimerScaledTick;
+import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -39,7 +41,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class LivingEntityMixin extends EntityMixin implements ILegacySwing {
 
     @Unique
-    private int krs$swingProgressInt;
+    private float krs$swingProgressTicks;
 
     @Unique
     private boolean krs$isSwingInProgress;
@@ -82,10 +84,17 @@ public abstract class LivingEntityMixin extends EntityMixin implements ILegacySw
 
     @Unique
     private void krs$startLegacySwing(LivingEntity self) {
-        if (!this.krs$isSwingInProgress || this.krs$swingProgressInt >= LegacyRenderer.armSwingAnimationEnd(self) / 2 || this.krs$swingProgressInt < 0) {
-            this.krs$swingProgressInt = -1;
+        if (!this.krs$isSwingInProgress || this.krs$swingProgressTicks >= LegacyRenderer.armSwingAnimationEnd(self) / 2 || this.krs$swingProgressTicks <= -1.0F) {
+            this.krs$swingProgressTicks = -1;
             this.krs$isSwingInProgress = true;
         }
+    }
+
+    @WrapOperation(method = "baseTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity$SwingState;tick()V"))
+    private void krs$timerIndependentSwingTick(LivingEntity.SwingState instance, Operation<Void> original) {
+        if (((LivingEntity) (Object) this).level().isClientSide() && TimerUtil.isActive())
+            ((ITimerScaledTick) instance).krs$tickScaled(TimerUtil.realTickStep());
+        else original.call(instance);
     }
 
     @Inject(method = "baseTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity$SwingState;tick()V", shift = At.Shift.AFTER))
@@ -97,17 +106,17 @@ public abstract class LivingEntityMixin extends EntityMixin implements ILegacySw
         int i = LegacyRenderer.armSwingAnimationEnd(self);
 
         if (this.krs$isSwingInProgress) {
-            ++this.krs$swingProgressInt;
+            this.krs$swingProgressTicks += TimerUtil.realTickStep();
 
-            if (this.krs$swingProgressInt >= i) {
-                this.krs$swingProgressInt = 0;
+            if (this.krs$swingProgressTicks >= i) {
+                this.krs$swingProgressTicks = 0;
                 this.krs$isSwingInProgress = false;
             }
         } else {
-            this.krs$swingProgressInt = 0;
+            this.krs$swingProgressTicks = 0;
         }
 
-        this.krs$swingProgress = (float) this.krs$swingProgressInt / (float) i;
+        this.krs$swingProgress = Math.max(this.krs$swingProgressTicks, 0.0F) / (float) i;
     }
 
     @Inject(method = "tickHeadTurn", at = @At("HEAD"), cancellable = true)

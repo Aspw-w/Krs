@@ -34,7 +34,7 @@ public class WatchdogLegacyFly implements FlyEvent {
     private static final float FALL_V_SPEED = 0.0f;
     private static final float FLAG_V_SPEED = 2.0f;
     private static final long FLAG_WINDOW_MS = 6000L;
-    private static final double FALL_THRESHOLD = 4.0;
+    private static final double FALL_THRESHOLD = 3;
 
     public static double moveSpeed = 0.0;
     private static volatile boolean flagged = false;
@@ -89,9 +89,9 @@ public class WatchdogLegacyFly implements FlyEvent {
             PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(player.position().x, player.position().y, player.position().z, true, false));
 
             player.jumpFromGround();
-            TimerUtil.timerSpeed = 0.2f;
+            TimerUtil.timerSpeed = 0.8f;
             MovementUtil.strafe(0.5f);
-            moveSpeed = 1;
+            moveSpeed = 1.2;
         } else {
             startTime = System.currentTimeMillis();
             airStart = true;
@@ -186,7 +186,7 @@ public class WatchdogLegacyFly implements FlyEvent {
         player.getAbilities().flying = false;
         MovementUtil.setVelocityY(0.0);
 
-        if (moveSpeed >= 0.8) {
+        if (moveSpeed >= 1) {
             TimerUtil.timerSpeed = 2.5f;
         } else {
             TimerUtil.timerSpeed = 1.1f;
@@ -196,7 +196,7 @@ public class WatchdogLegacyFly implements FlyEvent {
             moveSpeed = 0.25;
 
         if (moveSpeed > 0.25)
-            moveSpeed -= moveSpeed / 159;
+            moveSpeed -= moveSpeed / 300;
 
         if (!event.post)
             player.setPos(player.getX(), player.getY() - 8e-6, player.getZ());

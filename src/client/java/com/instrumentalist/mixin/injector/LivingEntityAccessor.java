@@ -13,6 +13,12 @@ public interface LivingEntityAccessor {
     @Accessor("swingState")
     LivingEntity.SwingState krs$getSwingState();
 
+    @Accessor("itemSwapTicker")
+    int krs$getItemSwapTicker();
+
+    @Accessor("itemSwapTicker")
+    void krs$setItemSwapTicker(int ticks);
+
     @Invoker("setLivingEntityFlag")
     void krs$invokeSetLivingEntityFlag(int flag, boolean value);
 }
