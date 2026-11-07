@@ -39,8 +39,8 @@ public class WatchdogLegacySpeed implements SpeedEvent {
 
         if (mc.player == null || mc.player.isInWater()) return;
 
-        if (MovementUtil.isMoving()) {
-            if (mc.player.onGround()) {
+        if (mc.player.onGround()) {
+            if (MovementUtil.isMoving()) {
                 TimerUtil.timerSpeed = 1.5f;
                 MovementUtil.setVelocityY(0.4);
 
@@ -54,40 +54,40 @@ public class WatchdogLegacySpeed implements SpeedEvent {
                 }
 
                 boost = true;
+            }
+        } else {
+            if (boost) {
+                switch (MovementUtil.fallTicks) {
+                    case 3:
+                        MovementUtil.setVelocityY(0.145);
+                        break;
+
+                    case 4:
+                        MovementUtil.setVelocityY(0.063);
+                        break;
+
+                    case 5:
+                        MovementUtil.setVelocityY(-0.19);
+                        break;
+
+                    case 6:
+                        MovementUtil.setVelocityY(-0.26);
+                        break;
+
+                    case 7:
+                        MovementUtil.setVelocityY(-0.6);
+                        boost = false;
+                        break;
+                }
+            }
+
+            TimerUtil.timerSpeed = 1.1f;
+            if (mc.player.hurtTime >= 8) {
+                MovementUtil.strafe(Math.max(0.4f, MovementUtil.getSpeed()));
+            } else if (mc.player.fallDistance > 0.1) {
+                MovementUtil.strafe(Math.max(0.3f, MovementUtil.getSpeed()));
             } else {
-                if (boost) {
-                    switch (MovementUtil.fallTicks) {
-                        case 3:
-                            MovementUtil.setVelocityY(0.145);
-                            break;
-
-                        case 4:
-                            MovementUtil.setVelocityY(0.063);
-                            break;
-
-                        case 5:
-                            MovementUtil.setVelocityY(-0.19);
-                            break;
-
-                        case 6:
-                            MovementUtil.setVelocityY(-0.26);
-                            break;
-
-                        case 7:
-                            MovementUtil.setVelocityY(-0.6);
-                            boost = false;
-                            break;
-                    }
-                }
-
-                TimerUtil.timerSpeed = 1.1f;
-                if (mc.player.hurtTime >= 8) {
-                    MovementUtil.strafe(Math.max(0.4f, MovementUtil.getSpeed()));
-                } else if (mc.player.fallDistance > 0.1) {
-                    MovementUtil.strafe(Math.max(0.3f, MovementUtil.getSpeed()));
-                } else {
-                    MovementUtil.strafe(Math.max(0.24f, MovementUtil.getSpeed()));
-                }
+                MovementUtil.strafe(Math.max(0.24f, MovementUtil.getSpeed()));
             }
         }
     }
