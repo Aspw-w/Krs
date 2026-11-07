@@ -64,6 +64,12 @@ public class SpeedModeManager {
         }
     }
 
+    public void syncMode() {
+        SpeedEvent mode = currentMode;
+        if (mode == null || !speedMode.get().equals(mode.getName()))
+            updateCurrentMode();
+    }
+
     public void onUpdate(UpdateEvent event) {
         SpeedEvent mode = currentMode;
         if (!ModuleManager.getModuleState(FlyModule.class) && mode != null)

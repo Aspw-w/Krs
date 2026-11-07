@@ -75,9 +75,13 @@ public class WatchdogLegacyFly implements FlyEvent {
         }
     }
 
-    private static void start(LocalPlayer player) {
-        startTime = System.currentTimeMillis();
+    private static boolean start(LocalPlayer player) {
         if (player.onGround()) {
+            if (player.hurtTime > 0)
+                return false;
+
+            startTime = System.currentTimeMillis();
+
             for (int i = 0; i < 65; i++) {
                 PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(player.position().x, player.position().y + 0.049, player.position().z, false, false));
                 PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(player.position().x, player.position().y, player.position().z, false, false));
@@ -85,13 +89,15 @@ public class WatchdogLegacyFly implements FlyEvent {
             PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(player.position().x, player.position().y, player.position().z, true, false));
 
             player.jumpFromGround();
-            TimerUtil.timerSpeed = 1.5f;
+            TimerUtil.timerSpeed = 0.2f;
             MovementUtil.strafe(0.5f);
-            moveSpeed = 1.7;
+            moveSpeed = 1;
         } else {
+            startTime = System.currentTimeMillis();
             airStart = true;
             moveSpeed = 0.25;
         }
+        return true;
     }
 
     public static void disable() {
@@ -171,10 +177,8 @@ public class WatchdogLegacyFly implements FlyEvent {
         event.callInPost = true;
 
         if (!started) {
-            if (event.post) {
-                start(player);
-                started = true;
-            }
+            if (event.post)
+                started = start(player);
             return;
         }
 
@@ -182,8 +186,8 @@ public class WatchdogLegacyFly implements FlyEvent {
         player.getAbilities().flying = false;
         MovementUtil.setVelocityY(0.0);
 
-        if (moveSpeed >= 1.1) {
-            TimerUtil.timerSpeed = 1.5f;
+        if (moveSpeed >= 0.8) {
+            TimerUtil.timerSpeed = 2.5f;
         } else {
             TimerUtil.timerSpeed = 1.1f;
         }

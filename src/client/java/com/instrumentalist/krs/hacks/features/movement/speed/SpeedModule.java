@@ -101,6 +101,7 @@ public class SpeedModule extends Module {
 
     @Override
     public void onEnable() {
+        speedModeManager.syncMode();
         onEnableFunctions();
     }
 

@@ -65,6 +65,12 @@ public class FlyModeManager {
         }
     }
 
+    public void syncMode() {
+        FlyEvent mode = currentMode;
+        if (mode == null || !flyMode.get().equals(mode.getName()))
+            updateCurrentMode();
+    }
+
     public void onUpdate(UpdateEvent event) {
         FlyEvent mode = currentMode;
         if (mode != null)

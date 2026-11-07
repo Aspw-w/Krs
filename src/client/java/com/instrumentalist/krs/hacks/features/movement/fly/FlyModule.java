@@ -170,6 +170,7 @@ public class FlyModule extends Module {
 
     @Override
     public void onEnable() {
+        flyModeManager.syncMode();
         onEnableFunctions();
     }
 

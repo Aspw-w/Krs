@@ -46,17 +46,25 @@ public class WatchdogLegacySpeed implements SpeedEvent {
 
                 int speedLevel = MovementUtil.getSpeedEffect();
                 if (speedLevel >= 2) {
-                    MovementUtil.strafe(0.7f);
+                    MovementUtil.strafe(0.65f);
                 } else if (speedLevel == 1) {
-                    MovementUtil.strafe(0.68f);
+                    MovementUtil.strafe(0.63f);
                 } else {
-                    MovementUtil.strafe(0.57f);
+                    MovementUtil.strafe(0.51f);
                 }
 
                 boost = true;
             } else {
                 if (boost) {
                     switch (MovementUtil.fallTicks) {
+                        case 3:
+                            MovementUtil.setVelocityY(0.145);
+                            break;
+
+                        case 4:
+                            MovementUtil.setVelocityY(0.063);
+                            break;
+
                         case 5:
                             MovementUtil.setVelocityY(-0.19);
                             break;
@@ -66,7 +74,7 @@ public class WatchdogLegacySpeed implements SpeedEvent {
                             break;
 
                         case 7:
-                            MovementUtil.setVelocityY(-0.5);
+                            MovementUtil.setVelocityY(-0.6);
                             boost = false;
                             break;
                     }
