@@ -104,7 +104,11 @@ public class Step extends Module {
         return original;
     }
 
-    public static void steppingFunctions() {
+    private static final double[] NCP_JUMP_ARC = {0.41999998688698, 0.7531999805212, 1.00133597911214, 1.16610926093821, 1.24918707874468};
+    private static final double[] NCP_ONE_HALF_BLOCK = {0.41999998688698, 0.7531999805212, 1.00133597911214, 1.16610926093821, 1.24918707874468, 1.1707870772188};
+    private static final double[] NCP_TWO_BLOCK = {0.425, 0.821, 0.699, 0.599, 1.022, 1.372, 1.652, 1.869};
+
+    public static void steppingFunctions(double stepHeight) {
         if (!shouldStep()) return;
 
         if (customTimer.get())
@@ -116,8 +120,18 @@ public class Step extends Module {
 
             switch (mode.get().toLowerCase(Locale.ROOT)) {
                 case "ncp":
-                    PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(pos.x, pos.y + 0.41999998688698, pos.z, false, horizontalCollision));
-                    PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(pos.x, pos.y + 0.7531999805212, pos.z, false, horizontalCollision));
+                    if (stepHeight <= NCP_JUMP_ARC[NCP_JUMP_ARC.length - 1]) {
+                        for (double offset : NCP_JUMP_ARC) {
+                            if (offset >= stepHeight) break;
+                            sendStepPacket(pos, offset, horizontalCollision);
+                        }
+                    } else {
+                        double[] offsets = stepHeight <= 1.5 ? NCP_ONE_HALF_BLOCK : NCP_TWO_BLOCK;
+                        double base = stepHeight <= 1.5 ? 1.5 : 2.0;
+                        double scale = Math.min(stepHeight, base) / base;
+                        for (double offset : offsets)
+                            sendStepPacket(pos, offset * scale, horizontalCollision);
+                    }
                     break;
 
                 case "hypixel":

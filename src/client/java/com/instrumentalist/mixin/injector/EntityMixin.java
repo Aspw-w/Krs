@@ -127,7 +127,7 @@ public abstract class EntityMixin implements IMinecraft {
     private Vec3 steppingHook(Vec3 original) {
         if (((Object) this instanceof LocalPlayer)) {
             if (ModuleManager.getModuleState(Step.class) && original.y > 0.6)
-                Step.steppingFunctions();
+                Step.steppingFunctions(original.y);
         }
 
         return original;
