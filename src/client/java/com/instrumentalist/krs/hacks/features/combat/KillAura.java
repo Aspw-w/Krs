@@ -649,7 +649,7 @@ public class KillAura extends Module {
                 }
 
                 finishAutoBlock(currentAutoBlockMode, yaw, pitch);
-                if (isLegacyAutoBlockMode(currentAutoBlockMode)) {
+                if ("1.8".equals(currentAutoBlockMode)) {
                     playVisualSwing(closestEntity);
                     return;
                 }
@@ -691,6 +691,7 @@ public class KillAura extends Module {
         }
 
         boolean legacyAutoBlock = isLegacyAutoBlockMode(currentAutoBlockMode);
+        boolean fullLegacyAutoBlock = "1.8 full".equals(currentAutoBlockMode);
         boolean canHitAtRotation = !rotations.get() || noHitCheck.get() || tpReach.get() || randomTp.get();
         if (!canHitAtRotation) {
             canHitAtRotation = canAttackThroughWalls
@@ -708,7 +709,7 @@ public class KillAura extends Module {
         }
 
         if (autoBlock && canAutoBlock && (!attackReady || !canHitAtRotation)
-                && (!legacyAutoBlock || !attackReady && hasLegacyBlockWindow(closestEntity))) {
+                && (!legacyAutoBlock || !attackReady && (fullLegacyAutoBlock || hasLegacyBlockWindow(closestEntity)))) {
             startAutoBlock(currentAutoBlockMode, yaw, pitch, closestEntity, false);
             playVisualSwing(closestEntity);
             return;
@@ -821,8 +822,12 @@ public class KillAura extends Module {
                 break;
 
             case "1.8":
-            case "1.8 full":
                 if (canAutoBlock && hasLegacyBlockWindow(blockTarget))
+                    startAutoBlock(autoBlockMode, yaw, pitch, blockTarget, true);
+                break;
+
+            case "1.8 full":
+                if (canAutoBlock)
                     startAutoBlock(autoBlockMode, yaw, pitch, blockTarget, true);
                 break;
         }
@@ -1231,6 +1236,9 @@ public class KillAura extends Module {
     }
 
     private boolean shouldFinishAutoBlock(String mode, Entity target) {
+        if ("1.8 full".equals(mode))
+            return isAttackReady(target);
+
         if (isLegacyAutoBlockMode(mode))
             return blockTick >= 1 && ticksUntilAttackReady(target) <= 1;
 
