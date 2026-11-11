@@ -31,7 +31,6 @@ public abstract class XrayModelBlockRendererMixin {
     private boolean krs$xrayShouldRenderFace(BlockState state, BlockState otherState, Direction side, Operation<Boolean> original,
                                              BlockAndTintGetter level, BlockState currentState, Direction currentSide, BlockPos neighborPos) {
         if (!Xray.isActive()) {
-            krs$currentOpacity.get()[0] = 1.0F;
             if (CaveFinder.isActive() && Boolean.FALSE.equals(CaveFinder.shouldDrawFace(level, state, neighborPos.relative(side.getOpposite()), side)))
                 return false;
             return original.call(state, otherState, side);
@@ -63,6 +62,11 @@ public abstract class XrayModelBlockRendererMixin {
     private void krs$xrayModifyOpacity(BlockQuadOutput output, float x, float y, float z, BakedQuad quad, QuadInstance instance,
                                        Operation<Void> original, BlockQuadOutput outerOutput, float outerX, float outerY, float outerZ,
                                        BlockAndTintGetter level, BlockState state, BlockPos pos) {
+        if (!Xray.isActive()) {
+            original.call(output, x, y, z, quad, instance);
+            return;
+        }
+
         if (Xray.shouldFullBright(state, pos, level)) {
             instance.setLightCoords(LightCoordsUtil.FULL_BRIGHT);
             for (int i = 0; i < 4; i++)

@@ -280,6 +280,36 @@ public final class GraphicsApiCompatibility {
         return Math.min(size, Math.floorDiv(value + REGION_SNAP - 1, REGION_SNAP) * REGION_SNAP);
     }
 
+    public static void runDirectOpenGlLayer(int width, int height, int backdropTexture, Runnable renderer) {
+        if (renderer == null)
+            return;
+        if (layerActive || usesCompatibilityRenderer()) {
+            renderer.run();
+            return;
+        }
+
+        ACTIVE_REGIONS.clear();
+        activeRegionsWhole = true;
+        layerActive = true;
+        activeLayerWidth = width;
+        activeLayerHeight = height;
+        activeLayerCache = null;
+        activeBackdropTexture = backdropTexture;
+        try {
+            renderer.run();
+        } finally {
+            layerActive = false;
+            activeLayerWidth = 0;
+            activeLayerHeight = 0;
+            activeLayerCache = null;
+            activeBackdropTexture = 0;
+        }
+    }
+
+    public static long displayRefreshIntervalNanos(long now) {
+        return 1_000_000_000L / Math.max(1, getDisplayRefreshRate(now));
+    }
+
     public static void runWithOpenGlContext(Runnable action) {
         if (action == null)
             return;

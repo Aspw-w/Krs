@@ -103,6 +103,12 @@ public abstract class LivingEntityMixin extends EntityMixin implements ILegacySw
         if (!self.level().isClientSide()) return;
 
         this.krs$prevSwingProgress = this.krs$swingProgress;
+        if (!this.krs$isSwingInProgress) {
+            this.krs$swingProgressTicks = 0;
+            this.krs$swingProgress = 0.0F;
+            return;
+        }
+
         int i = LegacyRenderer.armSwingAnimationEnd(self);
 
         if (this.krs$isSwingInProgress) {

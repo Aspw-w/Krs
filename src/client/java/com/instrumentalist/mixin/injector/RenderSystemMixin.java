@@ -7,6 +7,7 @@ import com.instrumentalist.krs.screen.NanoVGClickGuiScreen;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.render.DebugOverlayRenderer;
 import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
+import com.instrumentalist.krs.utils.render.OpenGlHudLayer;
 import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -59,7 +60,7 @@ public abstract class RenderSystemMixin implements IMinecraft {
                 );
             }
         } else if (Client.nanoVgManager != null) {
-            Client.nanoVgManager.renderQueued();
+            OpenGlHudLayer.render(Client.nanoVgManager);
             CustomTitleScreen.renderStartupLoadBarIfNeeded(Client.nanoVgManager);
         }
 
