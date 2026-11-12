@@ -2,6 +2,9 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.utils.math.TimerUtil;
+import com.instrumentalist.mixin.oringo.ITimerHurt;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
 import com.instrumentalist.krs.hacks.features.render.AntiBlind;
@@ -176,6 +179,13 @@ public abstract class CameraMixin implements IMinecraft {
         }
 
         return finalDistance;
+    }
+
+    @Inject(method = "extractRenderState", at = @At("RETURN"))
+    private void krs$timerIndependentHurtShake(CameraRenderState cameraState, DeltaTracker deltaTracker, CallbackInfo ci) {
+        if (!(this.entity instanceof LocalPlayer player) || !cameraState.entityRenderState.isLiving) return;
+
+        cameraState.entityRenderState.hurtTime = ((ITimerHurt) player).krs$getVisualHurtTime(cameraState.cameraEntityPartialTicks);
     }
 
     @ModifyExpressionValue(method = "extractRenderState",

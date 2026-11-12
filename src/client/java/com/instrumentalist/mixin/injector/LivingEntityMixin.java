@@ -16,6 +16,7 @@ import com.instrumentalist.krs.utils.render.OldHittingRenderGuard;
 import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
 import com.instrumentalist.mixin.oringo.ILegacySwing;
 import com.instrumentalist.mixin.oringo.ITimerScaledTick;
+import com.instrumentalist.mixin.oringo.ITimerHurt;
 import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
@@ -38,7 +39,38 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LivingEntity.class)
-public abstract class LivingEntityMixin extends EntityMixin implements ILegacySwing {
+public abstract class LivingEntityMixin extends EntityMixin implements ILegacySwing, ITimerHurt {
+
+    @Shadow
+    public int hurtTime;
+
+    @Unique
+    private float krs$visualHurtTime;
+
+    @Unique
+    private int krs$lastHurtTime;
+
+    @Inject(method = "baseTick", at = @At("HEAD"))
+    private void krs$captureHurtTime(CallbackInfo ci) {
+        if (!((Object) this instanceof LocalPlayer)) return;
+
+        if (this.hurtTime > this.krs$lastHurtTime)
+            this.krs$visualHurtTime = this.hurtTime;
+    }
+
+    @Inject(method = "baseTick", at = @At("TAIL"))
+    private void krs$advanceVisualHurtTime(CallbackInfo ci) {
+        if (!((Object) this instanceof LocalPlayer)) return;
+
+        this.krs$visualHurtTime = Math.max(0.0F, this.krs$visualHurtTime - TimerUtil.realTickStep());
+        this.krs$lastHurtTime = this.hurtTime;
+    }
+
+    @Override
+    public float krs$getVisualHurtTime(float partialTicks) {
+        float base = this.hurtTime > this.krs$lastHurtTime ? this.hurtTime : this.krs$visualHurtTime;
+        return base - partialTicks * TimerUtil.realTickStep();
+    }
 
     @Unique
     private float krs$swingProgressTicks;
