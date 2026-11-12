@@ -8,6 +8,9 @@ import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
+import net.minecraft.core.Direction;
+import com.instrumentalist.krs.utils.math.TimerUtil;
+import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.hacks.features.exploit.Blink;
 import com.instrumentalist.krs.hacks.features.exploit.disabler.DisablerModule;
 import com.instrumentalist.krs.hacks.features.player.LookTP;
@@ -582,10 +585,7 @@ public class Interface extends Module {
     }
 
     private static String formatPositionText(double x, double y, double z, double netherX, double netherZ, String direction) {
-        DecimalFormat formatter = ONE_DECIMAL_FORMAT.get();
-        return formatOneDecimal(formatter, x) + ", " + formatOneDecimal(formatter, y) + ", " + formatOneDecimal(formatter, z)
-                + " | " + formatOneDecimal(formatter, netherX) + ", " + formatOneDecimal(formatter, netherZ)
-                + " (" + direction + ")";
+        return String.format(Locale.ROOT, "%.3f, %.5f, %.3f | %.3f, %.3f (%s)", x, y, z, netherX, netherZ, direction);
     }
 
     private static float getLeftHudTopY() {
@@ -788,13 +788,19 @@ public class Interface extends Module {
         float baseY = getInformationBaseY();
         float infoLeftX = getLeftHudX();
 
-        double x = mc.player.getX();
-        double y = mc.player.getY();
-        double z = mc.player.getZ();
+        boolean freecam = ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly();
+        Entity cameraEntity = mc.getCameraEntity() != null ? mc.getCameraEntity() : mc.player;
+        Vec3 debugPosition = freecam
+                ? Freecam.getCamPos(TimerUtil.selfPartialTick(mc.getDeltaTracker().getGameTimeDeltaPartialTick(true)))
+                : cameraEntity.position();
+        Direction debugDirection = freecam ? Direction.fromYRot(Freecam.getCamYaw()) : cameraEntity.getDirection();
+        double x = debugPosition.x;
+        double y = debugPosition.y;
+        double z = debugPosition.z;
         boolean inNether = mc.level.dimension() == Level.NETHER;
         double netherX = inNether ? x * 8 : x / 8;
         double netherZ = inNether ? z * 8 : z / 8;
-        String positionText = formatPositionText(x, y, z, netherX, netherZ, mc.player.getDirection().getSerializedName().toUpperCase(Locale.ROOT));
+        String positionText = formatPositionText(x, y, z, netherX, netherZ, debugDirection.getSerializedName().toUpperCase(Locale.ROOT));
         List<InfoHudEntry> informationEntries = informationEntryBuffer;
         informationEntries.clear();
         informationEntries.add(new InfoHudEntry(getCachedTimeText(), MaterialIcon.CLOCK));

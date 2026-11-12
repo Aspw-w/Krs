@@ -20,6 +20,7 @@ import com.instrumentalist.krs.hacks.features.level.NoPlaceCooldown;
 import com.instrumentalist.krs.hacks.features.render.Camera;
 import com.instrumentalist.krs.hacks.features.dev.GhostHand;
 import com.instrumentalist.krs.utils.world.QueuedMiner;
+import com.instrumentalist.krs.utils.navigation.Navigator;
 import com.instrumentalist.krs.hacks.features.dev.AutoMine;
 import com.instrumentalist.krs.hacks.features.dev.AutoToolSaver;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -145,6 +146,7 @@ public abstract class MinecraftClientMixin implements IMinecraft {
     @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)
     private void queuedMinerSuppressHook(boolean breaking, CallbackInfo ci) {
         if (QueuedMiner.shouldSuppressManualMining()
+                || Navigator.suppressManualMining()
                 || AutoMine.shouldSuppressManualMining()
                 || breaking && AutoToolSaver.shouldBlockMining(this.hitResult))
             ci.cancel();

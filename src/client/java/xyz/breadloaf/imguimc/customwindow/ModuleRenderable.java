@@ -16,6 +16,7 @@ import com.instrumentalist.krs.utils.network.FileUtil;
 import com.instrumentalist.krs.utils.network.ServerLookup;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.pathfinder.MainPathFinder;
+import com.instrumentalist.krs.utils.navigation.Navigator;
 import com.instrumentalist.krs.utils.value.*;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -529,6 +530,7 @@ public class ModuleRenderable implements Renderable, IMinecraft {
             showLog(chatMode, "session -> show your current session id");
             showLog(chatMode, "vclip <height> -> teleport up from current position");
             showLog(chatMode, "tp <x> <y> <z> or <player> -> teleport to everywhere");
+            showLog(chatMode, "goto <x> <y> <z> / <x> <z> / <player> / stop -> walk, mine and build to the position like a vanilla player");
             showLog(chatMode, "notify <title> <message> -> show custom notification");
             showLog(chatMode, "server <address> -> dump raw IP, vulns, linked servers, and all lookup data");
         } else if (command.equalsIgnoreCase("server") || command.toLowerCase(Locale.ROOT).startsWith("server ")) {
@@ -538,6 +540,8 @@ public class ModuleRenderable implements Renderable, IMinecraft {
                     showLog(chatMode, line);
             }));
             showLog(chatMode, Objects.requireNonNullElse(error, "Looking up server..."));
+        } else if (command.equalsIgnoreCase("goto") || command.toLowerCase(Locale.ROOT).startsWith("goto ")) {
+            showLog(chatMode, Navigator.command(command.substring(4)));
         } else if (command.toLowerCase().startsWith("t " ) || command.toLowerCase().startsWith("toggle " )) {
             String moduleName = "";
 

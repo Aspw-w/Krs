@@ -11,6 +11,7 @@ import com.instrumentalist.krs.hacks.features.movement.*;
 import com.instrumentalist.krs.hacks.features.player.Phase;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.utils.move.InputUtil;
+import com.instrumentalist.krs.utils.navigation.Navigator;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -143,6 +144,7 @@ public abstract class ClientPlayerEntityMixin extends Player {
 
         krs$sendChangesRealInput = this.input;
         this.input = new ClientInput();
+        Navigator.applyInput(this.input);
     }
 
     @Inject(method = "sendChanges", at = @At("RETURN"))
@@ -166,13 +168,15 @@ public abstract class ClientPlayerEntityMixin extends Player {
 
     @Inject(method = "aiStep", at = @At("HEAD"))
     private void freecamStopInput(CallbackInfo ci) {
-        if (ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly())
+        if (ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly()) {
             InputUtil.stop(this.input);
+            Navigator.applyInput(this.input);
+        }
     }
 
     @ModifyReturnValue(method = "isShiftKeyDown()Z", at = @At("RETURN"))
     private boolean freecamShiftKeyHook(boolean original) {
-        return original && !(ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly());
+        return original && (Navigator.isControlling() || !(ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly()));
     }
 
     @Inject(method = "raycastHitResult(FLnet/minecraft/world/entity/Entity;)Lnet/minecraft/world/phys/HitResult;", at = @At("HEAD"), cancellable = true)
@@ -203,6 +207,7 @@ public abstract class ClientPlayerEntityMixin extends Player {
         krs$freecamRealInput = this.input;
         this.input.tick();
         this.input = new ClientInput();
+        Navigator.applyInput(this.input);
     }
 
     @Unique

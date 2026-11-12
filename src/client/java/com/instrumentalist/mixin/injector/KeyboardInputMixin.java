@@ -8,6 +8,7 @@ import com.instrumentalist.krs.hacks.features.player.Scaffold;
 import com.instrumentalist.krs.hacks.features.combat.WTap;
 import com.instrumentalist.krs.utils.GuiInputBlocker;
 import com.instrumentalist.krs.utils.move.InputUtil;
+import com.instrumentalist.krs.utils.navigation.Navigator;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.KeyboardInput;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,6 +22,11 @@ public abstract class KeyboardInputMixin {
     @Inject(method = "tick", at = @At("TAIL"))
     private void fixMovementAndStopWhenImguiCapturesKeyboard(CallbackInfo ci) {
         ClientInput input = (ClientInput) (Object) this;
+        if (Navigator.applyInput(input)) {
+            MovementFix.updateInput(input);
+            return;
+        }
+
         LookTP lookTP = ModuleManager.getModule(LookTP.class);
 
         if (lookTP != null && lookTP.shouldStopClientInput()) {

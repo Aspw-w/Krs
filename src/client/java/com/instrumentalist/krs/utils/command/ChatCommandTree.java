@@ -47,6 +47,16 @@ public final class ChatCommandTree {
                 targets.addAll(playerNames());
                 return SharedSuggestionProvider.suggest(targets, builder);
             };
+    private static final SuggestionProvider<ClientSuggestionProvider> GOTO_TARGETS =
+            (context, builder) -> {
+                List<String> targets = new ArrayList<>();
+                BlockPos looking = lookingBlock();
+                if (looking != null)
+                    targets.add(looking.getX() + " " + looking.getY() + " " + looking.getZ());
+                targets.add("stop");
+                targets.addAll(playerNames());
+                return SharedSuggestionProvider.suggest(targets, builder);
+            };
     private static final SuggestionProvider<ClientSuggestionProvider> TP_Y =
             (context, builder) -> {
                 List<String> values = new ArrayList<>();
@@ -96,6 +106,11 @@ public final class ChatCommandTree {
         commands.register(literal("tp")
                 .then(argument("player|x", TokenArgument.token()).suggests(TP_TARGETS).executes(NOOP)
                         .then(argument("y", TokenArgument.token()).suggests(TP_Y)
+                                .then(argument("z", TokenArgument.token()).suggests(TP_Z).executes(NOOP)))));
+
+        commands.register(literal("goto")
+                .then(argument("player|x|stop", TokenArgument.token()).suggests(GOTO_TARGETS).executes(NOOP)
+                        .then(argument("y|z", TokenArgument.token()).suggests(TP_Y).executes(NOOP)
                                 .then(argument("z", TokenArgument.token()).suggests(TP_Z).executes(NOOP)))));
 
         commands.register(literal("vclip")
