@@ -191,8 +191,8 @@ public class WatchdogLegacyFly implements FlyEvent {
         } else if (moveSpeed >= 1) {
             TimerUtil.timerSpeed = 1.5f;
         } else {
-            if (moveSpeed <= 0.95 && moveSpeed >= 0.9 || moveSpeed <= 0.7 && moveSpeed >= 0.65) {
-                TimerUtil.timerSpeed = 2.5f;
+            if (moveSpeed <= 0.97 && moveSpeed >= 0.94) {
+                TimerUtil.timerSpeed = 2f;
             } else {
                 TimerUtil.timerSpeed = 1.1f;
             }
@@ -205,7 +205,7 @@ public class WatchdogLegacyFly implements FlyEvent {
             moveSpeed -= moveSpeed / 270;
 
         if (!event.post) {
-            if (moveSpeed >= 1) {
+            if (moveSpeed >= 0.8) {
                 if (player.tickCount % 3 == 0) {
                     PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(player.position().x, player.position().y, player.position().z, true, false));
                 }
