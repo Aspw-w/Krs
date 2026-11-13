@@ -121,9 +121,9 @@ public class WatchdogLegacyFly implements FlyEvent {
         player.jumpFromGround();
         int speedLevel = MovementUtil.getSpeedEffect();
         if (speedLevel >= 2) {
-            moveSpeed = 1.3;
+            moveSpeed = 1.32;
         } else {
-            moveSpeed = 1.2;
+            moveSpeed = 1.22;
         }
     }
 
