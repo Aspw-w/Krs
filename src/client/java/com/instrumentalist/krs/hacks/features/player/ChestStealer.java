@@ -113,7 +113,7 @@ public class ChestStealer extends Module {
             boolean itemStolen = false;
             for (int i : slotIndices) {
                 var slot = screenHandler.getSlot(i);
-                if (slot.hasItem() && shouldSteal(slot.getItem(), player)) {
+                if (slot.hasItem() && canFit(slot.getItem(), player) && shouldSteal(slot.getItem(), player)) {
                     gameMode.handleContainerInput(screenHandler.containerId, i, 0, ContainerInput.QUICK_MOVE, player);
                     itemStolen = true;
                     tickCounter = nextDelay();
@@ -143,6 +143,18 @@ public class ChestStealer extends Module {
             startCounter = 0;
             stealing = false;
         }
+    }
+
+    private boolean canFit(ItemStack stack, LocalPlayer player) {
+        var inventory = player.getInventory();
+        for (int i = 0; i < Math.min(36, inventory.getContainerSize()); i++) {
+            ItemStack invStack = inventory.getItem(i);
+            if (invStack.isEmpty())
+                return true;
+            if (ItemStack.isSameItemSameComponents(invStack, stack) && invStack.getCount() < invStack.getMaxStackSize())
+                return true;
+        }
+        return false;
     }
 
     private boolean shouldSteal(ItemStack stack, LocalPlayer player) {

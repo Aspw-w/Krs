@@ -39,7 +39,7 @@ public class AutoPot extends Module {
     private boolean wasRotating = false;
     private boolean potted = false;
     private boolean resetPotiHaveAEffect = false;
-    private int oldSlot = -1;
+    private static int oldSlot = -1;
     private final TickTimer potTimer = new TickTimer();
     private static final List<Holder<MobEffect>> requestedPotions = new ArrayList<>();
     private static boolean throwing = false;
@@ -101,11 +101,12 @@ public class AutoPot extends Module {
                 || potted
                 || ModuleManager.getModuleState(Scaffold.class)
                 || player.isUsingItem()) {
-            if (wasRotating) {
+            boolean scaffolding = ModuleManager.getModuleState(Scaffold.class);
+            if (wasRotating && !scaffolding) {
                 Client.rotationManager.stopRotation();
                 BehaviorUtils.noKillAura = false;
             }
-            if (wasRotating || oldSlot != -1)
+            if ((wasRotating || oldSlot != -1) && !scaffolding)
                 PlayerUtil.INSTANCE.stopSpoof();
             if (oldSlot != -1) {
                 if (player != null) {
@@ -300,6 +301,12 @@ public class AutoPot extends Module {
 
     public static List<Holder<MobEffect>> getRequestedPotions() {
         return Collections.unmodifiableList(requestedPotions);
+    }
+
+    public static int takeOriginalSlot() {
+        int slot = oldSlot;
+        oldSlot = -1;
+        return slot;
     }
 
     public static boolean isThrowing() {

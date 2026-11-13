@@ -32,10 +32,10 @@ public class WatchdogLegacyFly implements FlyEvent {
     }
 
     private static final float VANILLA_H_SPEED = 3.0f;
-    private static final float FALL_V_SPEED = 1.0f;
+    private static final float FALL_V_SPEED = 0.42f;
     private static final float FLAG_V_SPEED = 2.0f;
     private static final long FLAG_WINDOW_MS = 6000L;
-    private static final double FALL_THRESHOLD = 3;
+    private static final double FALL_THRESHOLD = 2.5;
 
     public static double moveSpeed = 0.0;
     private static volatile boolean flagged = false;
@@ -205,8 +205,8 @@ public class WatchdogLegacyFly implements FlyEvent {
             moveSpeed -= moveSpeed / 270;
 
         if (!event.post) {
-            if (moveSpeed >= 0.8) {
-                if (player.tickCount % 3 == 0) {
+            if (moveSpeed >= 1.1) {
+                if (moveSpeed < 1.15 && player.tickCount % 2 == 0) {
                     PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(player.position().x, player.position().y, player.position().z, true, false));
                 }
                 player.setPos(player.getX(), player.position().y + 1.0E-10, player.getZ());
