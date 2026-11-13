@@ -118,8 +118,8 @@ public class WatchdogLegacyFly implements FlyEvent {
         awaitingDamage = false;
         startTime = System.currentTimeMillis();
         player.jumpFromGround();
-        TimerUtil.timerSpeed = 0.8f;
-        moveSpeed = 1.2;
+        TimerUtil.timerSpeed = 0.1f;
+        moveSpeed = 1.5;
     }
 
     public static void disable() {
@@ -244,7 +244,7 @@ public class WatchdogLegacyFly implements FlyEvent {
 
         if (!event.post) {
             if (moveSpeed >= 1.1) {
-                if (moveSpeed < 1.15 && player.tickCount % 2 == 0) {
+                if (moveSpeed < 1.15 && player.tickCount % 3 == 0) {
                     PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(player.position().x, player.position().y, player.position().z, true, false));
                 }
                 player.setPos(player.getX(), player.position().y + 1.0E-10, player.getZ());
