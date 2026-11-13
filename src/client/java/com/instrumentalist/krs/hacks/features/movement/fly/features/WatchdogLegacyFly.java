@@ -47,14 +47,25 @@ public class WatchdogLegacyFly implements FlyEvent {
     private static final long FLAG_FLY_MS = 3000L;
     private static long flagVanillaStartTime = 0L;
     private static volatile long lastPearlTime = 0L;
+    private static volatile long pearlThrowTime = 0L;
+    private static final long PEARL_PENDING_MS = 10000L;
+    private static final long DAMAGE_TIMEOUT_MS = 5000L;
+    private static boolean awaitingDamage = false;
+    private static long damageRequestTime = 0L;
 
     public static void trackPearl(Packet<?> packet) {
         LocalPlayer player = mc.player;
         if (player == null || !(packet instanceof ServerboundUseItemPacket useItemPacket)) return;
 
         ItemStack stack = player.getItemInHand(useItemPacket.hand());
-        if (stack.is(Items.ENDER_PEARL) && !player.getCooldowns().isOnCooldown(stack))
+        if (stack.is(Items.ENDER_PEARL) && !player.getCooldowns().isOnCooldown(stack)) {
             lastPearlTime = System.currentTimeMillis();
+            pearlThrowTime = lastPearlTime;
+        }
+    }
+
+    private static boolean pearlPending() {
+        return pearlThrowTime != 0L && System.currentTimeMillis() - pearlThrowTime <= PEARL_PENDING_MS;
     }
 
     private static boolean inPearlWindow() {
@@ -65,6 +76,8 @@ public class WatchdogLegacyFly implements FlyEvent {
         flagged = false;
         started = false;
         airStart = false;
+        awaitingDamage = false;
+        damageRequestTime = 0L;
         startTime = 0L;
         state = State.HYPIXEL;
 
@@ -89,9 +102,10 @@ public class WatchdogLegacyFly implements FlyEvent {
             }
             PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(player.position().x, player.position().y, player.position().z, true, false));
 
-            player.jumpFromGround();
-            TimerUtil.timerSpeed = 0.8f;
-            moveSpeed = 1.2;
+            awaitingDamage = true;
+            damageRequestTime = System.currentTimeMillis();
+            moveSpeed = 0.0;
+            TimerUtil.reset();
         } else {
             startTime = System.currentTimeMillis();
             airStart = true;
@@ -100,10 +114,20 @@ public class WatchdogLegacyFly implements FlyEvent {
         return true;
     }
 
+    private static void boost(LocalPlayer player) {
+        awaitingDamage = false;
+        startTime = System.currentTimeMillis();
+        player.jumpFromGround();
+        TimerUtil.timerSpeed = 0.8f;
+        moveSpeed = 1.2;
+    }
+
     public static void disable() {
         flagged = false;
         started = false;
         airStart = false;
+        awaitingDamage = false;
+        damageRequestTime = 0L;
         startTime = 0L;
         state = State.HYPIXEL;
         moveSpeed = 0.0;
@@ -182,6 +206,20 @@ public class WatchdogLegacyFly implements FlyEvent {
             return;
         }
 
+        if (awaitingDamage) {
+            MovementUtil.stopMoving();
+            if (!event.post) return;
+
+            if (player.hurtTime > 0) {
+                boost(player);
+            } else if (System.currentTimeMillis() - damageRequestTime > DAMAGE_TIMEOUT_MS) {
+                FlyModule flyModule = ModuleManager.getModule(FlyModule.class);
+                if (flyModule != null)
+                    flyModule.setState(false);
+            }
+            return;
+        }
+
         event.onGround = true;
         player.getAbilities().flying = false;
         MovementUtil.setVelocityY(0.0);
@@ -227,7 +265,7 @@ public class WatchdogLegacyFly implements FlyEvent {
             return;
         }
 
-        if (moveSpeed > 0)
+        if (moveSpeed > 0 || awaitingDamage)
             mc.options.keyJump.setDown(false);
     }
 
@@ -237,8 +275,15 @@ public class WatchdogLegacyFly implements FlyEvent {
 
     @Override
     public void onReceivedPacket(ReceivedPacketEvent event) {
-        if (event.packet instanceof ClientboundPlayerPositionPacket)
-            flagged = true;
+        if (!(event.packet instanceof ClientboundPlayerPositionPacket)) return;
+
+        if (pearlPending()) {
+            pearlThrowTime = 0L;
+            lastPearlTime = System.currentTimeMillis();
+            return;
+        }
+
+        flagged = true;
     }
 
     @Override
