@@ -32,7 +32,7 @@ public class WatchdogLegacyFly implements FlyEvent {
     }
 
     private static final float VANILLA_H_SPEED = 3.0f;
-    private static final float FALL_V_SPEED = 0.0f;
+    private static final float FALL_V_SPEED = 1.0f;
     private static final float FLAG_V_SPEED = 2.0f;
     private static final long FLAG_WINDOW_MS = 6000L;
     private static final double FALL_THRESHOLD = 3;
