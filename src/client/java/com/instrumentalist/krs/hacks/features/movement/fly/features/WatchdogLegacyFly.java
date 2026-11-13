@@ -5,6 +5,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.movement.InventoryMove;
 import com.instrumentalist.krs.hacks.features.movement.fly.FlyEvent;
 import com.instrumentalist.krs.hacks.features.movement.fly.FlyModule;
+import com.instrumentalist.krs.utils.ChatUtil;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
@@ -190,7 +191,11 @@ public class WatchdogLegacyFly implements FlyEvent {
         } else if (moveSpeed >= 1) {
             TimerUtil.timerSpeed = 1.5f;
         } else {
-            TimerUtil.timerSpeed = 1.1f;
+            if (moveSpeed <= 0.9 && moveSpeed >= 0.85) {
+                TimerUtil.timerSpeed = 2.5f;
+            } else {
+                TimerUtil.timerSpeed = 1.1f;
+            }
         }
 
         if (!MovementUtil.isMoving() || player.horizontalCollision)
@@ -199,8 +204,16 @@ public class WatchdogLegacyFly implements FlyEvent {
         if (moveSpeed > 0.25)
             moveSpeed -= moveSpeed / 270;
 
-        if (!event.post)
-            player.setPos(player.getX(), player.getY() - 8e-6, player.getZ());
+        if (!event.post) {
+            if (moveSpeed >= 1) {
+                if (player.tickCount % 3 == 0) {
+                    PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(player.position().x, player.position().y, player.position().z, true, false));
+                }
+                player.setPos(player.getX(), player.position().y + 1.0E-10, player.getZ());
+            } else {
+                player.setPos(player.getX(), player.getY() - 8e-6, player.getZ());
+            }
+        }
 
         MovementUtil.strafe((float) moveSpeed);
     }
