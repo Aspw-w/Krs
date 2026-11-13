@@ -10,6 +10,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import com.instrumentalist.krs.utils.math.TimerUtil;
+import com.instrumentalist.krs.utils.move.InputUtil;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
@@ -118,8 +119,12 @@ public class WatchdogLegacyFly implements FlyEvent {
         awaitingDamage = false;
         startTime = System.currentTimeMillis();
         player.jumpFromGround();
-        TimerUtil.timerSpeed = 0.1f;
-        moveSpeed = 1.5;
+        int speedLevel = MovementUtil.getSpeedEffect();
+        if (speedLevel >= 2) {
+            moveSpeed = 1.5;
+        } else {
+            moveSpeed = 1.2;
+        }
     }
 
     public static void disable() {
@@ -176,6 +181,13 @@ public class WatchdogLegacyFly implements FlyEvent {
                     return;
                 }
             }
+        }
+
+        if (awaitingDamage) {
+            LocalPlayer player = mc.player;
+            InputUtil.stop(player.input);
+            MovementUtil.stopMoving();
+            return;
         }
 
         if (state == State.FLAG_VANILLA && System.currentTimeMillis() - flagVanillaStartTime > FLAG_FLY_MS) {
