@@ -45,6 +45,9 @@ public class AutoPot extends Module {
     private static boolean throwing = false;
     private static int lastActionTick = Integer.MIN_VALUE / 2;
     private static final int ACTION_GAP_TICKS = 2;
+    private static final int HOP_GRACE_TICKS = 12;
+    private static final double HOP_MAX_GROUND_DISTANCE = 1.5;
+    private int lastGroundTick = Integer.MIN_VALUE / 2;
 
     private final List<Holder<MobEffect>> potions = List.of(
             MobEffects.SPEED,
@@ -69,6 +72,10 @@ public class AutoPot extends Module {
         BehaviorUtils.noKillAura = false;
         PlayerUtil.INSTANCE.stopSpoof();
         Client.rotationManager.stopRotation();
+        if (oldSlot != -1) {
+            mc.player.getInventory().setSelectedSlot(oldSlot);
+            markAction(mc.player);
+        }
         resetPotiHaveAEffect = false;
         potted = false;
         wasRotating = false;
@@ -85,8 +92,10 @@ public class AutoPot extends Module {
     @Override
     public void onUpdate(UpdateEvent event) {
         var player = mc.player;
+        if (player != null && isGroundDirectlyBelow(player))
+            lastGroundTick = player.tickCount;
         if (player == null
-                || !isGroundDirectlyBelow(player)
+                || !canThrowHere(player)
                 || mc.gui.screen() instanceof ContainerScreen
                 || resetPotiHaveAEffect
                 || potted
@@ -167,6 +176,8 @@ public class AutoPot extends Module {
                 throwing = true;
             } else if (oldSlot != -1) {
                 PlayerUtil.INSTANCE.stopSpoof();
+                inventory.setSelectedSlot(oldSlot);
+                markAction(player);
                 oldSlot = -1;
                 throwing = wasRotating;
             }
@@ -207,6 +218,26 @@ public class AutoPot extends Module {
 
         potTimer.reset();
         potted = true;
+    }
+
+    private boolean canThrowHere(LocalPlayer player) {
+        if (isGroundDirectlyBelow(player))
+            return true;
+        if (player.isInWater() || player.isInLava() || player.getAbilities().flying || player.isFallFlying())
+            return false;
+        int sinceGround = player.tickCount - lastGroundTick;
+        if (sinceGround < 0 || sinceGround > HOP_GRACE_TICKS || player.fallDistance > 2.0)
+            return false;
+        return hasGroundWithin(player, HOP_MAX_GROUND_DISTANCE);
+    }
+
+    private static boolean hasGroundWithin(LocalPlayer player, double distance) {
+        var level = mc.level;
+        if (level == null)
+            return false;
+        AABB box = player.getBoundingBox();
+        AABB probe = new AABB(box.minX, box.minY - distance, box.minZ, box.maxX, box.minY, box.maxZ);
+        return level.getBlockCollisions(player, probe).iterator().hasNext();
     }
 
     private static boolean isGroundDirectlyBelow(LocalPlayer player) {
