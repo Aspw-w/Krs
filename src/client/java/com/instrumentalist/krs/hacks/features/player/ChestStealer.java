@@ -31,6 +31,9 @@ public class ChestStealer extends Module {
     private static final IntValue minDelay = new IntValue("Min Delay", 0, 0, 10);
 
     @Setting
+    private static final IntValue closeDelay = new IntValue("Close Delay", 2, 0, 10);
+
+    @Setting
     public static final BooleanValue blink = new BooleanValue("Blink", false);
 
     @Setting
@@ -39,7 +42,6 @@ public class ChestStealer extends Module {
     private int tickCounter = 0;
     private int startCounter = 0;
     private int closeCounter = 0;
-    private int closeDelayTarget = -1;
     private boolean stealing = false;
     private boolean ownsBlink = false;
     private final ArrayList<Integer> slotIndices = new ArrayList<>(27);
@@ -61,7 +63,6 @@ public class ChestStealer extends Module {
         tickCounter = 0;
         startCounter = 0;
         closeCounter = 0;
-        closeDelayTarget = -1;
         stealing = false;
         if (ownsBlink)
             releaseBlink();
@@ -118,29 +119,23 @@ public class ChestStealer extends Module {
                     itemStolen = true;
                     tickCounter = nextDelay();
                     closeCounter = 0;
-                    closeDelayTarget = -1;
-                    break;
+                                break;
                 }
             }
 
             if (!itemStolen) {
-                if (closeDelayTarget < 0)
-                    closeDelayTarget = nextDelay();
-
-                if (closeCounter < closeDelayTarget) {
+                if (closeCounter < closeDelay.get()) {
                     closeCounter++;
                     return;
                 }
 
                 closeCounter = 0;
-                closeDelayTarget = -1;
-                player.closeContainer();
+                        player.closeContainer();
                 stealing = false;
             }
         } else {
             closeCounter = 0;
-            closeDelayTarget = -1;
-            startCounter = 0;
+                startCounter = 0;
             stealing = false;
         }
     }
