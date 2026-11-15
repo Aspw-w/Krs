@@ -81,7 +81,12 @@ public class WatchdogLegacySpeed implements SpeedEvent {
                 }
             }
 
-            TimerUtil.timerSpeed = 1.1f;
+            if (mc.player.tickCount % 2 == 0)  {
+                TimerUtil.timerSpeed = 1.2f;
+            } else {
+                TimerUtil.timerSpeed = 1.1f;
+            }
+
             if (mc.player.hurtTime >= 8) {
                 MovementUtil.strafe(Math.max(0.4f, MovementUtil.getSpeed()));
             } else if (mc.player.fallDistance > 0.1) {

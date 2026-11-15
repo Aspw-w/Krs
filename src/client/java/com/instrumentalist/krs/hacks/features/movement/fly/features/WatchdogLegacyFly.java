@@ -52,6 +52,7 @@ public class WatchdogLegacyFly implements FlyEvent {
     private static final long PEARL_PENDING_MS = 10000L;
     private static final long DAMAGE_TIMEOUT_MS = 5000L;
     private static boolean awaitingDamage = false;
+    private static boolean skipMotionTick = false;
     private static long damageRequestTime = 0L;
 
     public static void trackPearl(Packet<?> packet) {
@@ -78,6 +79,7 @@ public class WatchdogLegacyFly implements FlyEvent {
         started = false;
         airStart = false;
         awaitingDamage = false;
+        skipMotionTick = false;
         damageRequestTime = 0L;
         startTime = 0L;
         state = State.HYPIXEL;
@@ -110,6 +112,7 @@ public class WatchdogLegacyFly implements FlyEvent {
         } else {
             startTime = System.currentTimeMillis();
             airStart = true;
+            skipMotionTick = true;
             moveSpeed = 0.25;
         }
         return true;
@@ -117,13 +120,14 @@ public class WatchdogLegacyFly implements FlyEvent {
 
     private static void boost(LocalPlayer player) {
         awaitingDamage = false;
+        skipMotionTick = true;
         startTime = System.currentTimeMillis();
         player.jumpFromGround();
         int speedLevel = MovementUtil.getSpeedEffect();
         if (speedLevel >= 2) {
-            moveSpeed = 1.325;
+            moveSpeed = 1.32;
         } else {
-            moveSpeed = 1.2;
+            moveSpeed = 1.25;
         }
     }
 
@@ -132,6 +136,7 @@ public class WatchdogLegacyFly implements FlyEvent {
         started = false;
         airStart = false;
         awaitingDamage = false;
+        skipMotionTick = false;
         damageRequestTime = 0L;
         startTime = 0L;
         state = State.HYPIXEL;
@@ -201,6 +206,36 @@ public class WatchdogLegacyFly implements FlyEvent {
             vanillaMotion(FALL_V_SPEED);
         else if (state == State.FLAG_VANILLA)
             vanillaMotion(FLAG_V_SPEED);
+        else if (started) {
+            if (skipMotionTick)
+                skipMotionTick = false;
+            else hypixelMotion(mc.player);
+        }
+    }
+
+    private static void hypixelMotion(LocalPlayer player) {
+        player.getAbilities().flying = false;
+        MovementUtil.setVelocityY(0.0);
+
+        if (!MovementUtil.isMoving() || player.horizontalCollision)
+            moveSpeed = 0.25;
+
+        for (int i = 0; i < 2; i++) {
+            if (moveSpeed > 0.25)
+                moveSpeed -= moveSpeed / 250;
+        }
+
+        if (moveSpeed >= 1.1) {
+            TimerUtil.timerSpeed = 2.5f;
+        } else {
+            if (player.tickCount % 2 == 0)  {
+                TimerUtil.timerSpeed = 1.2f;
+            } else {
+                TimerUtil.timerSpeed = 1.1f;
+            }
+        }
+
+        MovementUtil.strafe((float) moveSpeed);
     }
 
     @Override
@@ -233,26 +268,6 @@ public class WatchdogLegacyFly implements FlyEvent {
         }
 
         event.onGround = true;
-        player.getAbilities().flying = false;
-        MovementUtil.setVelocityY(0.0);
-
-        if (moveSpeed >= 1.1) {
-            TimerUtil.timerSpeed = 2.5f;
-        } else if (moveSpeed >= 1) {
-            TimerUtil.timerSpeed = 1.5f;
-        } else {
-            if (moveSpeed <= 0.97 && moveSpeed >= 0.94) {
-                TimerUtil.timerSpeed = 2f;
-            } else {
-                TimerUtil.timerSpeed = 1.1f;
-            }
-        }
-
-        if (!MovementUtil.isMoving() || player.horizontalCollision)
-            moveSpeed = 0.25;
-
-        if (moveSpeed > 0.25)
-            moveSpeed -= moveSpeed / 270;
 
         if (!event.post) {
             if (moveSpeed >= 1.1) {
@@ -264,8 +279,6 @@ public class WatchdogLegacyFly implements FlyEvent {
                 player.setPos(player.getX(), player.getY() - 8e-6, player.getZ());
             }
         }
-
-        MovementUtil.strafe((float) moveSpeed);
     }
 
     @Override
