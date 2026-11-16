@@ -417,7 +417,7 @@ public class LegacyRenderer extends Module {
             pendingCooldownReset = false;
         }
 
-        float f = Mth.clamp((ticksSinceLastSwing + 1.0F) / player.getCurrentItemAttackStrengthDelay(), 0.0F, 1.0F);
+        float f = Mth.clamp((ticksSinceLastSwing + TimerUtil.realTickStep()) / player.getCurrentItemAttackStrengthDelay(), 0.0F, 1.0F);
 
         ticksSinceLastSwing += TimerUtil.realTickStep();
         ItemStack itemstack = player.getMainHandItem();

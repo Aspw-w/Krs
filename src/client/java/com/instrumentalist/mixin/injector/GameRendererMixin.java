@@ -12,7 +12,11 @@ import com.instrumentalist.krs.hacks.features.render.*;
 import com.instrumentalist.krs.utils.render.DebugOverlayRenderer;
 import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
 import com.instrumentalist.krs.utils.render.RenderUtil;
+import com.instrumentalist.krs.utils.math.TimerUtil;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
+import net.minecraft.client.renderer.LightmapRenderStateExtractor;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -60,6 +64,21 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
     @Shadow
     @Final
     private GuiRenderer guiRenderer;
+
+    @WrapWithCondition(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/LightmapRenderStateExtractor;tick()V"))
+    private boolean krs$worldLightmapTick(LightmapRenderStateExtractor instance) {
+        return TimerUtil.worldTick;
+    }
+
+    @WrapWithCondition(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;tick()V"))
+    private boolean krs$selfCameraTick(net.minecraft.client.Camera instance) {
+        return TimerUtil.selfTick;
+    }
+
+    @ModifyExpressionValue(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/TickRateManager;runsNormally()Z"))
+    private boolean krs$selfScreenEffectsTick(boolean original) {
+        return original && TimerUtil.selfTick;
+    }
 
     @Unique
     private boolean cancelNextBobView;

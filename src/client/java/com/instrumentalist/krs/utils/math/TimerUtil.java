@@ -32,6 +32,13 @@ public class TimerUtil {
         return isActive() ? 1f / timerSpeed : 1f;
     }
 
+    public static float smoothing(float factor) {
+        if (!isActive())
+            return factor;
+
+        return 1f - (float) Math.pow(1f - factor, realTickStep());
+    }
+
     public static int scheduleTicks(int worldTicks, float deltaTicks, float worldResidual) {
         if (!isActive()) {
             selfResidual = worldResidual;

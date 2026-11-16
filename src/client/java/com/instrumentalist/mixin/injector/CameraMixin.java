@@ -28,6 +28,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Constant;
+import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArgs;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -55,6 +57,11 @@ public abstract class CameraMixin implements IMinecraft {
             return original;
 
         return TimerUtil.partialTickFor(this.entity, original);
+    }
+
+    @ModifyConstant(method = {"tick", "tickFov"}, constant = @Constant(floatValue = 0.5F))
+    private float krs$timerIndependentCameraSmoothing(float original) {
+        return TimerUtil.smoothing(original);
     }
 
     @Inject(method = "alignWithEntity", at = @At("HEAD"))

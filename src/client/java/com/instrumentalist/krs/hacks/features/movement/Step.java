@@ -17,11 +17,15 @@ import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import com.instrumentalist.krs.utils.input.Keys;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 public class Step extends Module {
@@ -94,6 +98,8 @@ public class Step extends Module {
                             && mc.level.getBlockState(above.west()).isAir()
                             && mc.level.getBlockState(above.north()).isAir())
                         return 1f;
+                } else if (mode.get().equalsIgnoreCase("ncp")) {
+                    return (float) Math.min(height.get(), NCP_MAX_HEIGHT);
                 } else return height.get();
             }
 
@@ -107,46 +113,74 @@ public class Step extends Module {
     private static final double[] NCP_JUMP_ARC = {0.41999998688698, 0.7531999805212, 1.00133597911214, 1.16610926093821, 1.24918707874468};
     private static final double[] NCP_ONE_HALF_BLOCK = {0.41999998688698, 0.7531999805212, 1.00133597911214, 1.16610926093821, 1.24918707874468, 1.1707870772188};
     private static final double[] NCP_TWO_BLOCK = {0.425, 0.821, 0.699, 0.599, 1.022, 1.372, 1.652, 1.869};
+    private static final double NCP_MAX_HEIGHT = 2.0;
+    private static final double NCP_EPSILON = 1.0E-4;
 
-    public static void steppingFunctions(double stepHeight) {
-        if (!shouldStep()) return;
+    private static final double[] HYPIXEL_OFFSETS = {0.41999998688698, 0.7531999805212, 1.001335997911214, 1.16610926093821, 1.24918707874468, 1.093955074228084};
+    private static final double VANILLA_STEP_HEIGHT = 0.6;
+
+    public static Vec3 handleCollide(LocalPlayer player, Vec3 movement, Vec3 result) {
+        double stepHeight = result.y;
+        if (stepHeight <= VANILLA_STEP_HEIGHT + NCP_EPSILON || stepHeight <= movement.y + NCP_EPSILON)
+            return result;
+
+        if (steppingFunctions(player, stepHeight))
+            return result;
+
+        return Entity.collideBoundingBox(player, movement, player.getBoundingBox(), player.level(), List.of());
+    }
+
+    private static double[] ncpOffsets(double stepHeight) {
+        double[] table;
+        if (stepHeight <= NCP_JUMP_ARC[NCP_JUMP_ARC.length - 1] + NCP_EPSILON)
+            table = NCP_JUMP_ARC;
+        else if (stepHeight <= 1.5 + NCP_EPSILON)
+            table = NCP_ONE_HALF_BLOCK;
+        else
+            table = NCP_TWO_BLOCK;
+
+        int count = 0;
+        while (count < table.length && table[count] < stepHeight - NCP_EPSILON)
+            count++;
+
+        return Arrays.copyOf(table, count);
+    }
+
+    private static boolean steppingFunctions(LocalPlayer player, double stepHeight) {
+        if (!shouldStep()) return true;
+
+        if (!sentBypass) {
+            double[] offsets = switch (mode.get().toLowerCase(Locale.ROOT)) {
+                case "ncp" -> stepHeight > NCP_MAX_HEIGHT + NCP_EPSILON ? null : ncpOffsets(stepHeight);
+                case "hypixel" -> HYPIXEL_OFFSETS;
+                default -> new double[0];
+            };
+
+            if (offsets == null || !isPathClear(player, offsets))
+                return false;
+
+            Vec3 pos = player.position();
+            boolean horizontalCollision = player.horizontalCollision;
+            for (double offset : offsets)
+                sendStepPacket(pos, offset, horizontalCollision);
+
+            sentBypass = true;
+        }
 
         if (customTimer.get())
             TimerUtil.timerSpeed = timerSpeed.get();
 
-        if (!sentBypass) {
-            Vec3 pos = mc.player.position();
-            boolean horizontalCollision = mc.player.horizontalCollision;
-
-            switch (mode.get().toLowerCase(Locale.ROOT)) {
-                case "ncp":
-                    if (stepHeight <= NCP_JUMP_ARC[NCP_JUMP_ARC.length - 1]) {
-                        for (double offset : NCP_JUMP_ARC) {
-                            if (offset >= stepHeight) break;
-                            sendStepPacket(pos, offset, horizontalCollision);
-                        }
-                    } else {
-                        double[] offsets = stepHeight <= 1.5 ? NCP_ONE_HALF_BLOCK : NCP_TWO_BLOCK;
-                        double base = stepHeight <= 1.5 ? 1.5 : 2.0;
-                        double scale = Math.min(stepHeight, base) / base;
-                        for (double offset : offsets)
-                            sendStepPacket(pos, offset * scale, horizontalCollision);
-                    }
-                    break;
-
-                case "hypixel":
-                    sendStepPacket(pos, .41999998688698, horizontalCollision);
-                    sendStepPacket(pos, .7531999805212, horizontalCollision);
-                    sendStepPacket(pos, 1.001335997911214, horizontalCollision);
-                    sendStepPacket(pos, 1.16610926093821, horizontalCollision);
-                    sendStepPacket(pos, 1.24918707874468, horizontalCollision);
-                    sendStepPacket(pos, 1.093955074228084, horizontalCollision);
-                    break;
-            }
-            sentBypass = true;
-        }
-
         calledModifiedStep = true;
+        return true;
+    }
+
+    private static boolean isPathClear(LocalPlayer player, double[] offsets) {
+        AABB box = player.getBoundingBox();
+        for (double offset : offsets) {
+            if (!player.level().noCollision(player, box.move(0.0, offset, 0.0)))
+                return false;
+        }
+        return true;
     }
 
     private static void sendStepPacket(Vec3 pos, double yOffset, boolean horizontalCollision) {

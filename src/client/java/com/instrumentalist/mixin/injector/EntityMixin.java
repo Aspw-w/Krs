@@ -13,6 +13,7 @@ import com.instrumentalist.krs.hacks.features.movement.Step;
 import com.instrumentalist.krs.hacks.features.player.Phase;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
@@ -124,11 +125,9 @@ public abstract class EntityMixin implements IMinecraft {
     }
 
     @ModifyReturnValue(method = "collide", at = @At("RETURN"))
-    private Vec3 steppingHook(Vec3 original) {
-        if (((Object) this instanceof LocalPlayer)) {
-            if (ModuleManager.getModuleState(Step.class) && original.y > 0.6)
-                Step.steppingFunctions(original.y);
-        }
+    private Vec3 steppingHook(Vec3 original, @Local(argsOnly = true) Vec3 movement) {
+        if ((Object) this instanceof LocalPlayer player && ModuleManager.getModuleState(Step.class))
+            return Step.handleCollide(player, movement, original);
 
         return original;
     }

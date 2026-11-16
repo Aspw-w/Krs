@@ -1,6 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.utils.math.TimerUtil;
+import com.instrumentalist.krs.utils.render.SelfRotationVisual;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import net.minecraft.client.Minecraft;
@@ -10,7 +11,6 @@ import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.sounds.MusicManager;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.client.tutorial.Tutorial;
@@ -62,6 +62,9 @@ public abstract class MinecraftTimerMixin {
         if (!TimerUtil.worldTick)
             this.clientTickCount = this.krs$savedClientTickCount;
 
+        if (TimerUtil.worldTick)
+            SelfRotationVisual.tick();
+
         TimerUtil.endClientTick();
     }
 
@@ -92,11 +95,6 @@ public abstract class MinecraftTimerMixin {
 
     @WrapWithCondition(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Minecraft;handleKeybinds()V"))
     private boolean krs$selfKeybinds(Minecraft instance) {
-        return TimerUtil.selfTick;
-    }
-
-    @WrapWithCondition(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;tick()V"))
-    private boolean krs$selfGameRenderer(GameRenderer instance) {
         return TimerUtil.selfTick;
     }
 

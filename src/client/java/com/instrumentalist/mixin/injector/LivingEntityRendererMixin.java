@@ -5,6 +5,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.ServerRotations;
 import com.instrumentalist.krs.hacks.features.render.TrueSight;
 import com.instrumentalist.krs.utils.render.GuiEntityRenderGuard;
+import com.instrumentalist.krs.utils.render.SelfRotationVisual;
 import com.instrumentalist.krs.utils.render.custommodel.CustomModelRenderer;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
@@ -38,6 +39,9 @@ public abstract class LivingEntityRendererMixin {
         if (krs$shouldApplyVanillaRotation(entity))
             return Client.rotationManager.getInterpolatedBodyYaw(tickDelta);
 
+        if (SelfRotationVisual.applies(entity))
+            return SelfRotationVisual.bodyYaw();
+
         return original;
     }
 
@@ -49,6 +53,9 @@ public abstract class LivingEntityRendererMixin {
         if (krs$shouldApplyVanillaRotation(entity))
             return Client.rotationManager.getInterpolatedYaw(tickDelta);
 
+        if (SelfRotationVisual.applies(entity))
+            return SelfRotationVisual.headYaw();
+
         return original;
     }
 
@@ -59,6 +66,9 @@ public abstract class LivingEntityRendererMixin {
     private float krs$vanillaRotationPitch(float original, LivingEntity entity, LivingEntityRenderState state, float tickDelta) {
         if (krs$shouldApplyVanillaRotation(entity))
             return Client.rotationManager.getInterpolatedPitch(tickDelta);
+
+        if (SelfRotationVisual.applies(entity))
+            return SelfRotationVisual.pitch();
 
         return original;
     }

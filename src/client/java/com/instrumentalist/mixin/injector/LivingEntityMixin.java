@@ -17,6 +17,8 @@ import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
 import com.instrumentalist.mixin.oringo.ILegacySwing;
 import com.instrumentalist.mixin.oringo.ITimerScaledTick;
 import com.instrumentalist.mixin.oringo.ITimerHurt;
+import com.instrumentalist.mixin.oringo.ITimerWalkAnimation;
+import net.minecraft.world.entity.WalkAnimationState;
 import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
@@ -70,6 +72,13 @@ public abstract class LivingEntityMixin extends EntityMixin implements ILegacySw
     public float krs$getVisualHurtTime(float partialTicks) {
         float base = this.hurtTime > this.krs$lastHurtTime ? this.hurtTime : this.krs$visualHurtTime;
         return base - partialTicks * TimerUtil.realTickStep();
+    }
+
+    @WrapOperation(method = "updateWalkAnimation", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/WalkAnimationState;update(FFF)V"))
+    private void krs$timerIndependentWalkAnimation(WalkAnimationState instance, float targetSpeed, float factor, float positionScale, Operation<Void> original) {
+        if ((Object) this instanceof LocalPlayer && TimerUtil.isActive())
+            ((ITimerWalkAnimation) instance).krs$updateScaled(targetSpeed, TimerUtil.smoothing(factor), positionScale, TimerUtil.realTickStep());
+        else original.call(instance, targetSpeed, factor, positionScale);
     }
 
     @Unique

@@ -20,7 +20,10 @@ import net.minecraft.world.item.ItemUseAnimation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
+import com.instrumentalist.krs.utils.math.TimerUtil;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Constant;
+import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -45,6 +48,16 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
     @Shadow private float oOffHandHeight;
 
     @Shadow protected abstract boolean shouldInstantlyReplaceVisibleItem(ItemStack currentlyVisibleItem, ItemStack expectedItem, LocalPlayer player);
+
+    @Unique
+    private static float krs$equipStep() {
+        return 0.4F * TimerUtil.realTickStep();
+    }
+
+    @ModifyConstant(method = "tick", constant = {@Constant(floatValue = 0.4F), @Constant(floatValue = -0.4F)})
+    private float krs$timerIndependentEquipStep(float original) {
+        return original * TimerUtil.realTickStep();
+    }
 
     @Unique
     private boolean shouldKeepOldEatSwingItemVisible(LocalPlayer player) {
@@ -96,7 +109,7 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
         }
 
         float h = this.offHandItem != itemStack2 ? 0.0F : 1.0F;
-        this.offHandHeight += Mth.clamp(h - this.offHandHeight, -0.4F, 0.4F);
+        this.offHandHeight += Mth.clamp(h - this.offHandHeight, -krs$equipStep(), krs$equipStep());
 
         if (this.offHandHeight < 0.1F) {
             this.offHandItem = itemStack2;
@@ -122,10 +135,10 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
             this.mainHandItem = mainHandTarget;
 
         if (player.isHandsBusy()) {
-            this.mainHandHeight = Mth.clamp(this.mainHandHeight - 0.4F, 0.0F, 1.0F);
+            this.mainHandHeight = Mth.clamp(this.mainHandHeight - krs$equipStep(), 0.0F, 1.0F);
         } else {
             float targetHeight = this.mainHandItem != mainHandTarget ? 0.0F : 1.0F;
-            this.mainHandHeight += Mth.clamp(targetHeight - this.mainHandHeight, -0.4F, 0.4F);
+            this.mainHandHeight += Mth.clamp(targetHeight - this.mainHandHeight, -krs$equipStep(), krs$equipStep());
         }
 
         if (this.mainHandHeight < 0.1F)
@@ -148,7 +161,7 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
             if (ItemStack.matches(this.mainHandItem, itemStack))
                 this.mainHandItem = itemStack;
 
-            this.mainHandHeight += Mth.clamp((this.mainHandItem == itemStack ? 1f : 0.0F) - this.mainHandHeight, -0.4F, 0.4F);
+            this.mainHandHeight += Mth.clamp((this.mainHandItem == itemStack ? 1f : 0.0F) - this.mainHandHeight, -krs$equipStep(), krs$equipStep());
 
             if (this.mainHandHeight < 0.1F)
                 this.mainHandItem = itemStack;
@@ -206,12 +219,12 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
 
         if (player.isHandsBusy()) {
             LegacyRenderer.tickCooledAttackStrength(player);
-            this.mainHandHeight = Mth.clamp(this.mainHandHeight - 0.4F, 0.0F, 1.0F);
-            this.offHandHeight = Mth.clamp(this.offHandHeight - 0.4F, 0.0F, 1.0F);
+            this.mainHandHeight = Mth.clamp(this.mainHandHeight - krs$equipStep(), 0.0F, 1.0F);
+            this.offHandHeight = Mth.clamp(this.offHandHeight - krs$equipStep(), 0.0F, 1.0F);
         } else {
             float f = LegacyRenderer.tickCooledAttackStrength(player);
-            this.mainHandHeight += Mth.clamp((holdRaised || krs$legacyEquals(this.mainHandItem, itemstack) ? f * f * f : 0.0F) - this.mainHandHeight, -0.4F, 0.4F);
-            this.offHandHeight += Mth.clamp((float) (krs$legacyEquals(this.offHandItem, itemstack1) ? 1 : 0) - this.offHandHeight, -0.4F, 0.4F);
+            this.mainHandHeight += Mth.clamp((holdRaised || krs$legacyEquals(this.mainHandItem, itemstack) ? f * f * f : 0.0F) - this.mainHandHeight, -krs$equipStep(), krs$equipStep());
+            this.offHandHeight += Mth.clamp((float) (krs$legacyEquals(this.offHandItem, itemstack1) ? 1 : 0) - this.offHandHeight, -krs$equipStep(), krs$equipStep());
         }
 
         if (this.mainHandHeight < 0.1F && !holdRaised)
