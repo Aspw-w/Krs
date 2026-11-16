@@ -193,25 +193,25 @@ public class ModuleRenderable implements Renderable, IMinecraft {
         try {
             boolean lightTheme = ImGui.theme.get().equalsIgnoreCase("light");
             if (module.tempEnabled && lightTheme) {
-                imgui.ImGui.pushStyleColor(ImGuiCol.Header, 219, 207, 255, 255);
-                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 205, 188, 250, 255);
-                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderActive, 190, 172, 242, 255);
-                imgui.ImGui.pushStyleColor(ImGuiCol.Text, 36, 28, 54, 255);
+                imgui.ImGui.pushStyleColor(ImGuiCol.Header, 206, 212, 255, 255);
+                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 190, 198, 252, 255);
+                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderActive, 172, 182, 246, 255);
+                imgui.ImGui.pushStyleColor(ImGuiCol.Text, 22, 21, 40, 255);
             } else if (module.tempEnabled) {
-                imgui.ImGui.pushStyleColor(ImGuiCol.Header, 138, 88, 255, 92);
-                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 170, 112, 255, 132);
-                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderActive, 232, 95, 205, 150);
-                imgui.ImGui.pushStyleColor(ImGuiCol.Text, 250, 246, 255, 255);
+                imgui.ImGui.pushStyleColor(ImGuiCol.Header, 112, 124, 248, 92);
+                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 138, 150, 255, 132);
+                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderActive, 236, 88, 74, 150);
+                imgui.ImGui.pushStyleColor(ImGuiCol.Text, 248, 247, 255, 255);
             } else if (lightTheme) {
-                imgui.ImGui.pushStyleColor(ImGuiCol.Header, 243, 239, 252, 255);
-                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 230, 222, 247, 255);
-                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderActive, 216, 205, 242, 255);
-                imgui.ImGui.pushStyleColor(ImGuiCol.Text, 64, 55, 82, 255);
+                imgui.ImGui.pushStyleColor(ImGuiCol.Header, 238, 239, 250, 255);
+                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 224, 227, 247, 255);
+                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderActive, 208, 213, 244, 255);
+                imgui.ImGui.pushStyleColor(ImGuiCol.Text, 58, 58, 82, 255);
             } else {
-                imgui.ImGui.pushStyleColor(ImGuiCol.Header, 48, 44, 62, 150);
-                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 70, 62, 88, 190);
-                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderActive, 92, 78, 115, 215);
-                imgui.ImGui.pushStyleColor(ImGuiCol.Text, 224, 216, 238, 255);
+                imgui.ImGui.pushStyleColor(ImGuiCol.Header, 42, 41, 62, 150);
+                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 62, 62, 92, 190);
+                imgui.ImGui.pushStyleColor(ImGuiCol.HeaderActive, 80, 82, 124, 215);
+                imgui.ImGui.pushStyleColor(ImGuiCol.Text, 222, 221, 238, 255);
             }
 
             if (imgui.ImGui.collapsingHeader(module.moduleName + "##module-header"))

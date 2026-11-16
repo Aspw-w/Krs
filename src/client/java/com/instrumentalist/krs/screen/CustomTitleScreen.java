@@ -43,7 +43,8 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
     private static final float MUSIC_SLIDER_TRACK_HEIGHT = 7f;
     private static final Color BUTTON_IDLE = NanoVGTheme.base(168);
     private static final Color BUTTON_HOVERED = NanoVGTheme.base(210);
-    private static final Color HOVER_LINE = new Color(255, 215, 0, 220);
+    private static final Color HOVER_LINE = NanoVGTheme.accentWarm(230);
+    private static final Color HOVER_TEXT = new Color(0xFF, 0x8E, 0x78);
     private static final float STARTUP_LOAD_BAR_FADE_SECONDS = 0.25f;
     private static float startupLoadBarAlpha;
     private static long startupLoadBarFadeNanos;
@@ -202,7 +203,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         }
 
         NVGFont font = state.fontSize > 22f ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
-        font.drawText(state.label, state.x, state.y - 15f - (state.fontSize - 21f), state.fontSize, state.hovered ? Color.YELLOW : Color.WHITE, Alignment.CENTER_MIDDLE, true);
+        font.drawText(state.label, state.x, state.y - 15f - (state.fontSize - 21f), state.fontSize, state.hovered ? HOVER_TEXT : NanoVGTheme.TEXT, Alignment.CENTER_MIDDLE, true);
     }
 
     private void renderMusicVolumeSlider(NVGU vg, float centerX, float mouseX, float mouseY) {

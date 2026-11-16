@@ -93,7 +93,7 @@ public class Interface extends Module {
     private static final float CHAT_SUGGESTION_GAP = 4f;
     private static final float CHAT_INPUT_TOP_OFFSET = 14f;
     private static final float INFO_HUD_ICON_GAP = 4f;
-    private static final Color MODULE_LIST_TAG_COLOR = new Color(170, 170, 170);
+    private static final Color MODULE_LIST_TAG_COLOR = new Color(176, 174, 194);
     private static final float MODULE_LIST_HORIZONTAL_GRADIENT_SPAN = 300f;
     private static final float WATERMARK_FADE_LENGTH = 0.7f;
     private static final int WATERMARK_SOFT_WHITE = 232;
@@ -545,8 +545,8 @@ public class Interface extends Module {
 
     private static int computeFadedRgb(float progress) {
         progress = 0.5f - 0.5f * (float) Math.cos(progress * 2 * Math.PI);
-        float saturation = 0.8f - 0.22f * (float) Math.sin(progress * Math.PI);
-        return Color.HSBtoRGB((180f + 120f * progress) / 360f, saturation, 1f) & 0xFFFFFF;
+        float saturation = 0.58f + 0.1f * progress - 0.23f * (float) Math.sin(progress * Math.PI);
+        return Color.HSBtoRGB((236f + 133f * progress) / 360f, saturation, 1f) & 0xFFFFFF;
     }
 
     private static String getCachedTimeText() {

@@ -1174,7 +1174,7 @@ public class NanoVGClickGuiScreen extends Screen {
                             settingsPanelCloseRect.centerX(),
                             settingsPanelCloseRect.centerY() - u(1f),
                             font(12f),
-                            mix(alpha(176, 186, 196, 230), alpha(255, 195, 195, 245), closeProgress),
+                            mix(NanoVGTheme.iconIdle(230), alpha(255, 195, 195, 245), closeProgress),
                             Alignment.CENTER_MIDDLE,
                             true
                     );
@@ -1279,10 +1279,10 @@ public class NanoVGClickGuiScreen extends Screen {
         boolean hovered = rect.contains(scaledMouseX, scaledMouseY);
         vg.roundedRectangle(rect.x, rect.y, rect.width, rect.height, u(5f), alpha(255, 255, 255, focused ? 30 : hovered ? 23 : 16));
         vg.roundedRectangleBorder(rect.x, rect.y, rect.width, rect.height, u(5f), u(1f), focused ? NanoVGTheme.inputFocus(120) : alpha(255, 255, 255, 30), Border.INSIDE);
-        NVGFonts.ICON.drawText(MaterialIcon.SEARCH, rect.x + u(7f), rect.y + u(3f), font(12f), focused ? NanoVGTheme.INPUT_FOCUS : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, true);
+        NVGFonts.ICON.drawText(MaterialIcon.SEARCH, rect.x + u(7f), rect.y + u(3f), font(12f), focused ? NanoVGTheme.INPUT_FOCUS : NanoVGTheme.iconIdle(220), Alignment.LEFT_TOP, true);
 
         String text = inputText(searchQuery, focused, "Search");
-        Color color = searchQuery.isBlank() && !focused ? alpha(120, 130, 140, 205) : alpha(255, 255, 255, 235);
+        Color color = searchQuery.isBlank() && !focused ? alpha(124, 126, 148,205) : alpha(255, 255, 255, 235);
         float textReserve = searchQuery.isBlank() ? u(33f) : u(51f);
         float searchFont = font(11f);
         renderInputText(vg, TextFocus.SEARCH, null, focused, text, searchFont, rect.x + u(24f), rect.y + u(4.5f), rect.y + u(5f), rect.width - textReserve, rect, color);
@@ -1561,7 +1561,7 @@ public class NanoVGClickGuiScreen extends Screen {
         String text = inputText(commandInput, active, "Enter a command");
         float inputFont = font(11f);
         Color textColor = commandInput.isBlank() && !active ? NanoVGTheme.muted(180) : NanoVGTheme.TEXT;
-        NVGFonts.ICON.drawText(MaterialIcon.FORWARD_IOS, input.x + u(8f), input.y + u(5f), font(12f), active ? NanoVGTheme.INPUT_FOCUS : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, true);
+        NVGFonts.ICON.drawText(MaterialIcon.FORWARD_IOS, input.x + u(8f), input.y + u(5f), font(12f), active ? NanoVGTheme.INPUT_FOCUS : NanoVGTheme.iconIdle(220), Alignment.LEFT_TOP, true);
         renderInputText(vg, TextFocus.COMMAND, null, active, text, inputFont, input.x + u(26f), input.y + u(6f), input.y + u(6f), input.width - u(32f), input, textColor);
         renderCommandSuggestionGhost(vg, input, text, inputFont);
 
@@ -2049,7 +2049,7 @@ public class NanoVGClickGuiScreen extends Screen {
         String text = inputText(newConfigName, active, placeholder);
         float createFont = font(11f);
         Color nameColor = newConfigName.isBlank() && !active ? NanoVGTheme.muted(180) : NanoVGTheme.TEXT;
-        NVGFonts.ICON.drawText(MaterialIcon.ADD, input.x + u(8f), input.y + u(5f), font(12f), active ? NanoVGTheme.INPUT_FOCUS : alpha(176, 186, 196, 220), Alignment.LEFT_TOP, true);
+        NVGFonts.ICON.drawText(MaterialIcon.ADD, input.x + u(8f), input.y + u(5f), font(12f), active ? NanoVGTheme.INPUT_FOCUS : NanoVGTheme.iconIdle(220), Alignment.LEFT_TOP, true);
         renderInputText(vg, TextFocus.CONFIG_NAME, null, active, text, createFont, input.x + u(26f), input.y + u(6f), input.y + u(6f), input.width - u(32f), input, nameColor);
 
         boolean canCreate = !cleanConfigName(newConfigName).isBlank();
@@ -2121,7 +2121,7 @@ public class NanoVGClickGuiScreen extends Screen {
             float deleteProgress = animate("config-delete:" + config.type.name() + ":" + config.name, deleteHovered, 0.18f);
             vg.roundedRectangle(delete.x, delete.y, delete.width, delete.height, u(5f), deletable ? mix(alpha(255, 255, 255, 12), alpha(255, 74, 74, 52), deleteProgress) : alpha(255, 255, 255, 8));
             vg.roundedRectangleBorder(delete.x, delete.y, delete.width, delete.height, u(5f), u(1f), deletable ? mix(alpha(255, 255, 255, 24), alpha(255, 96, 96, 110), deleteProgress) : alpha(255, 255, 255, 16), Border.INSIDE);
-            Color deleteColor = !deletable ? alpha(120, 130, 140, 135) : deleteHovered ? alpha(255, 195, 195, 245) : alpha(176, 186, 196, 220);
+            Color deleteColor = !deletable ? alpha(124, 126, 148,135) : deleteHovered ? alpha(255, 195, 195, 245) : NanoVGTheme.iconIdle(220);
             NVGFonts.ICON.drawText(MaterialIcon.DELETE, delete.centerX(), delete.centerY() - u(1f), font(12f), deleteColor, Alignment.CENTER_MIDDLE, true);
         }
     }
@@ -2480,7 +2480,7 @@ public class NanoVGClickGuiScreen extends Screen {
         renderInputText(vg, TextFocus.NUMBER, value, true, text, numberFont, input.x + u(6f), input.y + u(5f), input.y + u(5f), input.width - suffixWidth - u(12f), input, numberColor);
         if (!shownSuffix.isEmpty())
             NVGFonts.INTER.drawText(shownSuffix, input.x + input.width - u(6f), input.y + u(5f), font(9f),
-                    alpha(150, 160, 170, 220), Alignment.RIGHT_TOP, true);
+                    alpha(154, 156, 178, 220), Alignment.RIGHT_TOP, true);
     }
 
     private void renderColorSetting(NVGU vg, Rect row, ColorValue value) {
@@ -2521,7 +2521,7 @@ public class NanoVGClickGuiScreen extends Screen {
         vg.roundedRectangleBorder(input.x, input.y, input.width, input.height, u(4f), u(1f), active ? NanoVGTheme.inputFocus(110) : alpha(255, 255, 255, 30), Border.INSIDE);
         String text = inputText(value.get(), active, "");
         float settingFont = font(10f);
-        Color textColor = value.get().isEmpty() && !active ? alpha(120, 130, 140, 205) : alpha(255, 255, 255, 235);
+        Color textColor = value.get().isEmpty() && !active ? alpha(124, 126, 148,205) : alpha(255, 255, 255, 235);
         renderInputText(vg, TextFocus.SETTING, value, active, text, settingFont, input.x + u(6f), input.y + u(5f), input.y + u(5f), input.width - u(10f), input, textColor);
     }
 
