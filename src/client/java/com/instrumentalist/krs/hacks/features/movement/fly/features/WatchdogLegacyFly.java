@@ -123,12 +123,7 @@ public class WatchdogLegacyFly implements FlyEvent {
         skipMotionTick = true;
         startTime = System.currentTimeMillis();
         player.jumpFromGround();
-        int speedLevel = MovementUtil.getSpeedEffect();
-        if (speedLevel >= 2) {
-            moveSpeed = 1.3;
-        } else {
-            moveSpeed = 1.25;
-        }
+        moveSpeed = 1.25;
     }
 
     public static void disable() {
