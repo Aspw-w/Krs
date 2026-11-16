@@ -27,15 +27,17 @@ public final class SelfRotationVisual {
 
     public static void tick() {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null || !TimerUtil.isActive()) {
+        if (player == null || !TimerUtil.isDetached()) {
             active = false;
             return;
         }
 
         if (!active) {
             active = true;
-            bodyYaw = prevBodyYaw = player.yBodyRot;
-            headYaw = prevHeadYaw = player.yHeadRot;
+            prevBodyYaw = player.yBodyRotO;
+            bodyYaw = player.yBodyRot;
+            prevHeadYaw = player.yHeadRotO;
+            headYaw = player.yHeadRot;
             return;
         }
 
@@ -73,7 +75,7 @@ public final class SelfRotationVisual {
 
     public static boolean applies(LivingEntity entity) {
         Minecraft mc = Minecraft.getInstance();
-        if (!active || !TimerUtil.isActive() || mc.level == null || entity != mc.player || GuiEntityRenderGuard.isActive() || mc.isPaused())
+        if (!active || !TimerUtil.isDetached() || mc.level == null || entity != mc.player || GuiEntityRenderGuard.isActive() || mc.isPaused())
             return false;
 
         return !(entity.getVehicle() instanceof LivingEntity) && !mc.level.tickRateManager().isEntityFrozen(entity);

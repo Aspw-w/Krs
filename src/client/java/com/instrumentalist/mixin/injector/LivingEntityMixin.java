@@ -76,7 +76,7 @@ public abstract class LivingEntityMixin extends EntityMixin implements ILegacySw
 
     @WrapOperation(method = "updateWalkAnimation", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/WalkAnimationState;update(FFF)V"))
     private void krs$timerIndependentWalkAnimation(WalkAnimationState instance, float targetSpeed, float factor, float positionScale, Operation<Void> original) {
-        if ((Object) this instanceof LocalPlayer && TimerUtil.isActive())
+        if ((Object) this instanceof LocalPlayer && TimerUtil.isDetached())
             ((ITimerWalkAnimation) instance).krs$updateScaled(targetSpeed, TimerUtil.smoothing(factor), positionScale, TimerUtil.realTickStep());
         else original.call(instance, targetSpeed, factor, positionScale);
     }
@@ -133,7 +133,7 @@ public abstract class LivingEntityMixin extends EntityMixin implements ILegacySw
 
     @WrapOperation(method = "baseTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity$SwingState;tick()V"))
     private void krs$timerIndependentSwingTick(LivingEntity.SwingState instance, Operation<Void> original) {
-        if ((Object) this instanceof LocalPlayer && TimerUtil.isActive())
+        if ((Object) this instanceof LocalPlayer && TimerUtil.isDetached())
             ((ITimerScaledTick) instance).krs$tickScaled(TimerUtil.realTickStep());
         else original.call(instance);
     }

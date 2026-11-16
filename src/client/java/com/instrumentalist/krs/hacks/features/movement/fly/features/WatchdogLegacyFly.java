@@ -36,7 +36,7 @@ public class WatchdogLegacyFly implements FlyEvent {
     private static final float FALL_V_SPEED = 0.42f;
     private static final float FLAG_V_SPEED = 2.0f;
     private static final long FLAG_WINDOW_MS = 6000L;
-    private static final double FALL_THRESHOLD = 2.5;
+    private static final double FALL_THRESHOLD = 3.0;
 
     public static double moveSpeed = 0.0;
     private static volatile boolean flagged = false;
@@ -186,6 +186,7 @@ public class WatchdogLegacyFly implements FlyEvent {
         if (awaitingDamage) {
             LocalPlayer player = mc.player;
             InputUtil.stop(player.input);
+            MovementUtil.setVelocityY(0.0);
             MovementUtil.stopMoving();
             return;
         }
