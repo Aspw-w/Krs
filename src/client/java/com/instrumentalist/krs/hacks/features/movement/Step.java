@@ -17,6 +17,7 @@ import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import com.instrumentalist.krs.utils.input.Keys;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -80,7 +81,7 @@ public class Step extends Module {
     private static int stepDelay = 0;
 
     private static boolean shouldStep() {
-        return ModuleManager.getModuleState(Step.class) && mc.player != null && !mc.player.isShiftKeyDown() && mc.player.onGround() && canStep && !ModuleManager.getModuleState(FlyModule.class) && (!disableWhenSpeed.get() || !ModuleManager.getModuleState(SpeedModule.class));
+        return ModuleManager.getModuleState(Step.class) && mc.player != null && !mc.player.isShiftKeyDown() && mc.player.onGround() && !mc.player.onClimbable() && canStep && !ModuleManager.getModuleState(FlyModule.class) && (!disableWhenSpeed.get() || !ModuleManager.getModuleState(SpeedModule.class));
     }
 
     public static float hookStepHeight(float original, LivingEntity entity) {
@@ -103,7 +104,7 @@ public class Step extends Module {
                 } else return height.get();
             }
 
-            if (calledModifiedStep && !mc.player.onGround())
+            if (calledModifiedStep)
                 afterStepFunctions();
         }
 
@@ -115,25 +116,71 @@ public class Step extends Module {
     private static final double[] NCP_TWO_BLOCK = {0.425, 0.821, 0.699, 0.599, 1.022, 1.372, 1.652, 1.869};
     private static final double NCP_MAX_HEIGHT = 2.0;
     private static final double NCP_EPSILON = 1.0E-4;
+    private static final double NCP_JUMP_MOTION = 0.41999998688698;
+    private static final double NCP_GRAVITY = 0.08;
+    private static final double NCP_DRAG = 0.9800000190734863;
+    private static final double NCP_RISE_TOLERANCE = 0.01;
 
     private static final double[] HYPIXEL_OFFSETS = {0.41999998688698, 0.7531999805212, 1.001335997911214, 1.16610926093821, 1.24918707874468, 1.093955074228084};
     private static final double VANILLA_STEP_HEIGHT = 0.6;
+    private static final double GROUND_CHECK_DEPTH = 0.01;
 
     public static Vec3 handleCollide(LocalPlayer player, Vec3 movement, Vec3 result) {
         double stepHeight = result.y;
         if (stepHeight <= VANILLA_STEP_HEIGHT + NCP_EPSILON || stepHeight <= movement.y + NCP_EPSILON)
             return result;
 
-        if (steppingFunctions(player, stepHeight))
+        if (hasGroundBelow(player, result) && steppingFunctions(player, stepHeight))
             return result;
 
         return Entity.collideBoundingBox(player, movement, player.getBoundingBox(), player.level(), List.of());
     }
 
-    private static double[] ncpOffsets(double stepHeight) {
+    private static boolean hasGroundBelow(LocalPlayer player, Vec3 result) {
+        AABB stepped = player.getBoundingBox().move(result);
+        return !player.level().noCollision(player, stepped.move(0.0, -GROUND_CHECK_DEPTH, 0.0));
+    }
+
+    private static double[] ncpJumpOffsets(LocalPlayer player, double stepHeight) {
+        AABB box = player.getBoundingBox();
+        List<Double> offsets = new ArrayList<>();
+        double y = 0.0;
+        double motion = NCP_JUMP_MOTION;
+        boolean falling = false;
+
+        for (int tick = 0; tick < 20; tick++) {
+            double next = y + motion;
+            double moved = Entity.collideBoundingBox(player, new Vec3(0.0, next - y, 0.0), box.move(0.0, y, 0.0), player.level(), List.of()).y;
+            boolean headHit = Math.abs(moved - (next - y)) > NCP_EPSILON;
+            next = y + moved;
+
+            if (next < y) falling = true;
+
+            if (!falling && next >= stepHeight - NCP_EPSILON && !headHit && stepHeight - y >= next - y - NCP_RISE_TOLERANCE)
+                return toArray(offsets);
+
+            if (falling && next <= stepHeight + NCP_EPSILON)
+                return y > stepHeight ? toArray(offsets) : null;
+
+            offsets.add(next);
+            y = next;
+            motion = headHit ? (0.0 - NCP_GRAVITY) * NCP_DRAG : (motion - NCP_GRAVITY) * NCP_DRAG;
+        }
+
+        return null;
+    }
+
+    private static double[] toArray(List<Double> list) {
+        double[] array = new double[list.size()];
+        for (int i = 0; i < array.length; i++)
+            array[i] = list.get(i);
+        return array;
+    }
+
+    private static double[] ncpOffsets(LocalPlayer player, double stepHeight) {
         double[] table;
         if (stepHeight <= NCP_JUMP_ARC[NCP_JUMP_ARC.length - 1] + NCP_EPSILON)
-            table = NCP_JUMP_ARC;
+            return ncpJumpOffsets(player, stepHeight);
         else if (stepHeight <= 1.5 + NCP_EPSILON)
             table = NCP_ONE_HALF_BLOCK;
         else
@@ -151,7 +198,7 @@ public class Step extends Module {
 
         if (!sentBypass) {
             double[] offsets = switch (mode.get().toLowerCase(Locale.ROOT)) {
-                case "ncp" -> stepHeight > NCP_MAX_HEIGHT + NCP_EPSILON ? null : ncpOffsets(stepHeight);
+                case "ncp" -> stepHeight > NCP_MAX_HEIGHT + NCP_EPSILON ? null : ncpOffsets(player, stepHeight);
                 case "hypixel" -> HYPIXEL_OFFSETS;
                 default -> new double[0];
             };

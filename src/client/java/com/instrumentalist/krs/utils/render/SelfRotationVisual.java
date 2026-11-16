@@ -22,10 +22,6 @@ public final class SelfRotationVisual {
 
     private static float prevHeadYaw;
 
-    private static float pitch;
-
-    private static float prevPitch;
-
     private SelfRotationVisual() {
     }
 
@@ -40,17 +36,14 @@ public final class SelfRotationVisual {
             active = true;
             bodyYaw = prevBodyYaw = player.yBodyRot;
             headYaw = prevHeadYaw = player.yHeadRot;
-            pitch = prevPitch = player.getXRot();
             return;
         }
 
         prevBodyYaw = bodyYaw;
         prevHeadYaw = headYaw;
-        prevPitch = pitch;
 
         float yaw = player.getYRot();
         headYaw += Mth.wrapDegrees(yaw - headYaw);
-        pitch = player.getXRot();
 
         double xd = player.getX() - player.xo;
         double zd = player.getZ() - player.zo;
@@ -96,9 +89,5 @@ public final class SelfRotationVisual {
 
     public static float headYaw() {
         return Mth.rotLerp(partialTicks(), prevHeadYaw, headYaw);
-    }
-
-    public static float pitch() {
-        return Mth.lerp(partialTicks(), prevPitch, pitch);
     }
 }

@@ -67,9 +67,6 @@ public abstract class LivingEntityRendererMixin {
         if (krs$shouldApplyVanillaRotation(entity))
             return Client.rotationManager.getInterpolatedPitch(tickDelta);
 
-        if (SelfRotationVisual.applies(entity))
-            return SelfRotationVisual.pitch();
-
         return original;
     }
 
