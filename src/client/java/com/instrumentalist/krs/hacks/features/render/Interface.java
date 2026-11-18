@@ -297,7 +297,7 @@ public class Interface extends Module {
 
         void update(String text, String tagText, float progress, float fontSize) {
             if (!Objects.equals(this.text, text) || !Objects.equals(this.tagText, tagText)) {
-                float textWidth = NVGFonts.INTER.getWidth(text, fontSize);
+                float textWidth = NVGFonts.INTER_MEDIUM.getWidth(text, fontSize);
                 float tagWidth = tagText != null ? NVGFonts.INTER.getWidth(tagText, fontSize) : 0f;
                 this.textWidth = textWidth;
                 this.fullWidth = textWidth + tagWidth;
@@ -1260,7 +1260,7 @@ public class Interface extends Module {
         String healthPctStr = formatOneDecimal(formatter, (health / maxHealth) * 100) + "%";
         String regenPctStr = formatOneDecimal(formatter, (timeUntilRegen / 20f) * 100) + "%";
 
-        float width = NVGFonts.INTER_MEDIUM.getWidth(entityName, 16f);
+        float width = NVGFonts.INTER_SEMIBOLD.getWidth(entityName, 16f);
         float textWidth = Math.max(NVGFonts.INTER.getWidth(healthPctStr, 14f), NVGFonts.INTER.getWidth(regenPctStr, 14f));
 
         float barHeight = 10f;
@@ -1427,7 +1427,7 @@ public class Interface extends Module {
             }
         }
 
-        NVGFonts.INTER_MEDIUM.drawText(entry.entityName, entry.hudX + 10f + entry.iconFix, entry.hudY + 10f, 16f, alphaColor(255, 255, 255, entry.alphaValue), Alignment.LEFT_TOP, true);
+        NVGFonts.INTER_SEMIBOLD.drawText(entry.entityName, entry.hudX + 10f + entry.iconFix, entry.hudY + 10f, 16f, alphaColor(255, 255, 255, entry.alphaValue), Alignment.LEFT_TOP, true);
 
         vg.roundedRectangle(entry.healthBarX + entry.iconFix, entry.healthBarY, state.previousTargetWidth, entry.barHeight, 5f, alphaColor(50, 50, 50, entry.alphaValue));
         if (state.previousHealthRatio >= 0.01f)
@@ -2339,7 +2339,7 @@ public class Interface extends Module {
             float rowY = y + 6f + i * 22f;
             boolean selected = i == tabGuiCategoryIndex;
             Color categoryColor = selected ? NanoVGTheme.ACCENT : NanoVGTheme.TEXT;
-            NVGFont categoryFont = selected ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
+            NVGFont categoryFont = selected ? NVGFonts.INTER_SEMIBOLD : NVGFonts.INTER;
             categoryFont.drawText(category.name(), x + 12f, rowY + 3f, HUD_FONT_SIZE, categoryColor, Alignment.LEFT_TOP, true);
         }
 
@@ -2390,7 +2390,7 @@ public class Interface extends Module {
     private float getTabGuiCategoryPanelWidth(List<ModuleCategory> categories) {
         float width = 72f;
         for (ModuleCategory category : categories) {
-            width = Math.max(width, NVGFonts.INTER_MEDIUM.getWidth(category.name(), HUD_FONT_SIZE) + 24f);
+            width = Math.max(width, NVGFonts.INTER_SEMIBOLD.getWidth(category.name(), HUD_FONT_SIZE) + 24f);
         }
         return width;
     }
@@ -2631,9 +2631,9 @@ public class Interface extends Module {
 
             int firstEnd = text.offsetByCodePoints(0, 1);
             int lastStart = text.offsetByCodePoints(text.length(), -1);
-            float width = NVGFonts.INTER.getWidth(text, size);
-            this.startX = x + NVGFonts.INTER.getWidth(text.substring(0, firstEnd), size) * 0.5f;
-            this.endX = x + width - NVGFonts.INTER.getWidth(text.substring(lastStart), size) * 0.5f;
+            float width = NVGFonts.INTER_SEMIBOLD.getWidth(text, size);
+            this.startX = x + NVGFonts.INTER_SEMIBOLD.getWidth(text.substring(0, firstEnd), size) * 0.5f;
+            this.endX = x + width - NVGFonts.INTER_SEMIBOLD.getWidth(text.substring(lastStart), size) * 0.5f;
         }
 
         @Override
@@ -2665,7 +2665,7 @@ public class Interface extends Module {
                 vg.pushScissor(entry.x, entry.y, entry.width, entry.height);
             try {
                 moduleListGlyphColour.update(entry);
-                NVGFonts.INTER.drawGradientText(entry.entry.text, entry.textX, entry.textY, MODULE_LIST_FONT_SIZE,
+                NVGFonts.INTER_MEDIUM.drawGradientText(entry.entry.text, entry.textX, entry.textY, MODULE_LIST_FONT_SIZE,
                         Alignment.LEFT_TOP, true, moduleListGlyphColour);
                 if (entry.entry.tagText != null) {
                     NVGFonts.INTER.drawText(
@@ -2689,7 +2689,8 @@ public class Interface extends Module {
         if (!vg.beginGlyphBatch())
             return false;
 
-        String font = NVGFonts.INTER.getIdentifier();
+        String font = NVGFonts.INTER_MEDIUM.getIdentifier();
+        String tagFont = NVGFonts.INTER.getIdentifier();
         for (ModuleListRenderEntry entry : renderEntries) {
             boolean clip = entry.alpha != 255;
             float clipX = clip ? entry.x : 0f;
@@ -2701,7 +2702,7 @@ public class Interface extends Module {
                     moduleListGlyphColour, null, true, NVGFont.SHADOW_OFFSET, NVGFont.SHADOW_OFFSET,
                     clipX, clipY, clipWidth, clipHeight);
             if (added && entry.entry.tagText != null) {
-                added = vg.addGlyphRun(entry.entry.tagText, entry.textX + entry.entry.textWidth, entry.textY, font, MODULE_LIST_FONT_SIZE,
+                added = vg.addGlyphRun(entry.entry.tagText, entry.textX + entry.entry.textWidth, entry.textY, tagFont, MODULE_LIST_FONT_SIZE,
                         null, alphaColor(MODULE_LIST_TAG_COLOR.getRed(), MODULE_LIST_TAG_COLOR.getGreen(), MODULE_LIST_TAG_COLOR.getBlue(), entry.alpha),
                         true, NVGFont.SHADOW_OFFSET, NVGFont.SHADOW_OFFSET, clipX, clipY, clipWidth, clipHeight);
             }
@@ -2740,7 +2741,7 @@ public class Interface extends Module {
 
     private static float getModuleListWidth(Module module, float fontSize) {
         String tagText = getModuleListTagText(module);
-        return NVGFonts.INTER.getWidth(module.moduleName, fontSize) + (tagText != null ? NVGFonts.INTER.getWidth(tagText, fontSize) : 0f);
+        return NVGFonts.INTER_MEDIUM.getWidth(module.moduleName, fontSize) + (tagText != null ? NVGFonts.INTER.getWidth(tagText, fontSize) : 0f);
     }
 
     private void renderWatermark(NVGU vg) {
@@ -2749,11 +2750,11 @@ public class Interface extends Module {
         switch (waterMarkMode.get().toLowerCase(Locale.ROOT)) {
             case "simple":
                 waterText = waterMarkText.get() + " " + Client.clientVersion + " | " + mc.getFps() + " fps";
-                float boxWidth = NVGFonts.INTER.getWidth(waterText, 20f) + 21f;
+                float boxWidth = NVGFonts.INTER_SEMIBOLD.getWidth(waterText, 20f) + 21f;
                 float boxHeight = NVGFonts.INTER.getHeight(20f) + 13f;
                 NanoVGTheme.renderPanel(vg, 16f, 16f, boxWidth, boxHeight, NanoVGTheme.RADIUS_PANEL, 1f);
                 watermarkGlyphColour.update(waterText, 26f, 20f, WATERMARK_SOFT_WHITE);
-                NVGFonts.INTER.drawGradientText(waterText, 26f, 22f, 20f, Alignment.LEFT_TOP, true, watermarkGlyphColour);
+                NVGFonts.INTER_SEMIBOLD.drawGradientText(waterText, 26f, 22f, 20f, Alignment.LEFT_TOP, true, watermarkGlyphColour);
                 break;
 
             case "bullshit":
@@ -2762,13 +2763,13 @@ public class Interface extends Module {
                 float padding = 12f;
                 waterText = waterMarkText.get() + " " + Client.clientVersion;
                 String fpsText = mc.getFps() + " fps";
-                float titleWidth = NVGFonts.INTER.getWidth(waterText, 20f);
+                float titleWidth = NVGFonts.INTER_SEMIBOLD.getWidth(waterText, 20f);
                 float fpsWidth = NVGFonts.INTER.getWidth(fpsText, 18f);
                 float width = Math.max(titleWidth, fpsWidth) + padding * 2;
                 float height = NVGFonts.INTER.getHeight(20f) + NVGFonts.INTER.getHeight(18f) + padding * 3;
                 NanoVGTheme.renderPanel(vg, x, y, width, height - 6f, NanoVGTheme.RADIUS_MENU, 1f);
                 watermarkGlyphColour.update(waterText, x + padding, 20f, 255);
-                NVGFonts.INTER.drawGradientText(waterText, x + padding, y + padding, 20f, Alignment.LEFT_TOP, true, watermarkGlyphColour);
+                NVGFonts.INTER_SEMIBOLD.drawGradientText(waterText, x + padding, y + padding, 20f, Alignment.LEFT_TOP, true, watermarkGlyphColour);
                 NVGFonts.INTER.drawText(fpsText, x + padding, y + padding + NVGFonts.INTER.getHeight(20f) + 6f, 18f, new Color(WATERMARK_SOFT_WHITE, WATERMARK_SOFT_WHITE, WATERMARK_SOFT_WHITE), Alignment.LEFT_TOP, true);
                 break;
         }
@@ -2780,7 +2781,7 @@ public class Interface extends Module {
         switch (waterMarkMode.get().toLowerCase(Locale.ROOT)) {
             case "simple":
                 waterText = waterMarkText.get() + " " + Client.clientVersion + " | " + mc.getFps() + " fps";
-                float boxWidth = NVGFonts.INTER.getWidth(waterText, 20f) + 21f;
+                float boxWidth = NVGFonts.INTER_SEMIBOLD.getWidth(waterText, 20f) + 21f;
                 float boxHeight = NVGFonts.INTER.getHeight(20f) + 13f;
                 NanoVGTheme.renderPanelEffects(vg, 16f, 16f, boxWidth, boxHeight, NanoVGTheme.RADIUS_PANEL, 1f);
                 break;
@@ -2791,7 +2792,7 @@ public class Interface extends Module {
                 float padding = 12f;
                 waterText = waterMarkText.get() + " " + Client.clientVersion;
                 String fpsText = mc.getFps() + " fps";
-                float titleWidth = NVGFonts.INTER.getWidth(waterText, 20f);
+                float titleWidth = NVGFonts.INTER_SEMIBOLD.getWidth(waterText, 20f);
                 float fpsWidth = NVGFonts.INTER.getWidth(fpsText, 18f);
                 float width = Math.max(titleWidth, fpsWidth) + padding * 2;
                 float height = NVGFonts.INTER.getHeight(20f) + NVGFonts.INTER.getHeight(18f) + padding * 3;

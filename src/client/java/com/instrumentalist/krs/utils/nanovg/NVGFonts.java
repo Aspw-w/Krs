@@ -16,4 +16,6 @@ public class NVGFonts {
     // Inter
     public static NVGFont INTER = new NVGFont("inter-regular", "/assets/krs/fonts/Inter-Regular.ttf");
     public static NVGFont INTER_MEDIUM = new NVGFont("inter-medium", "/assets/krs/fonts/Inter-Medium.ttf");
+    public static NVGFont INTER_SEMIBOLD = new NVGFont("inter-semibold", "/assets/krs/fonts/Inter-SemiBold.ttf");
+    public static NVGFont INTER_BOLD = new NVGFont("inter-bold", "/assets/krs/fonts/Inter-Bold.ttf");
 }

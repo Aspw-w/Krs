@@ -97,6 +97,7 @@ public class NVGU {
     private int glyphShadowCount;
     private int glyphTextCount;
     private boolean glyphBatchActive;
+    private float textShadowScale = 1f;
     private float glyphMinX;
     private float glyphMinY;
     private float glyphMaxX;
@@ -1444,9 +1445,17 @@ public class NVGU {
         return drawText(text, x, y, colour, font, size, alignment, false, 0f, 0f);
     }
 
+    public float getTextShadowScale() {
+        return textShadowScale;
+    }
+
+    public void setTextShadowScale(float textShadowScale) {
+        this.textShadowScale = textShadowScale;
+    }
+
     public NVGU textWithShadow(String text, float x, float y, Color colour, String font, float size, Alignment alignment,
                                float shadowOffsetX, float shadowOffsetY) {
-        return drawText(text, x, y, colour, font, size, alignment, true, shadowOffsetX, shadowOffsetY);
+        return drawText(text, x, y, colour, font, size, alignment, true, shadowOffsetX * textShadowScale, shadowOffsetY * textShadowScale);
     }
 
     private NVGU drawText(String text, float x, float y, Color colour, String font, float size, Alignment alignment,
@@ -1493,7 +1502,7 @@ public class NVGU {
 
     public NVGU gradientTextWithShadow(String text, float x, float y, String font, float size, Alignment alignment, GlyphColour colours,
                                        float shadowOffsetX, float shadowOffsetY) {
-        return drawGradientText(text, x, y, font, size, alignment, colours, true, shadowOffsetX, shadowOffsetY);
+        return drawGradientText(text, x, y, font, size, alignment, colours, true, shadowOffsetX * textShadowScale, shadowOffsetY * textShadowScale);
     }
 
     private NVGU drawGradientText(String text, float x, float y, String font, float size, Alignment alignment, GlyphColour colours,
@@ -1666,6 +1675,8 @@ public class NVGU {
     public boolean addGlyphRun(String text, float x, float y, String font, float size, GlyphColour colours, Color solidColour,
                                boolean shadow, float shadowOffsetX, float shadowOffsetY,
                                float clipX, float clipY, float clipWidth, float clipHeight) {
+        shadowOffsetX *= textShadowScale;
+        shadowOffsetY *= textShadowScale;
         if (!glyphBatchActive || text == null || font == null || colours == null && solidColour == null)
             return glyphFallback("invalid run");
         if (text.isEmpty())
