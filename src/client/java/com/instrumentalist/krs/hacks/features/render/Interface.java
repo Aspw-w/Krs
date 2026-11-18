@@ -151,6 +151,13 @@ public class Interface extends Module {
     );
 
     @Setting
+    private static final BooleanValue waterMarkVersion = new BooleanValue(
+            "Watermark Version",
+            true,
+            waterMark::get
+    );
+
+    @Setting
     private static final ListValue waterMarkMode = new ListValue(
             "Watermark Mode",
             new String[]{"Simple", "Bullshit"},
@@ -2740,7 +2747,7 @@ public class Interface extends Module {
 
         switch (waterMarkMode.get().toLowerCase(Locale.ROOT)) {
             case "simple":
-                waterText = waterMarkText.get() + " " + Client.clientVersion + " | " + mc.getFps() + " fps";
+                waterText = watermarkTitle() + " | " + mc.getFps() + " fps";
                 float boxWidth = NVGFonts.INTER_MEDIUM.getWidth(waterText, 20f) + 21f;
                 float boxHeight = NVGFonts.INTER.getHeight(20f) + 13f;
                 NanoVGTheme.renderPanel(vg, 16f, 16f, boxWidth, boxHeight, NanoVGTheme.RADIUS_PANEL, 1f);
@@ -2752,7 +2759,7 @@ public class Interface extends Module {
                 float x = 16f;
                 float y = 16f;
                 float padding = 12f;
-                waterText = waterMarkText.get() + " " + Client.clientVersion;
+                waterText = watermarkTitle();
                 String fpsText = mc.getFps() + " fps";
                 float titleWidth = NVGFonts.INTER_MEDIUM.getWidth(waterText, 20f);
                 float fpsWidth = NVGFonts.INTER.getWidth(fpsText, 18f);
@@ -2766,12 +2773,16 @@ public class Interface extends Module {
         }
     }
 
+    private String watermarkTitle() {
+        return waterMarkVersion.get() ? waterMarkText.get() + " " + Client.clientVersion : waterMarkText.get();
+    }
+
     private void renderWatermarkEffects(NVGU vg) {
         String waterText;
 
         switch (waterMarkMode.get().toLowerCase(Locale.ROOT)) {
             case "simple":
-                waterText = waterMarkText.get() + " " + Client.clientVersion + " | " + mc.getFps() + " fps";
+                waterText = watermarkTitle() + " | " + mc.getFps() + " fps";
                 float boxWidth = NVGFonts.INTER_MEDIUM.getWidth(waterText, 20f) + 21f;
                 float boxHeight = NVGFonts.INTER.getHeight(20f) + 13f;
                 NanoVGTheme.renderPanelEffects(vg, 16f, 16f, boxWidth, boxHeight, NanoVGTheme.RADIUS_PANEL, 1f);
@@ -2781,7 +2792,7 @@ public class Interface extends Module {
                 float x = 16f;
                 float y = 16f;
                 float padding = 12f;
-                waterText = waterMarkText.get() + " " + Client.clientVersion;
+                waterText = watermarkTitle();
                 String fpsText = mc.getFps() + " fps";
                 float titleWidth = NVGFonts.INTER_MEDIUM.getWidth(waterText, 20f);
                 float fpsWidth = NVGFonts.INTER.getWidth(fpsText, 18f);
