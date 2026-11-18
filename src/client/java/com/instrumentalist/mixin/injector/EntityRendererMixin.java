@@ -1,6 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.dev.TextDebugger;
 import com.instrumentalist.krs.hacks.features.render.NameTags;
 import com.instrumentalist.mixin.oringo.IEntityRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -24,6 +25,13 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
         if (ModuleManager.getModuleState(NameTags.class) && NameTags.shouldRender(entity)) {
             state.nameTag = null;
             state.scoreText = null;
+        }
+
+        if (TextDebugger.nameTagsActive()) {
+            if (state.nameTag != null)
+                state.nameTag = TextDebugger.raw(state.nameTag);
+            if (state.scoreText != null)
+                state.scoreText = TextDebugger.raw(state.scoreText);
         }
     }
 

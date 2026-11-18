@@ -1,5 +1,6 @@
 package com.instrumentalist.krs.hacks.features.render;
 
+import com.instrumentalist.krs.hacks.features.dev.TextDebugger;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.Render3DEvent;
 import com.instrumentalist.krs.events.features.RenderHudEvent;
@@ -395,7 +396,7 @@ public class NameTags extends Module {
 
     private static String getEntityName(Entity entity) {
         if (entity instanceof Player || entity.hasCustomName())
-            return NanoVGTextFormatter.formatColors(entity.getDisplayName());
+            return NanoVGTextFormatter.formatColors(TextDebugger.nameTagsActive() ? TextDebugger.raw(entity.getDisplayName()) : entity.getDisplayName());
 
         return StreamConverter.formatNameByPath(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).getPath());
     }
