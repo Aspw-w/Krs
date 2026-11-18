@@ -1117,6 +1117,9 @@ public class Scaffold extends Module {
 
         updateTellyStage(player);
 
+        if (lastSlot == null)
+            lastSlot = player.getInventory().getSelectedSlot();
+
         once = true;
         boolean skipScaffoldActionThisTick = consumeSnapRotationReset();
 
