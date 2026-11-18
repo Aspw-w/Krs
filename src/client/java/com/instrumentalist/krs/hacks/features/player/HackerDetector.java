@@ -311,6 +311,6 @@ public class HackerDetector extends Module {
             return;
 
         String name = player.getGameProfile().name();
-        Client.notificationManager.addNotification("Hacker Detected", name + " may be using " + check.label);
+        Client.notificationManager.addNotification("Hacker Detected", name + " using " + check.label);
     }
 }

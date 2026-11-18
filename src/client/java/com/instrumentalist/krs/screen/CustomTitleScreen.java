@@ -478,7 +478,8 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
                 renderUiButton(vg, state);
             }
 
-            Client.notificationManager.renderNotifications(vg);
+            if (!NanoVGClickGuiScreen.isShowing())
+                Client.notificationManager.renderNotifications(vg);
         };
 
         if (mc.gui.screen() == this || mc.gui.screen() instanceof NanoVGClickGuiScreen)

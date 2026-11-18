@@ -26,7 +26,6 @@ import com.instrumentalist.krs.utils.value.SettingValue;
 import com.instrumentalist.krs.utils.value.TextValue;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -59,6 +58,8 @@ import java.util.function.Consumer;
 public class NanoVGClickGuiScreen extends Screen {
     private static final float LAYOUT = 1.35f;
     private static final float TEXT_SHADOW_SCALE = 0.5f;
+    private static final float BACKGROUND_BLUR_RADIUS = 12f;
+    private static final int BACKGROUND_DIM_ALPHA = 64;
     private static final Rect EMPTY_RECT = new Rect(-100000f, -100000f, 0f, 0f);
     private static final float COLUMN_TOP = u(30f);
     private static final float COLUMN_MARGIN = u(14f);
@@ -186,7 +187,6 @@ public class NanoVGClickGuiScreen extends Screen {
     private ConfigEntry armedDeleteConfig;
     private long armedDeleteNanos;
     private float panelAnchorY = Float.NaN;
-    private float panelAnchorRise;
     private float panelAnchorLeft = Float.NaN;
     private float panelAnchorRight = Float.NaN;
 
@@ -199,6 +199,12 @@ public class NanoVGClickGuiScreen extends Screen {
         this.returnScreen = returnScreen instanceof NanoVGClickGuiScreen ? null : returnScreen;
         detachedClosingScreen = null;
         restoreUiState();
+    }
+
+    public static boolean isShowing() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return detachedClosingScreen != null
+                || minecraft != null && minecraft.gui.screen() instanceof NanoVGClickGuiScreen;
     }
 
     public static void renderDetachedIfNeeded() {
@@ -224,17 +230,8 @@ public class NanoVGClickGuiScreen extends Screen {
     @Override
     public void extractBackground(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         Screen backgroundScreen = getBackgroundScreen();
-        if (backgroundScreen != null) {
-            if (backgroundScreen instanceof PauseScreen && isInGame())
-                extractBlurredBackground(context);
+        if (backgroundScreen != null)
             backgroundScreen.extractRenderStateWithTooltipAndSubtitles(context, 0, 0, delta);
-            return;
-        }
-
-        if (isInGame()) {
-            extractBlurredBackground(context);
-            extractMenuBackground(context);
-        }
     }
 
     @Override
@@ -695,6 +692,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
         if (closing && openProgress <= 0.001f) {
             finishClose();
+            renderNotificationsOnTop(vg);
             return;
         }
 
@@ -728,13 +726,37 @@ public class NanoVGClickGuiScreen extends Screen {
         else if (hasBackgroundScreen())
             Shader2DRenderer.INSTANCE.beginFrame();
 
-        vg.globalAlpha(easeOut(openProgress), () -> {
-            renderColumnView(vg, screenWidth, screenHeight);
-            renderConfigManager(vg, screenWidth, screenHeight);
-            renderFloatingModulePanel(vg, screenWidth, screenHeight);
-            renderHoverTooltip(vg);
-            applyHoverCursor();
-        });
+        float backgroundProgress = easeOut(openProgress);
+        if (backgroundProgress > 0.001f) {
+            vg.beginEffectBatch();
+            Shader2DRenderer.INSTANCE.beginFrame();
+            vg.blurRoundedRectangle(0f, 0f, screenWidth, screenHeight, 0f, BACKGROUND_BLUR_RADIUS, backgroundProgress);
+            vg.flushEffectBatch();
+            vg.rectangle(0f, 0f, screenWidth, screenHeight, new Color(0, 0, 0, Math.round(BACKGROUND_DIM_ALPHA * backgroundProgress)));
+        }
+        Shader2DRenderer.INSTANCE.beginFrame();
+
+        float zoom = 0.5f + 0.5f * (openProgress * openProgress * (3f - 2f * openProgress));
+        vg.scale(screenWidth / 2f, screenHeight / 2f, zoom);
+        try {
+            vg.globalAlpha(openProgress * openProgress * openProgress, () -> {
+                renderColumnView(vg, screenWidth, screenHeight);
+                renderConfigManager(vg, screenWidth, screenHeight);
+                renderFloatingModulePanel(vg, screenWidth, screenHeight);
+                renderHoverTooltip(vg);
+            });
+        } finally {
+            vg.scale(screenWidth / 2f, screenHeight / 2f, 1f / zoom);
+        }
+        renderNotificationsOnTop(vg);
+        applyHoverCursor();
+    }
+
+    private void renderNotificationsOnTop(NVGU vg) {
+        if (isInGame())
+            Interface.renderNotificationsOverlay(vg);
+        else
+            Client.notificationManager.renderNotifications(vg);
     }
 
     private static float u(float value) {
@@ -954,7 +976,6 @@ public class NanoVGClickGuiScreen extends Screen {
                 column.width = Math.max(column.width, row.width() + u(6f));
         }
 
-        float rise = (1f - easeOut(openProgress)) * u(10f);
         float lineTop = top;
         int start = 0;
         while (start < columns.size()) {
@@ -973,8 +994,7 @@ public class NanoVGClickGuiScreen extends Screen {
             for (int i = start; i < end; i++) {
                 GuiColumn column = columns.get(i);
                 column.x = x;
-                column.rise = rise * (1f + i * 0.18f);
-                column.y = lineTop + column.rise;
+                column.y = lineTop;
                 column.rowsTop = column.y + headerHeight;
                 column.bounds = new Rect(column.x, column.y, column.width, headerHeight + column.rows.size() * rowHeight + COLUMN_BOTTOM_PADDING);
                 lineHeight = Math.max(lineHeight, column.bounds.height);
@@ -1028,8 +1048,7 @@ public class NanoVGClickGuiScreen extends Screen {
             boolean selected = settingsPanelModule == module;
             boolean marked = selected || pendingSettingsPanelModule == module;
             if (selected) {
-                panelAnchorY = strip.y - column.rise;
-                panelAnchorRise = column.rise;
+                panelAnchorY = strip.y;
                 panelAnchorLeft = column.x;
                 panelAnchorRight = column.x + column.width;
             }
@@ -1042,8 +1061,7 @@ public class NanoVGClickGuiScreen extends Screen {
             Color color = mix(NanoVGTheme.MUTED, NanoVGTheme.TEXT, enabled);
             NVGFonts.INTER_MEDIUM.drawText(row.label(), textX, textY, COLUMN_FONT, color, Alignment.LEFT_TOP, true);
             if (module.isLocked()) {
-                float lockX = textX + NVGFonts.INTER_MEDIUM.getWidth(row.label(), COLUMN_FONT) + u(4f);
-                NVGFonts.ICON.drawText(MaterialIcon.LOCK, lockX, strip.y + strip.height / 2f, COLUMN_FONT, NanoVGTheme.muted(200), Alignment.LEFT_MIDDLE, true);
+                NVGFonts.ICON.drawText(MaterialIcon.LOCK, strip.x + strip.width - u(4f), strip.y + strip.height / 2f, COLUMN_FONT, NanoVGTheme.muted(200), Alignment.RIGHT_MIDDLE, true);
             }
         }
     }
@@ -1079,9 +1097,8 @@ public class NanoVGClickGuiScreen extends Screen {
         float listHeight = configsHeight + (creatable ? rowHeight : 0f);
         float tabsHeight = rowHeight + u(4f);
         float height = u(4f) + listHeight + tabsHeight;
-        float rise = (1f - easeOut(openProgress)) * u(10f);
         float x = screenWidth - COLUMN_MARGIN - width;
-        float y = screenHeight - COLUMN_MARGIN - height + rise;
+        float y = screenHeight - COLUMN_MARGIN - height;
         Rect panel = new Rect(x, y, width, height);
         configManagerRect = panel;
 
@@ -1348,7 +1365,6 @@ public class NanoVGClickGuiScreen extends Screen {
         }
         x = Math.clamp(x, COLUMN_MARGIN, Math.max(COLUMN_MARGIN, screenWidth - COLUMN_MARGIN - width));
         y = Math.clamp(y, COLUMN_MARGIN, Math.max(COLUMN_MARGIN, screenHeight - COLUMN_MARGIN - height));
-        y += Float.isNaN(panelAnchorY) ? (1f - easeOut(openProgress)) * u(10f) : panelAnchorRise;
         y += (1f - reveal) * u(6f);
 
         Rect panel = new Rect(x, y, width, height);
@@ -2571,6 +2587,8 @@ public class NanoVGClickGuiScreen extends Screen {
     private void focusSearch() {
         clearInteractionState();
         textFocus = TextFocus.SEARCH;
+        textCaret = searchQuery.length();
+        textAnchor = textCaret;
     }
 
     private void focusNumberInput(SettingValue<?> value) {
@@ -3603,7 +3621,6 @@ public class NanoVGClickGuiScreen extends Screen {
         private float y;
         private float width;
         private float rowsTop;
-        private float rise;
         private Rect bounds;
 
         private GuiColumn(String title) {

@@ -8,6 +8,7 @@ import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.screen.NanoVGClickGuiScreen;
 import net.minecraft.core.Direction;
 import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
@@ -2773,6 +2774,14 @@ public class Interface extends Module {
         }
     }
 
+    public static void renderNotificationsOverlay(NVGU vg) {
+        Interface module = ModuleManager.getModule(Interface.class);
+        if (module == null || !module.tempEnabled || !module.notifications.get())
+            return;
+
+        Client.notificationManager.renderNotifications(vg);
+    }
+
     private String watermarkTitle() {
         return waterMarkVersion.get() ? waterMarkText.get() + " " + Client.clientVersion : waterMarkText.get();
     }
@@ -3008,7 +3017,8 @@ public class Interface extends Module {
                     tabGuiExpandProgress = 0f;
                     tabGuiModuleSelectionY = Float.NaN;
                 }
-                if (notifications.get())
+                boolean hudNotifications = notifications.get() && !NanoVGClickGuiScreen.isShowing();
+                if (hudNotifications)
                     Client.notificationManager.prepareNotifications();
 
                 vg.beginEffectBatch();
@@ -3027,7 +3037,7 @@ public class Interface extends Module {
                     renderSomeInformationEffects(vg, someInformationState);
                 if (moduleInformation.get())
                     renderStyledTextEffects(vg, moduleInformationEntryBuffer);
-                if (notifications.get())
+                if (hudNotifications)
                     Client.notificationManager.renderNotificationEffects(vg);
                 if (tabGui.get())
                     renderTabGuiEffects(vg, tabGuiCategories, tabGuiModules);
@@ -3055,7 +3065,7 @@ public class Interface extends Module {
                 if (moduleInformation.get())
                     renderStyledTextBodies(vg, moduleInformationEntryBuffer);
 
-                if (notifications.get())
+                if (hudNotifications)
                     Client.notificationManager.renderNotificationBodies(vg);
 
                 if (tabGui.get())
