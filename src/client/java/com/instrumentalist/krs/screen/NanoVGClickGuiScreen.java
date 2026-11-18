@@ -291,8 +291,9 @@ public class NanoVGClickGuiScreen extends Screen {
         if (closing)
             return true;
 
-        float mouseX = NanoVGManager.toScaledMouseX(event.x());
-        float mouseY = NanoVGManager.toScaledMouseY(event.y());
+        updateScaledMouse();
+        float mouseX = scaledMouseX;
+        float mouseY = scaledMouseY;
         int button = event.button();
 
         if ((bindingModule != null || bindingValue != null) && button != Keys.MOUSE_BUTTON_LEFT) {
@@ -434,24 +435,26 @@ public class NanoVGClickGuiScreen extends Screen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+        updateScaledMouse();
+
         if (draggingTextSelection) {
-            updateTextSelectionDrag(NanoVGManager.toScaledMouseX(event.x()));
+            updateTextSelectionDrag(scaledMouseX);
             return true;
         }
 
         if (activeSettingsPanelScrollbar != null) {
-            updateSettingsPanelScrollbarDrag(NanoVGManager.toScaledMouseY(event.y()));
+            updateSettingsPanelScrollbarDrag(scaledMouseY);
             return true;
         }
 
         if (activeScrollbar != null) {
-            updateScrollbarDrag(NanoVGManager.toScaledMouseY(event.y()));
+            updateScrollbarDrag(scaledMouseY);
             return true;
         }
 
         if (activeSlider == null) return false;
 
-        updateSlider(activeSlider, NanoVGManager.toScaledMouseX(event.x()));
+        updateSlider(activeSlider, scaledMouseX);
         return true;
     }
 
@@ -468,8 +471,9 @@ public class NanoVGClickGuiScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
-        float scaledX = NanoVGManager.toScaledMouseX(mouseX);
-        float scaledY = NanoVGManager.toScaledMouseY(mouseY);
+        updateScaledMouse();
+        float scaledX = scaledMouseX;
+        float scaledY = scaledMouseY;
 
         if (nudgeHoveredColorSlider(scaledX, scaledY, vertical))
             return true;
@@ -846,6 +850,16 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private void updateScaledMouse() {
+        // Use the same source for hover and click hit-testing. Reading the
+        // current mouse-handler position avoids drift between event
+        // coordinates and the coordinates used to lay out the last frame.
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft != null && minecraft.mouseHandler != null && minecraft.getWindow() != null) {
+            screenMouseX = NanoVGManager.toScaledMouseX(
+                    minecraft.mouseHandler.getScaledXPos(minecraft.getWindow()));
+            screenMouseY = NanoVGManager.toScaledMouseY(
+                    minecraft.mouseHandler.getScaledYPos(minecraft.getWindow()));
+        }
         scaledMouseX = screenMouseX;
         scaledMouseY = screenMouseY;
     }

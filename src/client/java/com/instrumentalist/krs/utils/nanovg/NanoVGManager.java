@@ -37,6 +37,7 @@ public class NanoVGManager implements IMinecraft {
     private final Consumer<NVGU> queuedRenderConsumer = this::renderFrameQueue;
     private final Consumer<NVGU> beforeGuiQueuedRenderConsumer = this::renderBeforeGuiFrameQueue;
     private final Map<Class<?>, Long> rendererFailureLogTimes = new HashMap<>();
+    private final int[] viewport = new int[4];
     private final ByteBuffer colourWriteMask = BufferUtils.createByteBuffer(4);
     private long lastQueueOverflowLogNanos;
     private int droppedRenderers;
@@ -57,11 +58,18 @@ public class NanoVGManager implements IMinecraft {
     }
 
     public static float toScaledMouseX(double mouseX) {
-        return (float) (mouseX * mc.getWindow().getGuiScale() / getUiScale());
+        // MouseButtonEvent.x() is already in guiScaledWidth space. The NanoVG
+        // layout uses getScaledScreenWidth(), which differs by 2 / DPR on
+        // Retina displays (DPR 2 means the factor is 1, not 2).
+        int guiWidth = mc.getWindow().getGuiScaledWidth();
+        return guiWidth <= 0 ? (float) mouseX
+                : (float) (mouseX * getScaledScreenWidth() / guiWidth);
     }
 
     public static float toScaledMouseY(double mouseY) {
-        return (float) (mouseY * mc.getWindow().getGuiScale() / getUiScale());
+        int guiHeight = mc.getWindow().getGuiScaledHeight();
+        return guiHeight <= 0 ? (float) mouseY
+                : (float) (mouseY * getScaledScreenHeight() / guiHeight);
     }
 
     public static float fromFramebufferX(double x) {
@@ -304,6 +312,8 @@ public class NanoVGManager implements IMinecraft {
         int vertexArray = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
         int arrayBuffer = GL11.glGetInteger(GL15.GL_ARRAY_BUFFER_BINDING);
         int elementArrayBuffer = GL11.glGetInteger(GL15.GL_ELEMENT_ARRAY_BUFFER_BINDING);
+        int readFramebuffer = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
+        int drawFramebuffer = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
         int blendSrcRgb = GL11.glGetInteger(GL14.GL_BLEND_SRC_RGB);
         int blendDstRgb = GL11.glGetInteger(GL14.GL_BLEND_DST_RGB);
         int blendSrcAlpha = GL11.glGetInteger(GL14.GL_BLEND_SRC_ALPHA);
@@ -319,6 +329,7 @@ public class NanoVGManager implements IMinecraft {
         int stencilFail = GL11.glGetInteger(GL11.GL_STENCIL_FAIL);
         int stencilDepthFail = GL11.glGetInteger(GL11.GL_STENCIL_PASS_DEPTH_FAIL);
         int stencilDepthPass = GL11.glGetInteger(GL11.GL_STENCIL_PASS_DEPTH_PASS);
+        GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
         GL11.glGetBooleanv(GL11.GL_COLOR_WRITEMASK, colourWriteMask);
         boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
         boolean depthTest = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
@@ -393,6 +404,9 @@ public class NanoVGManager implements IMinecraft {
                 GL11.glStencilOp(stencilFail, stencilDepthFail, stencilDepthPass);
                 GL11.glColorMask(colourWriteMask.get(0) != 0, colourWriteMask.get(1) != 0, colourWriteMask.get(2) != 0, colourWriteMask.get(3) != 0);
                 GL11.glDepthMask(depthMask);
+                GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, readFramebuffer);
+                GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, drawFramebuffer);
+                GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
                 GL20.glUseProgram(program);
                 GL30.glBindVertexArray(vertexArray);
                 GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, arrayBuffer);
