@@ -2520,7 +2520,7 @@ public class Interface extends Module {
         float listY = 10f;
         float screenWidth = NanoVGManager.getScaledScreenWidth();
         float fontHeight = NVGFonts.INTER.getHeight(MODULE_LIST_FONT_SIZE);
-        float rowHeight = fontHeight + 4f;
+        float rowHeight = fontHeight + 7f;
         float rightMargin = 10f;
         float horizontalPadding = 8f;
         float rightX = screenWidth - rightMargin;
@@ -2538,8 +2538,8 @@ public class Interface extends Module {
             float textX = rightX - horizontalPadding - entry.fullWidth;
             int alpha = Math.clamp((int) (entry.progress * 255f), 0, 255);
             float leftX = textX - horizontalPadding;
-            float topPadding = visibleIndex == 0 ? 6f : 2f;
-            float bottomPadding = visibleIndex == visibleCount - 1 ? 6f : 2f;
+            float topPadding = visibleIndex == 0 ? 6f : 3.5f;
+            float bottomPadding = visibleIndex == visibleCount - 1 ? 6f : 3.5f;
             float effectiveHeight = (fontHeight + topPadding + bottomPadding) * entry.progress;
             float textY = listY + topPadding;
 
