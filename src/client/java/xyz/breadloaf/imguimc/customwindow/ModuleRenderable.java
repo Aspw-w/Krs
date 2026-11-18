@@ -663,7 +663,7 @@ public class ModuleRenderable implements Renderable, IMinecraft {
                             mc.player.setPos(playerEntity.position());
 
                             showLog(chatMode, "teleported");
-                            Client.notificationManager.addNotification("Success", "Teleported!");
+                            Client.notificationManager.addNotification("Success", "Teleported");
 
                             break;
                         }
@@ -721,7 +721,7 @@ public class ModuleRenderable implements Renderable, IMinecraft {
                         mc.player.setPos(paths.getLast());
 
                         showLog(chatMode, "teleported");
-                        Client.notificationManager.addNotification("Success", "Teleported!");
+                        Client.notificationManager.addNotification("Success", "Teleported");
                         return;
                     } catch (NumberFormatException ignored) {
                     }

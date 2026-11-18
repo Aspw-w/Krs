@@ -96,7 +96,7 @@ public class ModuleManager implements EventListener {
                 new NoWeb(), new NoBlockEffects(), new AntiLevitation(), new FastFall(),
                 new Spider(), new AutoRocket(), new AutoTotem(), new VisualSpoofer(),
                 new XCarry(), new PortalGodMode(), new ChestTP(), new SurroundTP(),
-                new NoBreakReset(), new PacketMine(), new TrueSight(), new AutoTool(), new DurabilityAlert(), new HUDHider(), new LegacyRenderer()
+                new NoBreakReset(), new PacketMine(), new TrueSight(), new AutoTool(), new HUDHider(), new LegacyRenderer()
         ));
 
         devModules.addAll(List.of(

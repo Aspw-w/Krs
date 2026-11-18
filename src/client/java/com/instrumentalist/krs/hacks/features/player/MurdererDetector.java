@@ -78,8 +78,8 @@ public class MurdererDetector extends Module {
                 if (chatAbuse.get() && !mc.player.getName().getString().equalsIgnoreCase(playerName)) {
                     mc.player.connection.sendChat(playerName + " is a murderer!!!!!!!!");
                 }
-                Client.notificationManager.addNotification("Murderer detected!", "Murderer " + playerName + " was detected!");
-                ChatUtil.printChat("Murderer " + playerName + " was detected!");
+                Client.notificationManager.addNotification("Murderer detected", "Murderer " + playerName + " was detected");
+                ChatUtil.printChat("Murderer " + playerName + " was detected");
             }
         }
     }

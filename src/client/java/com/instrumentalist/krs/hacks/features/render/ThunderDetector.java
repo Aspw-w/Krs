@@ -76,7 +76,7 @@ public class ThunderDetector extends Module {
                             .withHoverEvent(new HoverEvent.ShowText(Component.literal("§lClick to easily prepare for teleport to " + (int) addEntityPacket.getX() + ", " + (int) addEntityPacket.getY() + ", " + (int) addEntityPacket.getZ())))
             );
             ChatUtil.printModifiedChat(tpMessage);
-            Client.notificationManager.addNotification("Lightning detected!", showMessage);
+            Client.notificationManager.addNotification("Lightning detected", showMessage);
         }
     }
 
