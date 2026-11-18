@@ -2863,9 +2863,9 @@ public final class Shader2DRenderer {
 
         public static GlassRequest panel() {
             GlassRequest request = new GlassRequest();
-            request.refraction = 0.72f;
+            request.refraction = 1.45f;
             request.chromAberration = 0.02f;
-            request.edgeHighlight = 0.08f;
+            request.edgeHighlight = 0.42f;
             request.specular = 0f;
             request.fresnel = 0f;
             request.blurAmount = 0.32f;
@@ -2880,9 +2880,9 @@ public final class Shader2DRenderer {
 
         public static GlassRequest compact() {
             GlassRequest request = new GlassRequest();
-            request.refraction = 0.58f;
+            request.refraction = 1.25f;
             request.chromAberration = 0.015f;
-            request.edgeHighlight = 0.07f;
+            request.edgeHighlight = 0.38f;
             request.specular = 0f;
             request.fresnel = 0f;
             request.blurAmount = 0.26f;
@@ -2897,9 +2897,9 @@ public final class Shader2DRenderer {
 
         public static GlassRequest control() {
             GlassRequest request = new GlassRequest();
-            request.refraction = 0.69f;
+            request.refraction = 1.35f;
             request.chromAberration = 0.05f;
-            request.edgeHighlight = 0.05f;
+            request.edgeHighlight = 0.32f;
             request.specular = 0f;
             request.fresnel = 1f;
             request.blurAmount = 0.22f;
