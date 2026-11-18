@@ -60,7 +60,6 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
     private float musicSliderGrab;
     private long lastMusicSliderNanos;
     private float developerToggleProgress = -1f;
-    private float developerToggleHover;
     private float developerToggleGrab;
     private boolean developerTogglePressed;
 
@@ -242,19 +241,17 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         float x = centerX - DEVELOPER_TOGGLE_WIDTH / 2f;
         float y = DEVELOPER_TOGGLE_Y;
         boolean enabled = ConfigManager.isDeveloperFeaturesEnabled();
-        boolean hovered = isDeveloperToggleHovered(mouseX, mouseY);
         if (developerToggleProgress < 0f)
             developerToggleProgress = enabled ? 1f : 0f;
         developerToggleProgress += ((enabled ? 1f : 0f) - developerToggleProgress) * 0.2f;
-        developerToggleHover += ((hovered ? 1f : 0f) - developerToggleHover) * 0.2f;
         float progress = developerToggleProgress;
 
         float grabTarget = developerTogglePressed ? 1f : 0f;
         developerToggleGrab += (grabTarget - developerToggleGrab) * (developerTogglePressed ? 0.38f : 0.11f);
         float grab = developerToggleGrab;
 
-        float switchX = x + DEVELOPER_TOGGLE_WIDTH - 10f - DEVELOPER_SWITCH_WIDTH;
-        float switchY = y + (DEVELOPER_TOGGLE_HEIGHT - DEVELOPER_SWITCH_HEIGHT) / 2f;
+        float switchX = getDeveloperSwitchX(centerX);
+        float switchY = getDeveloperSwitchY();
         float switchRadius = DEVELOPER_SWITCH_HEIGHT / 2f;
         float knobBase = DEVELOPER_SWITCH_HEIGHT * 0.74f;
         float knobWidth = knobBase * (1f + 0.38f * grab);
@@ -264,13 +261,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         float knobY = switchY + switchRadius - knobHeight / 2f;
         float knobRadius = Math.min(knobWidth, knobHeight) / 2f;
 
-        vg.beginEffectBatch();
-        NanoVGTheme.renderPanelEffects(vg, x, y, DEVELOPER_TOGGLE_WIDTH, DEVELOPER_TOGGLE_HEIGHT, NanoVGTheme.RADIUS_HUD, 1f);
-        vg.flushEffectBatch();
-        NanoVGTheme.renderPanel(vg, x, y, DEVELOPER_TOGGLE_WIDTH, DEVELOPER_TOGGLE_HEIGHT, NanoVGTheme.RADIUS_HUD, 1f);
-
-        Color textColor = mix(mix(NanoVGTheme.MUTED, IDLE_TEXT, developerToggleHover), NanoVGTheme.TEXT, progress);
-        NVGFonts.INTER_MEDIUM.drawText("Developer Features", x + 12f, y + DEVELOPER_TOGGLE_HEIGHT / 2f, 13f, textColor, Alignment.LEFT_MIDDLE, true);
+        NVGFonts.INTER_MEDIUM.drawText("Developer Features", x + 12f, y + DEVELOPER_TOGGLE_HEIGHT / 2f, 13f, Color.WHITE, Alignment.LEFT_MIDDLE, true);
 
         vg.beginEffectBatch();
         NanoVGTheme.renderControlEffects(vg, switchX, switchY, DEVELOPER_SWITCH_WIDTH, DEVELOPER_SWITCH_HEIGHT, switchRadius, 1f, 0.04f * progress);
@@ -292,7 +283,15 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
 
     private boolean isDeveloperToggleHovered(double mouseX, double mouseY) {
         float centerX = NanoVGManager.getScaledScreenWidth() / 2f;
-        return isHovered(mouseX, mouseY, centerX - DEVELOPER_TOGGLE_WIDTH / 2f, DEVELOPER_TOGGLE_Y, DEVELOPER_TOGGLE_WIDTH, DEVELOPER_TOGGLE_HEIGHT);
+        return isHovered(mouseX, mouseY, getDeveloperSwitchX(centerX), getDeveloperSwitchY(), DEVELOPER_SWITCH_WIDTH, DEVELOPER_SWITCH_HEIGHT);
+    }
+
+    private static float getDeveloperSwitchX(float centerX) {
+        return centerX + DEVELOPER_TOGGLE_WIDTH / 2f - 10f - DEVELOPER_SWITCH_WIDTH;
+    }
+
+    private static float getDeveloperSwitchY() {
+        return DEVELOPER_TOGGLE_Y + (DEVELOPER_TOGGLE_HEIGHT - DEVELOPER_SWITCH_HEIGHT) / 2f;
     }
 
     private float updateMusicSliderGrab() {
