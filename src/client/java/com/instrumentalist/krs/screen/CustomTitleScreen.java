@@ -3,6 +3,7 @@ package com.instrumentalist.krs.screen;
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.configs.ConfigManager;
+import com.instrumentalist.krs.utils.render.TitleBackground;
 import com.instrumentalist.krs.utils.GuiInputBlocker;
 import com.instrumentalist.krs.utils.audio.Mp3MusicPlayer;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
@@ -47,9 +48,6 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
     private static final Color IDLE_LINE = NanoVGTheme.muted(200);
     private static final Color HOVER_TEXT = NanoVGTheme.TEXT;
     private static final Color IDLE_TEXT = NanoVGTheme.text(200);
-    private static final float STARTUP_LOAD_BAR_FADE_SECONDS = 0.25f;
-    private static float startupLoadBarAlpha;
-    private static long startupLoadBarFadeNanos;
     private static final float DEVELOPER_TOGGLE_WIDTH = 196f;
     private static final float DEVELOPER_TOGGLE_HEIGHT = 26f;
     private static final float DEVELOPER_TOGGLE_Y = 84f;
@@ -308,7 +306,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
     }
 
     private CursorType resolveMenuCursor(double mouseX, double mouseY) {
-        if (isMinecraftMouseBlocked() || shouldRenderStartupLoadBar())
+        if (isMinecraftMouseBlocked())
             return CursorType.DEFAULT;
 
         if (musicVolumeSliderDragging || isMusicSliderHovered(mouseX, mouseY) || isDeveloperToggleHovered(mouseX, mouseY))
@@ -420,75 +418,9 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         }
     }
 
-    public static void renderStartupLoadBarIfNeeded(NanoVGManager manager) {
-        if (manager == null)
-            return;
-
-        float alpha = updateStartupLoadBarFade();
-        if (alpha <= 0.001f)
-            return;
-
-        manager.renderImmediate(vg -> vg.globalAlpha(alpha, () -> renderStartupLoadBar(vg)));
-    }
-
-    public static boolean shouldRenderStartupLoadBar() {
-        return mc.gui.screen() instanceof CustomTitleScreen && mc.gui.overlay() != null;
-    }
-
-    public static boolean isStartupLoadBarVisible() {
-        return shouldRenderStartupLoadBar()
-                || startupLoadBarAlpha > 0.001f && mc.gui.screen() instanceof CustomTitleScreen;
-    }
-
-    private static float updateStartupLoadBarFade() {
-        long now = System.nanoTime();
-        if (!(mc.gui.screen() instanceof CustomTitleScreen)) {
-            startupLoadBarAlpha = 0f;
-            startupLoadBarFadeNanos = now;
-            return 0f;
-        }
-
-        float target = shouldRenderStartupLoadBar() ? 1f : 0f;
-        float seconds = Math.clamp((now - startupLoadBarFadeNanos) / 1_000_000_000f, 0f, 0.05f);
-        startupLoadBarFadeNanos = now;
-        float step = seconds / STARTUP_LOAD_BAR_FADE_SECONDS;
-        startupLoadBarAlpha = target > startupLoadBarAlpha
-                ? Math.min(target, startupLoadBarAlpha + step)
-                : Math.max(target, startupLoadBarAlpha - step);
-        return startupLoadBarAlpha * startupLoadBarAlpha * (3f - 2f * startupLoadBarAlpha);
-    }
-
-    private static void renderStartupLoadBar(NVGU vg) {
-        float screenWidth = NanoVGManager.getScaledScreenWidth();
-        float screenHeight = NanoVGManager.getScaledScreenHeight();
-        float panelWidth = Math.min(320f, Math.max(240f, screenWidth - 48f));
-        float panelHeight = 54f;
-        float panelX = (screenWidth - panelWidth) / 2f;
-        float panelY = Math.min(screenHeight - panelHeight - 28f, screenHeight * 0.72f);
-        float trackX = panelX + 22f;
-        float trackY = panelY + 33f;
-        float trackWidth = panelWidth - 44f;
-        float trackHeight = 5f;
-
-        vg.beginEffectBatch();
-        NanoVGTheme.renderPanelEffects(vg, panelX, panelY, panelWidth, panelHeight, NanoVGTheme.RADIUS_PANEL, 1f);
-        vg.flushEffectBatch();
-
-        NanoVGTheme.renderPanel(vg, panelX, panelY, panelWidth, panelHeight, NanoVGTheme.RADIUS_PANEL, 1f);
-        NVGFonts.INTER_MEDIUM.drawText("Loading", panelX + 22f, panelY + 12f, 15f, new Color(255, 255, 255, 230), Alignment.LEFT_TOP, true);
-        vg.roundedRectangle(trackX, trackY, trackWidth, trackHeight, 3f, NanoVGTheme.base(90));
-
-        float phase = (System.currentTimeMillis() % 1350L) / 1350f;
-        float markerWidth = Math.max(54f, trackWidth * 0.28f);
-        float markerX = trackX - markerWidth + (trackWidth + markerWidth * 2f) * phase;
-
-        vg.scissor(trackX, trackY, trackWidth, trackHeight, () ->
-                vg.roundedRectangle(markerX, trackY, markerWidth, trackHeight, 3f, HOVER_LINE)
-        );
-    }
-
     @Override
     public void extractBackground(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+        TitleBackground.render(context, this.width, this.height);
     }
 
     @Override
@@ -503,25 +435,6 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
             float screenHeight = NanoVGManager.getScaledScreenHeight();
             float centerX = screenWidth / 2f;
             float centerY = screenHeight / 2f;
-
-            if (!isMinecraftMouseBlocked()) {
-                float targetBgOffsetX = NanoVGManager.toScaledMouseX(mc.mouseHandler.getScaledXPos(mc.getWindow()));
-                float targetBgOffsetY = NanoVGManager.toScaledMouseY(mc.mouseHandler.getScaledYPos(mc.getWindow()));
-
-                stepBackgroundParallax(targetBgOffsetX, targetBgOffsetY, 0.03f);
-            }
-
-            if (ensureTexture(vg, "title_screen", "assets/krs/title.png")) {
-                vg.texturedRectangle(0f, 0f, screenWidth * 2, screenHeight * 2, "title_screen");
-
-                vg.save();
-                try {
-                    vg.translate(bgOffsetX, bgOffsetY);
-                    vg.texturedRectangle(-screenWidth, -screenHeight, screenWidth * 2, screenHeight * 2, "title_screen");
-                } finally {
-                    vg.restore();
-                }
-            }
 
             float menuX = centerX - 120f;
             float menuY = centerY - 160f;
@@ -576,9 +489,6 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (shouldRenderStartupLoadBar())
-            return true;
-
         double mouseX = event.x();
         double mouseY = event.y();
         int button = event.button();

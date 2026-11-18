@@ -2,7 +2,6 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.Client;
-import com.instrumentalist.krs.screen.CustomTitleScreen;
 import com.instrumentalist.krs.screen.NanoVGClickGuiScreen;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.render.DebugOverlayRenderer;
@@ -46,22 +45,16 @@ public abstract class RenderSystemMixin implements IMinecraft {
         NanoVGClickGuiScreen.renderDetachedIfNeeded();
 
         if (GraphicsApiCompatibility.usesCompatibilityRenderer()) {
-            if (Client.nanoVgManager != null
-                    && (Client.nanoVgManager.hasQueuedRenderers()
-                    || CustomTitleScreen.isStartupLoadBarVisible())) {
+            if (Client.nanoVgManager != null && Client.nanoVgManager.hasQueuedRenderers()) {
                 GraphicsApiCompatibility.renderOffscreenLayer(
                         GraphicsApiCompatibility.Layer.NANO_VG,
-                        () -> {
-                            Client.nanoVgManager.renderQueued();
-                            CustomTitleScreen.renderStartupLoadBarIfNeeded(Client.nanoVgManager);
-                        },
+                        Client.nanoVgManager::renderQueued,
                         Client.nanoVgManager::discardRenderQueue,
                         Client.nanoVgManager.hasWorldAnchoredRenderers()
                 );
             }
         } else if (Client.nanoVgManager != null) {
             OpenGlHudLayer.render(Client.nanoVgManager);
-            CustomTitleScreen.renderStartupLoadBarIfNeeded(Client.nanoVgManager);
         }
 
         if (NanoVGManager.shouldRenderBelowDebugOverlay() && mc.gameRenderer instanceof DebugOverlayRenderer debugOverlayRenderer) {
