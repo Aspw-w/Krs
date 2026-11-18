@@ -11,11 +11,16 @@ public class ChatCommands extends Module {
     public static final TextValue prefix = new TextValue("Prefix", ".");
 
     public ChatCommands() {
-        super("Chat Commands", ModuleCategory.Player, Keys.KEY_UNKNOWN, true, false);
+        super("Chat Commands", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, false);
     }
 
     @Override
     public void onDisable() {
+    }
+
+    @Override
+    public boolean isLocked() {
+        return true;
     }
 
     @Override

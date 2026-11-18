@@ -1,6 +1,5 @@
 package com.instrumentalist.krs.hacks.features.render;
 
-import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
@@ -59,13 +58,16 @@ public class ViewModel extends Module {
     private static final IntValue setSwingSpeed = new IntValue("Set Swing Speed", 5, -6, 20, slowSwing::get);
 
     public ViewModel() {
-        super("View Model", ModuleCategory.Render, Keys.KEY_UNKNOWN, true, false);
+        super("View Model", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, false);
     }
 
     @Override
     public void onDisable() {
-        if (Client.loaded)
-            this.toggle();
+    }
+
+    @Override
+    public boolean isLocked() {
+        return true;
     }
 
     @Override

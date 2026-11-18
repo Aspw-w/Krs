@@ -18,6 +18,31 @@ public class NotificationManager {
     private static final ArrayList<Notification> notifications = new ArrayList<>(MAX_NOTIFICATIONS);
     private final ArrayList<NotificationRenderEntry> renderEntries = new ArrayList<>(MAX_NOTIFICATIONS);
     private final ArrayList<NotificationRenderEntry> renderEntryPool = new ArrayList<>(MAX_NOTIFICATIONS);
+    private static final float FIRST_BOTTOM_MARGIN = 152f;
+    private static final long AVOID_TIMEOUT_NANOS = 100_000_000L;
+    private static volatile float avoidTopEdge = Float.NaN;
+    private static volatile long avoidUpdatedNanos;
+    private float shiftY;
+    private long lastShiftNanos;
+
+    public static void avoidAbove(float topEdge) {
+        avoidTopEdge = topEdge;
+        avoidUpdatedNanos = System.nanoTime();
+    }
+
+    private float updateShift(long now, float screenHeight) {
+        float target = 0f;
+        float edge = avoidTopEdge;
+        if (!Float.isNaN(edge) && now - avoidUpdatedNanos <= AVOID_TIMEOUT_NANOS)
+            target = Math.max(0f, screenHeight - FIRST_BOTTOM_MARGIN - edge);
+
+        float delta = lastShiftNanos == 0L ? 1f : Math.clamp((now - lastShiftNanos) / 16_666_666f, 0f, 3f);
+        lastShiftNanos = now;
+        shiftY += (target - shiftY) * Math.min(1f, 0.2f * delta);
+        if (Math.abs(target - shiftY) < 0.05f)
+            shiftY = target;
+        return shiftY;
+    }
 
     public void addNotification(String title, String message) {
         Notification notification = new Notification(
@@ -41,6 +66,7 @@ public class NotificationManager {
             float screenWidth = NanoVGManager.getScaledScreenWidth();
             float screenHeight = NanoVGManager.getScaledScreenHeight();
             float startY = screenHeight - 90;
+            float shift = updateShift(now, screenHeight);
             boolean anyExpired = false;
 
             for (int index = 0; index < notifications.size(); ) {
@@ -59,7 +85,7 @@ public class NotificationManager {
 
                 float yPos = startY - notification.getYOffset();
                 NotificationRenderEntry renderEntry = renderEntryPool.get(renderIndex);
-                renderEntry.update(notification, screenWidth - 65, yPos);
+                renderEntry.update(notification, screenWidth - 65, yPos - shift);
                 renderEntries.add(renderEntry);
                 startY -= 34;
                 index++;

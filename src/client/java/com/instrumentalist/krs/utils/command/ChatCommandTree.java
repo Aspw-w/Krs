@@ -31,9 +31,9 @@ public final class ChatCommandTree {
     private static List<String> keyNames;
 
     private static final SuggestionProvider<ClientSuggestionProvider> TOGGLE_MODULES =
-            (context, builder) -> SharedSuggestionProvider.suggest(moduleNames(ModuleManager.modules), builder);
+            (context, builder) -> SharedSuggestionProvider.suggest(moduleNames(ModuleManager.modules.stream().filter(module -> !module.isLocked()).toList()), builder);
     private static final SuggestionProvider<ClientSuggestionProvider> ALL_MODULES =
-            (context, builder) -> SharedSuggestionProvider.suggest(moduleNames(ModuleManager.allModules), builder);
+            (context, builder) -> SharedSuggestionProvider.suggest(moduleNames(ModuleManager.allModules.stream().filter(Module::isBindable).toList()), builder);
     private static final SuggestionProvider<ClientSuggestionProvider> KEYS =
             (context, builder) -> SharedSuggestionProvider.suggest(keyNames(), builder);
     private static final SuggestionProvider<ClientSuggestionProvider> TP_TARGETS =

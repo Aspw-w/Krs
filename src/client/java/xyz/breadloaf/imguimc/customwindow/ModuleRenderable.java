@@ -551,6 +551,8 @@ public class ModuleRenderable implements Renderable, IMinecraft {
                 moduleName = command.toLowerCase().replace("toggle ", "").replace(" ", "");
 
             for (Module module : ModuleManager.modules) {
+                if (module.isLocked())
+                    continue;
                 if (moduleName.equals(module.moduleName.toLowerCase().replace(" ", ""))) {
                     module.toggle();
                     Client.notificationManager.addNotification("Toggle", module.tempEnabled ? "Enabled " + module.moduleName : "Disabled " + module.moduleName);
@@ -613,6 +615,10 @@ public class ModuleRenderable implements Renderable, IMinecraft {
             if (parts.length == 2) {
                 for (Module module : ModuleManager.allModules) {
                     if (Objects.equals(module.moduleName.toLowerCase().replace(" ", ""), parts[0])) {
+                        if (!module.isBindable()) {
+                            showLog(chatMode, module.moduleName + " module cannot be bound");
+                            return;
+                        }
                         try {
                             int newKey = InputConstants.getKey("key.keyboard." + parts[1].toLowerCase()).getValue();
                             module.key = newKey;
@@ -807,11 +813,11 @@ public class ModuleRenderable implements Renderable, IMinecraft {
     }
 
     private void renderModuleSettings(Module module) {
-        if (imgui.ImGui.checkbox("Toggle Module##" + module.moduleName, module.tempEnabled)) {
+        if (!module.isLocked() && imgui.ImGui.checkbox("Toggle Module##" + module.moduleName, module.tempEnabled)) {
             module.toggle();
         }
 
-        if (imgui.ImGui.checkbox("Show on array##" + module.moduleName, module.showOnArray)) {
+        if (!module.isLocked() && imgui.ImGui.checkbox("Show on array##" + module.moduleName, module.showOnArray)) {
             module.showOnArray = !module.showOnArray;
             Interface.reloadSortedModules();
         }
@@ -819,12 +825,14 @@ public class ModuleRenderable implements Renderable, IMinecraft {
         if (module.description() != null)
             imgui.ImGui.textColored(255, 205, 92, 255, module.description());
 
-        String shownKey = keyName(module.key);
-        ImString currentKey = inputBuffer("module-key:" + module.moduleName, shownKey, 64);
-        imgui.ImGui.inputText("Keybind ##" + module.moduleName, currentKey);
-        if (imgui.ImGui.isItemDeactivatedAfterEdit()) {
-            module.key = parseKey(currentKey.get());
-            currentKey.set(keyName(module.key));
+        if (module.isBindable()) {
+            String shownKey = keyName(module.key);
+            ImString currentKey = inputBuffer("module-key:" + module.moduleName, shownKey, 64);
+            imgui.ImGui.inputText("Keybind ##" + module.moduleName, currentKey);
+            if (imgui.ImGui.isItemDeactivatedAfterEdit()) {
+                module.key = parseKey(currentKey.get());
+                currentKey.set(keyName(module.key));
+            }
         }
 
         List<SettingValue<?>> settings = collectSettings(module);

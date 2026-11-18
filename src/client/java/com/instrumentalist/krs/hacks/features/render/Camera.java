@@ -34,6 +34,11 @@ public class Camera extends Module {
     }
 
     @Override
+    public boolean isLocked() {
+        return true;
+    }
+
+    @Override
     public void onEnable() {
     }
 

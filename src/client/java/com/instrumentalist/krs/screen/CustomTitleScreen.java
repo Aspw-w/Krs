@@ -2,6 +2,7 @@ package com.instrumentalist.krs.screen;
 
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.Client;
+import com.instrumentalist.krs.configs.ConfigManager;
 import com.instrumentalist.krs.utils.GuiInputBlocker;
 import com.instrumentalist.krs.utils.audio.Mp3MusicPlayer;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
@@ -49,12 +50,21 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
     private static final float STARTUP_LOAD_BAR_FADE_SECONDS = 0.25f;
     private static float startupLoadBarAlpha;
     private static long startupLoadBarFadeNanos;
+    private static final float DEVELOPER_TOGGLE_WIDTH = 196f;
+    private static final float DEVELOPER_TOGGLE_HEIGHT = 26f;
+    private static final float DEVELOPER_TOGGLE_Y = 84f;
+    private static final float DEVELOPER_SWITCH_WIDTH = 28f;
+    private static final float DEVELOPER_SWITCH_HEIGHT = 14f;
     private static final String RELEASES_URL = "https://github.com/Aspw-w/Krs/releases";
 
     private boolean musicVolumeSliderDragging;
     private boolean musicVolumeDirty;
     private float musicSliderGrab;
     private long lastMusicSliderNanos;
+    private float developerToggleProgress = -1f;
+    private float developerToggleHover;
+    private float developerToggleGrab;
+    private boolean developerTogglePressed;
 
     private final MenuButton singlePlayerButton = new MenuButton("Single Player");
     private final MenuButton multiPlayerButton = new MenuButton("Multi Player");
@@ -230,6 +240,63 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         vg.roundedRectangle(knobX, knobY, knobWidth, knobHeight, Math.min(knobWidth, knobHeight) / 2f, NanoVGTheme.KNOB_FILL);
     }
 
+    private void renderDeveloperToggle(NVGU vg, float centerX, float mouseX, float mouseY) {
+        float x = centerX - DEVELOPER_TOGGLE_WIDTH / 2f;
+        float y = DEVELOPER_TOGGLE_Y;
+        boolean enabled = ConfigManager.isDeveloperFeaturesEnabled();
+        boolean hovered = isDeveloperToggleHovered(mouseX, mouseY);
+        if (developerToggleProgress < 0f)
+            developerToggleProgress = enabled ? 1f : 0f;
+        developerToggleProgress += ((enabled ? 1f : 0f) - developerToggleProgress) * 0.2f;
+        developerToggleHover += ((hovered ? 1f : 0f) - developerToggleHover) * 0.2f;
+        float progress = developerToggleProgress;
+
+        float grabTarget = developerTogglePressed ? 1f : 0f;
+        developerToggleGrab += (grabTarget - developerToggleGrab) * (developerTogglePressed ? 0.38f : 0.11f);
+        float grab = developerToggleGrab;
+
+        float switchX = x + DEVELOPER_TOGGLE_WIDTH - 10f - DEVELOPER_SWITCH_WIDTH;
+        float switchY = y + (DEVELOPER_TOGGLE_HEIGHT - DEVELOPER_SWITCH_HEIGHT) / 2f;
+        float switchRadius = DEVELOPER_SWITCH_HEIGHT / 2f;
+        float knobBase = DEVELOPER_SWITCH_HEIGHT * 0.74f;
+        float knobWidth = knobBase * (1f + 0.38f * grab);
+        float knobHeight = knobBase * (1f - 0.28f * grab);
+        float knobCenterX = switchX + switchRadius + (DEVELOPER_SWITCH_WIDTH - DEVELOPER_SWITCH_HEIGHT) * progress;
+        float knobX = knobCenterX - knobWidth / 2f;
+        float knobY = switchY + switchRadius - knobHeight / 2f;
+        float knobRadius = Math.min(knobWidth, knobHeight) / 2f;
+
+        vg.beginEffectBatch();
+        NanoVGTheme.renderPanelEffects(vg, x, y, DEVELOPER_TOGGLE_WIDTH, DEVELOPER_TOGGLE_HEIGHT, NanoVGTheme.RADIUS_HUD, 1f);
+        vg.flushEffectBatch();
+        NanoVGTheme.renderPanel(vg, x, y, DEVELOPER_TOGGLE_WIDTH, DEVELOPER_TOGGLE_HEIGHT, NanoVGTheme.RADIUS_HUD, 1f);
+
+        Color textColor = mix(mix(NanoVGTheme.MUTED, IDLE_TEXT, developerToggleHover), NanoVGTheme.TEXT, progress);
+        NVGFonts.INTER_MEDIUM.drawText("Developer Features", x + 12f, y + DEVELOPER_TOGGLE_HEIGHT / 2f, 13f, textColor, Alignment.LEFT_MIDDLE, true);
+
+        vg.beginEffectBatch();
+        NanoVGTheme.renderControlEffects(vg, switchX, switchY, DEVELOPER_SWITCH_WIDTH, DEVELOPER_SWITCH_HEIGHT, switchRadius, 1f, 0.04f * progress);
+        NanoVGTheme.renderControlEffects(vg, knobX, knobY, knobWidth, knobHeight, knobRadius, 1f);
+        vg.flushEffectBatch();
+        vg.roundedRectangle(switchX, switchY, DEVELOPER_SWITCH_WIDTH, DEVELOPER_SWITCH_HEIGHT, switchRadius, mix(NanoVGTheme.CONTROL_TRACK, NanoVGTheme.switchOn(240), progress));
+        vg.roundedRectangle(knobX, knobY, knobWidth, knobHeight, knobRadius, mix(NanoVGTheme.KNOB_FILL, NanoVGTheme.KNOB_ON_FILL, progress));
+    }
+
+    private static Color mix(Color from, Color to, float amount) {
+        float t = Math.clamp(amount, 0f, 1f);
+        return new Color(
+                Math.round(from.getRed() + (to.getRed() - from.getRed()) * t),
+                Math.round(from.getGreen() + (to.getGreen() - from.getGreen()) * t),
+                Math.round(from.getBlue() + (to.getBlue() - from.getBlue()) * t),
+                Math.round(from.getAlpha() + (to.getAlpha() - from.getAlpha()) * t)
+        );
+    }
+
+    private boolean isDeveloperToggleHovered(double mouseX, double mouseY) {
+        float centerX = NanoVGManager.getScaledScreenWidth() / 2f;
+        return isHovered(mouseX, mouseY, centerX - DEVELOPER_TOGGLE_WIDTH / 2f, DEVELOPER_TOGGLE_Y, DEVELOPER_TOGGLE_WIDTH, DEVELOPER_TOGGLE_HEIGHT);
+    }
+
     private float updateMusicSliderGrab() {
         long now = System.nanoTime();
         float delta = lastMusicSliderNanos == 0L ? 1f : Math.clamp((now - lastMusicSliderNanos) / 16_666_666f, 0.25f, 3f);
@@ -244,7 +311,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         if (isMinecraftMouseBlocked() || shouldRenderStartupLoadBar())
             return CursorType.DEFAULT;
 
-        if (musicVolumeSliderDragging || isMusicSliderHovered(mouseX, mouseY))
+        if (musicVolumeSliderDragging || isMusicSliderHovered(mouseX, mouseY) || isDeveloperToggleHovered(mouseX, mouseY))
             return CursorTypes.POINTING_HAND;
 
         for (MenuButton button : getVisibleMenuButtons()) {
@@ -479,9 +546,10 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
             NVGFonts.INTER_MEDIUM.drawText(getCurrentTime(), screenWidth - 10f, 10f, 22f, Color.WHITE, Alignment.RIGHT_TOP, true);
             NVGFonts.INTER.drawText("Currently Logged Into: " + mc.getUser().getName(), centerX, 20f, 21f, Color.WHITE, Alignment.CENTER_TOP, true);
             renderMusicVolumeSlider(vg, centerX, mouseX, mouseY);
+            renderDeveloperToggle(vg, centerX, mouseX, mouseY);
 
             if (GraphicsApiCompatibility.usesCompatibilityRenderer()) {
-                NVGFonts.INTER.drawText("Vulkan support is not yet complete, so performance will be significantly lower than when using OpenGL. Please use OpenGL unless there is a specific reason not to.", centerX, 80f, 21f, NanoVGTheme.ACCENT, Alignment.CENTER_TOP, true);
+                NVGFonts.INTER.drawText("Vulkan support is not yet complete, so performance will be significantly lower than when using OpenGL. Please use OpenGL unless there is a specific reason not to.", centerX, DEVELOPER_TOGGLE_Y + DEVELOPER_TOGGLE_HEIGHT + 10f, 21f, NanoVGTheme.ACCENT, Alignment.CENTER_TOP, true);
             }
 
             for (int i = 0; i < visibleMenuButtons.size(); i++)
@@ -521,6 +589,13 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
             if (isMusicSliderHovered(mouseX, mouseY)) {
                 musicVolumeSliderDragging = true;
                 updateMainMenuMusicVolumeFromMouse(mouseX, true);
+                return true;
+            }
+
+            if (isDeveloperToggleHovered(mouseX, mouseY)) {
+                developerTogglePressed = true;
+                if (Client.configManager != null)
+                    Client.configManager.setDeveloperFeatures(!ConfigManager.isDeveloperFeaturesEnabled());
                 return true;
             }
 
@@ -583,6 +658,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+        developerTogglePressed = false;
         if (musicVolumeSliderDragging && event.button() == Keys.MOUSE_BUTTON_LEFT) {
             updateMainMenuMusicVolumeFromMouse(event.x(), true);
             musicVolumeSliderDragging = false;

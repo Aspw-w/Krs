@@ -42,6 +42,7 @@ public class MaterialIcon {
     public static String PUBLIC = new String(Character.toChars(0xe80b));
     public static String LAN = new String(Character.toChars(0xeb2f));
     public static String CORDS = new String(Character.toChars(0xe55c));
+    public static String LOCK = new String(Character.toChars(0xe897));
     public static String CLOCK = new String(Character.toChars(0xe8b5));
     public static String HEART = new String(Character.toChars(0xe87d));
     public static String BROKEN_HEART = new String(Character.toChars(0xeac2));

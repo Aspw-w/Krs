@@ -1,6 +1,5 @@
 package com.instrumentalist.krs.hacks.features.render;
 
-import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
@@ -10,7 +9,7 @@ import com.instrumentalist.krs.utils.input.Keys;
 public class ImGui extends Module {
 
     public ImGui() {
-        super("Im Gui", ModuleCategory.Render, Keys.KEY_UNKNOWN, true, false);
+        super("Im Gui", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, false);
     }
 
     public static int getOpenGuiKey() {
@@ -31,12 +30,20 @@ public class ImGui extends Module {
     }
 
     @Override
+    public boolean isBindable() {
+        return true;
+    }
+
+    @Override
+    public boolean isLocked() {
+        return true;
+    }
+
+    @Override
     public void onEnable() {
     }
 
     @Override
     public void onDisable() {
-        if (Client.loaded)
-            this.toggle();
     }
 }

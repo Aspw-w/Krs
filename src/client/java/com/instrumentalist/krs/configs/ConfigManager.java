@@ -43,6 +43,7 @@ public class ConfigManager implements IMinecraft {
     public String configCurrent = "default", bindCurrent = "default";
     private float mainMenuMusicVolume = DEFAULT_MAIN_MENU_MUSIC_VOLUME;
     private int mainMenuMusicFrame;
+    private static volatile boolean developerFeatures;
     private final AtomicLong onlineConfigRequestGeneration = new AtomicLong();
     private final Map<String, Long> moduleUpdatedCache = new HashMap<>();
     private final Map<String, Long> bindUpdatedCache = new HashMap<>();
@@ -185,6 +186,7 @@ public class ConfigManager implements IMinecraft {
                 }
                 if (module.configObject != null)
                     module.configObject.loadBind(moduleData, legacyKeys);
+                module.enforceLock();
             });
             Interface.reloadSortedModules();
         } catch (Exception e) {
@@ -198,6 +200,7 @@ public class ConfigManager implements IMinecraft {
         client.addProperty("bind-config", this.bindCurrent);
         client.addProperty("main-menu-music-volume", this.mainMenuMusicVolume);
         client.addProperty("main-menu-music-frame", this.mainMenuMusicFrame);
+        client.addProperty("developer-features", developerFeatures);
 
         writeJson(CLIENT_FILE, client, "client config");
     }
@@ -250,9 +253,22 @@ public class ConfigManager implements IMinecraft {
                 this.mainMenuMusicVolume = clampMainMenuMusicVolume(client.get("main-menu-music-volume").getAsFloat());
             if (client.has("main-menu-music-frame"))
                 this.mainMenuMusicFrame = clampMainMenuMusicFrame(client.get("main-menu-music-frame").getAsInt());
+            if (client.has("developer-features"))
+                developerFeatures = client.get("developer-features").getAsBoolean();
         } catch (Exception e) {
             System.err.println("Failed to load client config: " + e.getMessage());
         }
+    }
+
+    public static boolean isDeveloperFeaturesEnabled() {
+        return developerFeatures;
+    }
+
+    public void setDeveloperFeatures(boolean enabled) {
+        developerFeatures = enabled;
+        if (!enabled)
+            ModuleManager.disableDeveloperModules();
+        saveClientJS();
     }
 
     public float getMainMenuMusicVolume() {
@@ -541,7 +557,7 @@ public class ConfigManager implements IMinecraft {
                 if (existing != null) {
                     Long previous = readUpdatedMillis(existing);
                     existing.remove(UPDATED_AT_KEY);
-                    if (existing.equals(payload)) {
+                    if (normalizeJson(existing).equals(normalizeJson(payload))) {
                         if (previous != null && previous > 0L)
                             updated = previous;
                         else {
@@ -562,7 +578,16 @@ public class ConfigManager implements IMinecraft {
         return output;
     }
 
-    private Long readUpdatedAt(File file) {
+    private JsonObject normalizeJson(JsonObject object) {
+        try {
+            JsonObject normalized = parseJsonObject(gson.toJson(object));
+            return normalized == null ? object : normalized;
+        } catch (IOException | RuntimeException ignored) {
+            return object;
+        }
+    }
+
+        private Long readUpdatedAt(File file) {
         try {
             JsonObject existing = readJsonObject(file);
             Long stored = readUpdatedMillis(existing);

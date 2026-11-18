@@ -1,10 +1,12 @@
 package com.instrumentalist.krs.hacks;
 
 import com.instrumentalist.krs.Client;
+import com.instrumentalist.krs.configs.ConfigManager;
 import com.instrumentalist.krs.configs.ConfigObject;
 import com.instrumentalist.krs.events.EventManager;
 import com.instrumentalist.krs.events.EventListener;
 import com.instrumentalist.krs.hacks.features.render.Interface;
+import com.instrumentalist.krs.utils.input.Keys;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -34,11 +36,24 @@ public abstract class Module implements EventListener {
         this.showOnArray = showOnArray;
     }
 
+    public void enforceLock() {
+        if (!isLocked())
+            return;
+        if (!isBindable())
+            key = Keys.KEY_UNKNOWN;
+        showOnArray = false;
+    }
+
     public synchronized void setState(boolean state) {
         if (disposing) return;
         if (tempEnabled == state) return;
 
         if (state) {
+            if (isLocked())
+                return;
+            if (moduleCategory == ModuleCategory.Dev && !ConfigManager.isDeveloperFeaturesEnabled())
+                return;
+
             EventManager eventManager = Client.eventManager;
             if (eventManager == null)
                 throw new IllegalStateException("Event manager is not initialized");
@@ -105,6 +120,18 @@ public abstract class Module implements EventListener {
                 Client.eventManager.unregister(this);
             disposing = false;
         }
+    }
+
+    public boolean isLocked() {
+        return false;
+    }
+
+    public boolean isBindable() {
+        return !isLocked();
+    }
+
+    public boolean isFunctional() {
+        return tempEnabled || isLocked();
     }
 
     public String description() {

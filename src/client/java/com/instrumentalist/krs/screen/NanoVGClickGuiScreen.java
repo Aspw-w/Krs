@@ -2,6 +2,7 @@ package com.instrumentalist.krs.screen;
 
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.configs.ConfigManager;
+import com.instrumentalist.krs.utils.NotificationManager;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
@@ -118,7 +119,7 @@ public class NanoVGClickGuiScreen extends Screen {
             .ofPattern("yyyy/MM/dd HH:mm:ss", Locale.ROOT)
             .withZone(ZoneId.systemDefault());
     private static final DateTimeFormatter CONFIG_LIST_UPDATED_FORMAT = DateTimeFormatter
-            .ofPattern("MM/dd", Locale.ROOT)
+            .ofPattern("MM/dd HH:mm", Locale.ROOT)
             .withZone(ZoneId.systemDefault());
 
     private static NanoVGClickGuiScreen detachedClosingScreen;
@@ -254,6 +255,22 @@ public class NanoVGClickGuiScreen extends Screen {
     private float tabMarkY = Float.NaN;
     private final List<GuiColumn> columns = new ArrayList<>();
     private boolean typeSearchOpen;
+    private Rect configManagerRect = EMPTY_RECT;
+    private Rect configListViewport = EMPTY_RECT;
+    private float configListScroll;
+    private float targetConfigListScroll;
+    private float maxConfigListScroll;
+    private float configListScrollVelocity;
+    private Rect configScrollbarTrackRect = EMPTY_RECT;
+    private Rect configScrollbarThumbRect = EMPTY_RECT;
+    private ScrollbarDrag activeConfigScrollbar;
+    private static final float CONFIG_MANAGER_MAX_LIST_HEIGHT = u(150f);
+    private static final float CONFIG_MANAGER_DATE_FONT = font(9f);
+    private static final long CONFIG_DELETE_CONFIRM_DELAY_NANOS = 300_000_000L;
+    private static final long CONFIG_DELETE_CONFIRM_TIMEOUT_NANOS = 3_000_000_000L;
+    private static final String CONFIG_DELETE_CONFIRM_LABEL = "Delete";
+    private ConfigEntry armedDeleteConfig;
+    private long armedDeleteNanos;
     private float panelAnchorY = Float.NaN;
     private float panelAnchorRise;
     private float panelAnchorLeft = Float.NaN;
@@ -388,6 +405,17 @@ public class NanoVGClickGuiScreen extends Screen {
             }
         }
 
+        if (button == Keys.MOUSE_BUTTON_LEFT && isModuleView() && maxConfigListScroll > 0f
+                && configScrollbarTrackRect.contains(mouseX, mouseY)) {
+            clearTextFocus();
+            float offsetY = configScrollbarThumbRect.contains(mouseX, mouseY)
+                    ? mouseY - configScrollbarThumbRect.y
+                    : configScrollbarThumbRect.height / 2f;
+            activeConfigScrollbar = new ScrollbarDrag(offsetY);
+            updateConfigScrollbarDrag(mouseY);
+            return true;
+        }
+
         if (button == Keys.MOUSE_BUTTON_LEFT && !searchQuery.isBlank() && searchClearRect.contains(mouseX, mouseY)) {
             clearSearch();
             return true;
@@ -451,6 +479,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
             if (button == Keys.MOUSE_BUTTON_LEFT) {
                 closeListDropdown();
+                clearTextFocus();
                 pressedModule = row.module;
                 row.module.toggle();
                 return true;
@@ -493,6 +522,11 @@ public class NanoVGClickGuiScreen extends Screen {
             return true;
         }
 
+        if (activeConfigScrollbar != null) {
+            updateConfigScrollbarDrag(NanoVGManager.toScaledMouseY(event.y()));
+            return true;
+        }
+
         if (activeScrollbar != null) {
             updateScrollbarDrag(NanoVGManager.toScaledMouseY(event.y()));
             return true;
@@ -511,6 +545,7 @@ public class NanoVGClickGuiScreen extends Screen {
         pressedModule = null;
         activeScrollbar = null;
         activeSettingsPanelScrollbar = null;
+        activeConfigScrollbar = null;
         draggingTextSelection = false;
         return super.mouseReleased(event);
     }
@@ -543,6 +578,20 @@ public class NanoVGClickGuiScreen extends Screen {
                     -22f,
                     22f
             );
+            return true;
+        }
+
+        if (isModuleView() && (configListViewport.contains(scaledX, scaledY) || configScrollbarTrackRect.contains(scaledX, scaledY))) {
+            if (maxConfigListScroll > 0f) {
+                float previousTarget = targetConfigListScroll;
+                float scrollStep = Math.clamp(configListViewport.height * 0.11f, u(36f), u(64f));
+                targetConfigListScroll = Math.clamp(targetConfigListScroll - (float) vertical * scrollStep, 0f, maxConfigListScroll);
+                configListScrollVelocity = Math.clamp(
+                        configListScrollVelocity + (targetConfigListScroll - previousTarget) * 0.08f,
+                        -22f,
+                        22f
+                );
+            }
             return true;
         }
 
@@ -658,6 +707,11 @@ public class NanoVGClickGuiScreen extends Screen {
         }
 
         if (key == Keys.KEY_ESCAPE && isModuleView()) {
+            if (textFocus == TextFocus.CONFIG_NAME) {
+                newConfigName = "";
+                resetTextFocus();
+                return true;
+            }
             if (isTypeSearchVisible()) {
                 typeSearchOpen = false;
                 clearSearch();
@@ -899,9 +953,14 @@ public class NanoVGClickGuiScreen extends Screen {
         vg.globalAlpha(easeOut(openProgress), () -> {
             if (isModuleView()) {
                 renderColumnView(vg, screenWidth, screenHeight);
+                renderConfigManager(vg, screenWidth, screenHeight);
                 renderFloatingModulePanel(vg, screenWidth, screenHeight);
             } else {
                 columns.clear();
+                configManagerRect = EMPTY_RECT;
+                configListViewport = EMPTY_RECT;
+                configScrollbarTrackRect = EMPTY_RECT;
+                configScrollbarThumbRect = EMPTY_RECT;
                 renderPanelEffects(vg, panel.x, panel.y, panel.width, panel.height);
                 renderPanel(vg, panel.x, panel.y, panel.width, panel.height);
                 renderSettingsPanel(vg, panel);
@@ -1116,6 +1175,9 @@ public class NanoVGClickGuiScreen extends Screen {
         scrollbarThumbRect = EMPTY_RECT;
         maxListScroll = 0f;
 
+        if (typeSearchOpen && textFocus != TextFocus.SEARCH && searchQuery.isEmpty())
+            typeSearchOpen = false;
+
         float searchCurrent = animations.getOrDefault("type-search", 0f);
         float searchRaw = isTypeSearchVisible()
                 ? approach(searchCurrent, 1f, 0.2f * frameDelta)
@@ -1141,9 +1203,6 @@ public class NanoVGClickGuiScreen extends Screen {
         }
 
         renderTypeSearch(vg, searchBar, searchProgress);
-
-        if (columns.isEmpty() && !searchQuery.isBlank())
-            NVGFonts.INTER.drawText("No match", screenWidth / 2f, top + u(4f), COLUMN_FONT, NanoVGTheme.muted(220), Alignment.CENTER_TOP, true);
     }
 
     private boolean isTypeSearchVisible() {
@@ -1182,7 +1241,7 @@ public class NanoVGClickGuiScreen extends Screen {
         columns.clear();
         String query = normalize(searchQuery);
         for (ModuleCategory category : ModuleCategory.values()) {
-            if (!query.isBlank() && category == ModuleCategory.Dev)
+            if (category == ModuleCategory.Dev && (!query.isBlank() || !ConfigManager.isDeveloperFeaturesEnabled()))
                 continue;
 
             GuiColumn column = new GuiColumn(category, category.name());
@@ -1202,8 +1261,6 @@ public class NanoVGClickGuiScreen extends Screen {
 
         if (query.isBlank()) {
             GuiColumn client = new GuiColumn(CLIENT_COLUMN_KEY, "Client");
-            for (ConfigTab tab : ConfigTab.values())
-                client.rows.add(tabColumnRow(tab.sidebarLabel, tab, null));
             for (CommandTab tab : CommandTab.values())
                 client.rows.add(tabColumnRow(tab.sidebarLabel, null, tab));
             columns.add(client);
@@ -1260,6 +1317,8 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private static ColumnRow moduleColumnRow(Module module) {
         float labelWidth = NVGFonts.INTER_MEDIUM.getWidth(module.moduleName, COLUMN_FONT);
+        if (module.isLocked())
+            labelWidth += NVGFonts.ICON.getWidth(MaterialIcon.LOCK, COLUMN_FONT) + u(4f);
         return new ColumnRow(module, null, null, module.moduleName, labelWidth + COLUMN_PADDING_X * 2f);
     }
 
@@ -1278,7 +1337,8 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private void renderColumnRows(NVGU vg, GuiColumn column, float rowHeight) {
         float textOffset = (rowHeight - NVGFonts.INTER.getHeight(COLUMN_FONT)) / 2f;
-        boolean overPanel = isSettingsDockOpen() && settingsPanelRect.contains(scaledMouseX, scaledMouseY);
+        boolean overPanel = isSettingsDockOpen() && settingsPanelRect.contains(scaledMouseX, scaledMouseY)
+                || configManagerRect.contains(scaledMouseX, scaledMouseY);
         for (int rowIndex = 0; rowIndex < column.rows.size(); rowIndex++) {
             ColumnRow row = column.rows.get(rowIndex);
             Rect strip = new Rect(column.x + u(3f), column.rowsTop + rowIndex * rowHeight, column.width - u(6f), rowHeight);
@@ -1315,7 +1375,274 @@ public class NanoVGClickGuiScreen extends Screen {
             float enabled = animateIdentity(enabledAnimations, enabledAnimationFrames, module, module.tempEnabled, 0.12f);
             Color color = mix(NanoVGTheme.MUTED, NanoVGTheme.TEXT, enabled);
             NVGFonts.INTER_MEDIUM.drawText(row.label(), textX, textY, COLUMN_FONT, color, Alignment.LEFT_TOP, true);
+            if (module.isLocked()) {
+                float lockX = textX + NVGFonts.INTER_MEDIUM.getWidth(row.label(), COLUMN_FONT) + u(4f);
+                NVGFonts.ICON.drawText(MaterialIcon.LOCK, lockX, strip.y + strip.height / 2f, COLUMN_FONT, NanoVGTheme.muted(200), Alignment.LEFT_MIDDLE, true);
+            }
         }
+    }
+
+    private void renderConfigManager(NVGU vg, float screenWidth, float screenHeight) {
+        List<ConfigEntry> configs = configEntries("");
+        boolean creatable = selectedConfigTab != ConfigTab.ONLINE;
+        float rowHeight = columnRowHeight();
+        float tabFont = COLUMN_FONT;
+        float tabGap = u(12f);
+        float tabsWidth = 0f;
+        ConfigTab[] tabs = ConfigTab.values();
+        for (ConfigTab tab : tabs)
+            tabsWidth += NVGFonts.INTER_MEDIUM.getWidth(configTabLabel(tab), tabFont);
+        tabsWidth += tabGap * (tabs.length - 1);
+
+        float width = Math.max(COLUMN_MIN_WIDTH, tabsWidth + COLUMN_PADDING_X * 2f);
+        for (ConfigEntry config : configs) {
+            String updated = configListUpdatedLabel(config);
+            float trailing = NVGFonts.INTER_MEDIUM.getWidth(CONFIG_DELETE_CONFIRM_LABEL, CONFIG_MANAGER_DATE_FONT) + u(22f)
+                    + (updated.isBlank() ? 0f : NVGFonts.INTER.getWidth(updated, CONFIG_MANAGER_DATE_FONT) + u(8f));
+            width = Math.max(width, NVGFonts.INTER_MEDIUM.getWidth(config.name(), COLUMN_FONT) + COLUMN_PADDING_X * 2f + trailing);
+        }
+
+        float configsContentHeight = configs.size() * rowHeight;
+        float maxListHeight = Math.min(CONFIG_MANAGER_MAX_LIST_HEIGHT, Math.max(rowHeight, screenHeight * 0.4f));
+        float configsHeight = Math.min(configsContentHeight, maxListHeight);
+        maxConfigListScroll = Math.max(0f, configsContentHeight - configsHeight);
+        boolean scrollable = maxConfigListScroll > 0f;
+        if (scrollable)
+            width += u(8f);
+        updateConfigListSmoothScroll(frameDelta);
+        float listHeight = configsHeight + (creatable ? rowHeight : 0f);
+        float tabsHeight = rowHeight + u(4f);
+        float height = u(4f) + listHeight + tabsHeight;
+        float rise = (1f - easeOut(openProgress)) * u(10f);
+        float x = screenWidth - COLUMN_MARGIN - width;
+        float y = screenHeight - COLUMN_MARGIN - height + rise;
+        Rect panel = new Rect(x, y, width, height);
+        configManagerRect = panel;
+
+        String currentName = null;
+        Rect currentRect = null;
+        float currentLabelFont = font(9f);
+        String currentLabel = "Current";
+        if (Client.configManager != null) {
+            boolean bind = selectedConfigTab == ConfigTab.BIND;
+            String name = bind ? Client.configManager.bindCurrent : Client.configManager.configCurrent;
+            if (currentConfigExists(name, bind)) {
+                currentName = name;
+                float contentWidth = NVGFonts.INTER_MEDIUM.getWidth(currentLabel, currentLabelFont) + u(5f)
+                        + NVGFonts.INTER_MEDIUM.getWidth(name, COLUMN_FONT);
+                float currentWidth = Math.min(screenWidth - COLUMN_MARGIN * 2f, contentWidth + COLUMN_PADDING_X * 2f);
+                currentRect = new Rect(panel.x + panel.width - currentWidth, panel.y - u(6f) - rowHeight, currentWidth, rowHeight);
+            }
+        }
+
+        NotificationManager.avoidAbove((currentRect != null ? currentRect.y : panel.y) - u(8f));
+
+        vg.beginEffectBatch();
+        NanoVGTheme.renderPanelEffects(vg, panel.x, panel.y, panel.width, panel.height, NanoVGTheme.RADIUS_PANEL, 1f);
+        if (currentRect != null)
+            NanoVGTheme.renderPanelEffects(vg, currentRect.x, currentRect.y, currentRect.width, currentRect.height, NanoVGTheme.RADIUS_PANEL, 1f);
+        vg.flushEffectBatch();
+        NanoVGTheme.renderPanel(vg, panel.x, panel.y, panel.width, panel.height, NanoVGTheme.RADIUS_PANEL, 1f, COLUMN_PANEL_ALPHA_OFFSET);
+
+        float textOffset = (rowHeight - NVGFonts.INTER.getHeight(COLUMN_FONT)) / 2f;
+        if (currentRect != null) {
+            NanoVGTheme.renderPanel(vg, currentRect.x, currentRect.y, currentRect.width, currentRect.height, NanoVGTheme.RADIUS_PANEL, 1f, COLUMN_PANEL_ALPHA_OFFSET);
+            float nameRight = currentRect.x + currentRect.width - COLUMN_PADDING_X;
+            float nameY = currentRect.y + textOffset;
+            float nameWidth = NVGFonts.INTER_MEDIUM.getWidth(currentName, COLUMN_FONT);
+            NVGFonts.INTER_MEDIUM.drawText(currentName, nameRight, nameY, COLUMN_FONT, NanoVGTheme.TEXT, Alignment.RIGHT_TOP, true);
+            NVGFonts.INTER_MEDIUM.drawText(currentLabel, nameRight - nameWidth - u(5f), currentRect.centerY(), currentLabelFont,
+                    NanoVGTheme.muted(220), Alignment.RIGHT_MIDDLE, true);
+        }
+        float listTop = panel.y + u(4f);
+        float rowsWidth = panel.width - u(6f) - (scrollable ? u(8f) : 0f);
+        Rect viewport = new Rect(panel.x, listTop, panel.width - (scrollable ? u(8f) : 0f), configsHeight);
+        configListViewport = viewport;
+        boolean underSettings = isSettingsDockOpen() && settingsPanelRect.contains(scaledMouseX, scaledMouseY);
+        withInputClip(viewport, () -> vg.scissor(viewport.x, viewport.y, viewport.width, viewport.height, () -> {
+            float configY = listTop - configListScroll;
+            for (ConfigEntry config : configs) {
+                if (configY + rowHeight > viewport.y && configY < viewport.y + viewport.height) {
+                    Rect row = new Rect(panel.x + u(3f), configY, rowsWidth, rowHeight - 0.001f);
+                    renderConfigManagerRow(vg, config, row, textOffset, underSettings);
+                }
+                configY += rowHeight;
+            }
+        }));
+        renderConfigScrollbar(vg, viewport, configsContentHeight);
+        float rowY = listTop + configsHeight;
+
+        if (creatable) {
+            Rect row = new Rect(panel.x + u(3f), rowY, panel.width - u(6f), rowHeight - 0.001f);
+            addControl(ControlType.CONFIG_NAME, row, null, null, 0);
+            boolean active = textFocus == TextFocus.CONFIG_NAME;
+            String text = inputText(newConfigName, active, "New config");
+            Color color = newConfigName.isEmpty() && !active ? NanoVGTheme.muted(170) : NanoVGTheme.TEXT;
+            NVGFonts.ICON.drawText(MaterialIcon.ADD, row.x + u(6f), row.centerY(), COLUMN_FONT, NanoVGTheme.muted(active ? 255 : 190), Alignment.LEFT_MIDDLE, true);
+            float textX = row.x + u(6f) + NVGFonts.ICON.getWidth(MaterialIcon.ADD, COLUMN_FONT) + u(4f);
+            float textY = row.y + textOffset;
+            renderInputText(vg, TextFocus.CONFIG_NAME, null, active, text, COLUMN_FONT, textX, textY, textY, row.x + row.width - u(6f) - textX, row, color);
+            rowY += rowHeight;
+        }
+
+        float tabsY = panel.y + panel.height - tabsHeight + u(1f);
+        float tabX = panel.x + (panel.width - tabsWidth) / 2f;
+        for (ConfigTab tab : tabs) {
+            String label = configTabLabel(tab);
+            float labelWidth = NVGFonts.INTER_MEDIUM.getWidth(label, tabFont);
+            Rect hit = new Rect(tabX - tabGap / 2f, tabsY, labelWidth + tabGap, rowHeight);
+            addControl(ControlType.CONFIG_TAB, hit, tab, null, 0);
+            float selected = animate("config-tab:" + tab.name(), selectedConfigTab == tab, 0.2f);
+            NVGFonts.INTER_MEDIUM.drawText(label, tabX, tabsY + textOffset, tabFont, mix(NanoVGTheme.MUTED, NanoVGTheme.TEXT, selected), Alignment.LEFT_TOP, true);
+            tabX += labelWidth + tabGap;
+        }
+    }
+
+    private void renderConfigManagerRow(NVGU vg, ConfigEntry config, Rect row, float textOffset, boolean underSettings) {
+        boolean renaming = isRenamingConfig(config);
+        float textX = row.x + u(6f);
+        float textY = row.y + textOffset;
+        if (renaming) {
+            addControl(ControlType.CONFIG_RENAME, row, config, null, 0);
+            String text = inputText(renameConfigName, true, "");
+            renderInputText(vg, TextFocus.CONFIG_RENAME, config, true, text, COLUMN_FONT, textX, textY, textY, row.width - u(12f), row, NanoVGTheme.TEXT);
+            return;
+        }
+
+        boolean deletable = config.type() != ConfigTab.ONLINE && !config.current();
+        boolean hovered = !underSettings && row.contains(scaledMouseX, scaledMouseY)
+                && configListViewport.contains(scaledMouseX, scaledMouseY);
+        boolean armed = isDeleteArmed(config);
+        if (armed && (!hovered || System.nanoTime() - armedDeleteNanos > CONFIG_DELETE_CONFIRM_TIMEOUT_NANOS)) {
+            armedDeleteConfig = null;
+            armed = false;
+        }
+        boolean showDelete = deletable && hovered;
+        String updated = configListUpdatedLabel(config);
+        float dateWidth = updated.isBlank() ? 0f : NVGFonts.INTER.getWidth(updated, CONFIG_MANAGER_DATE_FONT) + u(8f);
+        float trailingRight = row.x + row.width - dateWidth;
+        String deleteKey = config.type().name() + ":" + config.name();
+        float armedFade = animate("config-delete-armed:" + deleteKey, showDelete && armed, 0.2f);
+        float iconFade = animate("config-delete-icon:" + deleteKey, showDelete && !armed, 0.2f);
+        if (armedFade > 0.01f) {
+            float labelWidth = NVGFonts.INTER_MEDIUM.getWidth(CONFIG_DELETE_CONFIRM_LABEL, CONFIG_MANAGER_DATE_FONT);
+            float width = labelWidth + u(12f);
+            Rect delete = new Rect(trailingRight - width - u(4f), row.y + u(2f), width, row.height - u(4f));
+            if (showDelete && armed)
+                addControl(ControlType.CONFIG_DELETE, delete, config, null, 0);
+            boolean deleteHovered = delete.contains(scaledMouseX, scaledMouseY);
+            boolean ready = armed && System.nanoTime() - armedDeleteNanos >= CONFIG_DELETE_CONFIRM_DELAY_NANOS;
+            int fillAlpha = ready ? (deleteHovered ? 235 : 190) : 110;
+            vg.globalAlpha(armedFade, () -> {
+                vg.roundedRectangle(delete.x, delete.y, delete.width, delete.height, delete.height / 2f,
+                        alpha(NanoVGTheme.DANGER.getRed(), NanoVGTheme.DANGER.getGreen(), NanoVGTheme.DANGER.getBlue(), fillAlpha));
+                NVGFonts.INTER_MEDIUM.drawText(CONFIG_DELETE_CONFIRM_LABEL, delete.centerX(), delete.centerY(), CONFIG_MANAGER_DATE_FONT,
+                        NanoVGTheme.TEXT, Alignment.CENTER_MIDDLE, true);
+            });
+        }
+        if (iconFade > 0.01f) {
+            Rect delete = new Rect(trailingRight - u(20f), row.y, u(18f), row.height);
+            if (showDelete && !armed)
+                addControl(ControlType.CONFIG_DELETE, delete, config, null, 0);
+            boolean deleteHovered = showDelete && delete.contains(scaledMouseX, scaledMouseY);
+            float deleteHover = animate("config-delete-hover:" + deleteKey, deleteHovered, 0.25f);
+            vg.globalAlpha(iconFade, () -> NVGFonts.ICON.drawText(MaterialIcon.DELETE, delete.centerX(), delete.centerY(), COLUMN_FONT,
+                    mix(NanoVGTheme.muted(200), NanoVGTheme.DANGER, deleteHover), Alignment.CENTER_MIDDLE, true));
+        }
+        addControl(ControlType.CONFIG_LOAD, row, config, null, 0);
+
+        String currentKey = "config-current:" + config.type().name() + ":" + config.name();
+        animations.putIfAbsent(currentKey, config.current() ? 1f : 0f);
+        float current = animate(currentKey, config.current(), 0.12f);
+        NVGFonts.INTER_MEDIUM.drawText(config.name(), textX, textY, COLUMN_FONT, mix(NanoVGTheme.MUTED, NanoVGTheme.TEXT, current), Alignment.LEFT_TOP, true);
+
+        if (!updated.isBlank())
+            NVGFonts.INTER.drawText(updated, row.x + row.width - u(6f), row.centerY(), CONFIG_MANAGER_DATE_FONT,
+                    NanoVGTheme.muted(200), Alignment.RIGHT_MIDDLE, true);
+    }
+
+    private void updateConfigListSmoothScroll(float delta) {
+        targetConfigListScroll = Math.clamp(targetConfigListScroll, 0f, maxConfigListScroll);
+
+        if (activeConfigScrollbar != null) {
+            configListScrollVelocity = 0f;
+            configListScroll = targetConfigListScroll;
+            return;
+        }
+
+        if (maxConfigListScroll <= 0f) {
+            targetConfigListScroll = 0f;
+            configListScroll = 0f;
+            configListScrollVelocity = 0f;
+            return;
+        }
+
+        float distance = targetConfigListScroll - configListScroll;
+        configListScrollVelocity += distance * 0.045f * delta;
+        configListScrollVelocity *= (float) Math.pow(0.74f, delta);
+        configListScrollVelocity = Math.clamp(configListScrollVelocity, -42f, 42f);
+
+        configListScroll += configListScrollVelocity * delta;
+        configListScroll = approach(configListScroll, targetConfigListScroll, 1f - (float) Math.pow(0.91f, delta));
+
+        if (configListScroll < 0f || configListScroll > maxConfigListScroll) {
+            configListScroll = Math.clamp(configListScroll, 0f, maxConfigListScroll);
+            configListScrollVelocity = 0f;
+        }
+
+        if (Math.abs(targetConfigListScroll - configListScroll) < 0.06f && Math.abs(configListScrollVelocity) < 0.06f) {
+            configListScroll = targetConfigListScroll;
+            configListScrollVelocity = 0f;
+        }
+    }
+
+    private void renderConfigScrollbar(NVGU vg, Rect viewport, float contentHeight) {
+        if (contentHeight <= viewport.height + 1f) {
+            configScrollbarTrackRect = EMPTY_RECT;
+            configScrollbarThumbRect = EMPTY_RECT;
+            return;
+        }
+
+        float thumbHeight = Math.max(u(22f), viewport.height * viewport.height / contentHeight);
+        float travel = viewport.height - thumbHeight;
+        float thumbY = viewport.y + travel * (configListScroll / Math.max(1f, contentHeight - viewport.height));
+        float trackX = viewport.x + viewport.width + u(2f);
+        configScrollbarTrackRect = new Rect(trackX - u(5f), viewport.y, u(12f), viewport.height);
+        configScrollbarThumbRect = new Rect(trackX - u(1f), thumbY, u(5f), thumbHeight);
+
+        boolean hovered = configScrollbarTrackRect.contains(scaledMouseX, scaledMouseY) || activeConfigScrollbar != null;
+        float progress = animate("config-scrollbar", hovered, 0.18f);
+        vg.roundedRectangle(trackX + u(1f), viewport.y + u(4f), u(2f), viewport.height - u(8f), u(1f),
+                alpha(255, 255, 255, (int) (18 + 18 * progress)));
+        vg.roundedRectangle(configScrollbarThumbRect.x, configScrollbarThumbRect.y, configScrollbarThumbRect.width,
+                configScrollbarThumbRect.height, u(2.5f), NanoVGTheme.scrollbarThumb((int) (112 + 86 * progress)));
+    }
+
+    private void updateConfigScrollbarDrag(float mouseY) {
+        if (activeConfigScrollbar == null || maxConfigListScroll <= 0f
+                || configScrollbarTrackRect.height <= 0f || configScrollbarThumbRect.height <= 0f)
+            return;
+
+        float travel = Math.max(1f, configScrollbarTrackRect.height - configScrollbarThumbRect.height);
+        float thumbY = Math.clamp(mouseY - activeConfigScrollbar.offsetY, configScrollbarTrackRect.y, configScrollbarTrackRect.y + travel);
+        float progress = (thumbY - configScrollbarTrackRect.y) / travel;
+        targetConfigListScroll = Math.clamp(progress * maxConfigListScroll, 0f, maxConfigListScroll);
+        configListScroll = targetConfigListScroll;
+        configListScrollVelocity = 0f;
+    }
+
+    private boolean isDeleteArmed(ConfigEntry config) {
+        return armedDeleteConfig != null && config != null
+                && armedDeleteConfig.type() == config.type()
+                && armedDeleteConfig.name().equalsIgnoreCase(config.name());
+    }
+
+    private static String configTabLabel(ConfigTab tab) {
+        return switch (tab) {
+            case MODULE -> "Module";
+            case BIND -> "Bind";
+            case ONLINE -> "Online";
+        };
     }
 
     private void renderFloatingModulePanel(NVGU vg, float screenWidth, float screenHeight) {
@@ -1336,7 +1663,7 @@ public class NanoVGClickGuiScreen extends Screen {
         float width = Math.min(MODULE_PANEL_WIDTH, screenWidth - COLUMN_MARGIN * 2f);
         float padding = u(8f);
         float titleFont = font(12f);
-        float titleWidth = width - padding * 2f - SET_SWITCH_WIDTH - u(8f);
+        float titleWidth = width - padding * 2f - (module.isLocked() ? 0f : SET_SWITCH_WIDTH + u(8f));
         float headerHeight = u(26f) + (wrappedLineCount(module.moduleName, NVGFonts.INTER_SEMIBOLD, titleFont, titleWidth) - 1) * u(15f);
         float viewportWidth = width - u(15f);
         settingsPanelViewport = new Rect(0f, 0f, viewportWidth, 0f);
@@ -1380,18 +1707,20 @@ public class NanoVGClickGuiScreen extends Screen {
                 drawWrappedText(NVGFonts.INTER_SEMIBOLD, module.moduleName, panel.x + padding, panel.y + u(6f), titleFont,
                         titleWidth, u(15f), NanoVGTheme.TEXT, Alignment.LEFT_TOP);
                 Rect enableRect = new Rect(panel.x + panel.width - padding - SET_SWITCH_WIDTH, panel.y + u(7f), SET_SWITCH_WIDTH, SET_SWITCH_HEIGHT);
-                if (settingsPanelModule != null)
-                    addControl(ControlType.MODULE_ENABLED, enableRect.expand(u(4f), u(6f)), module, null, 0);
-                drawSwitch(
-                        vg,
-                        enableRect.x,
-                        enableRect.y,
-                        enableRect.width,
-                        enableRect.height,
-                        animateIdentity(enabledAnimations, enabledAnimationFrames, module, module.tempEnabled, 0.12f),
-                        "enable:" + System.identityHashCode(module),
-                        isPressed(ControlType.MODULE_ENABLED, module)
-                );
+                if (!module.isLocked()) {
+                    if (settingsPanelModule != null)
+                        addControl(ControlType.MODULE_ENABLED, enableRect.expand(u(4f), u(6f)), module, null, 0);
+                    drawSwitch(
+                            vg,
+                            enableRect.x,
+                            enableRect.y,
+                            enableRect.width,
+                            enableRect.height,
+                            animateIdentity(enabledAnimations, enabledAnimationFrames, module, module.tempEnabled, 0.12f),
+                            "enable:" + System.identityHashCode(module),
+                            isPressed(ControlType.MODULE_ENABLED, module)
+                    );
+                }
 
                 withInputClip(viewport, () -> vg.scissor(viewport.x, viewport.y, viewport.width, viewport.height,
                         () -> renderExpandedSettings(vg, module, viewport.x, viewport.y - settingsPanelScroll, viewport.width)));
@@ -1535,9 +1864,9 @@ public class NanoVGClickGuiScreen extends Screen {
                         );
                         drawWrappedText(headerNameFont, headerName, headerNameX, settingsPanelRect.y + u(14f), headerFont,
                                 headerNameWidth, NAME_LINE_HEIGHT, NanoVGTheme.TEXT, Alignment.LEFT_TOP);
-                        if (settingsPanelModule != null)
+                        if (settingsPanelModule != null && !module.isLocked())
                             addControl(ControlType.MODULE_ENABLED, enableRect.expand(u(4f), u(6f)), module, null, 0);
-                        drawSwitch(
+                        if (!module.isLocked()) drawSwitch(
                                 vg,
                                 enableRect.x,
                                 enableRect.y,
@@ -2676,12 +3005,17 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private float renderBaseSettingRows(NVGU vg, Module module, float x, float y, float width) {
         float rowY = renderModuleNote(vg, module, x, y, width);
-        float arrayHeight = wrappedSettingRowHeight("Show on array", booleanLabelMaxWidth(width));
-        Rect array = new Rect(x, rowY, width, arrayHeight);
-        addControl(ControlType.SHOW_ON_ARRAY, settingSwitchRect(array).expand(u(3f), u(3f)), module, null, 0);
-        float shownOnArray = animateIdentity(switchAnimations, switchAnimationFrames, module, module.showOnArray, 0.12f);
-        renderBooleanRow(vg, array, "Show on array", "array", module, module.showOnArray, shownOnArray, "array:" + System.identityHashCode(module), isPressed(ControlType.SHOW_ON_ARRAY, module));
-        rowY += arrayHeight + settingRowGap();
+        if (!module.isLocked()) {
+            float arrayHeight = wrappedSettingRowHeight("Show on array", booleanLabelMaxWidth(width));
+            Rect array = new Rect(x, rowY, width, arrayHeight);
+            addControl(ControlType.SHOW_ON_ARRAY, settingSwitchRect(array).expand(u(3f), u(3f)), module, null, 0);
+            float shownOnArray = animateIdentity(switchAnimations, switchAnimationFrames, module, module.showOnArray, 0.12f);
+            renderBooleanRow(vg, array, "Show on array", "array", module, module.showOnArray, shownOnArray, "array:" + System.identityHashCode(module), isPressed(ControlType.SHOW_ON_ARRAY, module));
+            rowY += arrayHeight + settingRowGap();
+        }
+
+        if (!module.isBindable())
+            return rowY;
 
         Rect key = new Rect(x, rowY, width, SET_ROW);
         addControl(ControlType.MODULE_KEY, key, module, null, 0);
@@ -3014,7 +3348,8 @@ public class NanoVGClickGuiScreen extends Screen {
                     && textFocus == TextFocus.CONFIG_RENAME
                     && isSameConfig(renamingConfig, entry)) {
                 cancelConfigRename();
-                toggleConfigPanel(entry);
+                if (!isModuleView())
+                    toggleConfigPanel(entry);
                 return true;
             }
         }
@@ -3028,7 +3363,8 @@ public class NanoVGClickGuiScreen extends Screen {
 
         if (button == Keys.MOUSE_BUTTON_RIGHT) {
             if (control.type == ControlType.CONFIG_LOAD || control.type == ControlType.CONFIG_RENAME) {
-                toggleConfigPanel((ConfigEntry) control.target);
+                if (!isModuleView())
+                    toggleConfigPanel((ConfigEntry) control.target);
                 return true;
             }
 
@@ -3053,6 +3389,13 @@ public class NanoVGClickGuiScreen extends Screen {
             closeListDropdown();
 
         switch (control.type) {
+            case CONFIG_TAB -> {
+                selectedConfigTab = (ConfigTab) control.target;
+                newConfigName = "";
+                configListScroll = 0f;
+                targetConfigListScroll = 0f;
+                configListScrollVelocity = 0f;
+            }
             case CONFIG_NAME -> {
                 textFocus = TextFocus.CONFIG_NAME;
                 beginTextSelectionOrSelectAll(mouseX, doubleClick);
@@ -3079,7 +3422,19 @@ public class NanoVGClickGuiScreen extends Screen {
             case CONFIG_LOAD -> loadConfigEntry((ConfigEntry) control.target);
             case CONFIG_RENAME -> {
             }
-            case CONFIG_DELETE -> deleteConfigEntry((ConfigEntry) control.target);
+            case CONFIG_DELETE -> {
+                ConfigEntry target = (ConfigEntry) control.target;
+                long now = System.nanoTime();
+                if (isDeleteArmed(target)) {
+                    if (now - armedDeleteNanos >= CONFIG_DELETE_CONFIRM_DELAY_NANOS) {
+                        armedDeleteConfig = null;
+                        deleteConfigEntry(target);
+                    }
+                } else {
+                    armedDeleteConfig = target;
+                    armedDeleteNanos = now;
+                }
+            }
             case SHOW_ON_ARRAY -> {
                 Module module = (Module) control.target;
                 module.showOnArray = !module.showOnArray;
@@ -3472,7 +3827,10 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private List<ConfigEntry> visibleConfigEntries() {
-        String query = normalize(searchQuery);
+        return configEntries(normalize(searchQuery));
+    }
+
+    private List<ConfigEntry> configEntries(String query) {
         List<ConfigEntry> entries = new ArrayList<>();
 
         switch (selectedConfigTab) {
@@ -3501,6 +3859,17 @@ public class NanoVGClickGuiScreen extends Screen {
 
         entries.sort(Comparator.comparing(ConfigEntry::name, String.CASE_INSENSITIVE_ORDER));
         return entries;
+    }
+
+    private boolean currentConfigExists(String currentName, boolean bind) {
+        if (currentName == null || currentName.isBlank())
+            return false;
+
+        for (Path path : bind ? FileUtil.INSTANCE.getBindFiles() : FileUtil.INSTANCE.getModuleFiles()) {
+            if (configName(path).equalsIgnoreCase(currentName))
+                return true;
+        }
+        return false;
     }
 
     private boolean matchesConfigSearch(String name, String query) {
@@ -3653,7 +4022,7 @@ public class NanoVGClickGuiScreen extends Screen {
         File base = new File(Client.configManager.BASE_DIR, "module_configs");
         File configFile = new File(base, configName + ".json");
         if (base.exists() && configFile.exists())
-            Client.configManager.saveConfigFile(configName, true);
+            Client.configManager.saveConfigFile(configName, true, Client.configManager.configUpdatedAt(false, configName));
     }
 
     private static void saveCurrentBindConfig() {
@@ -3701,7 +4070,9 @@ public class NanoVGClickGuiScreen extends Screen {
         List<SettingValue<?>> settings = collectSettings(module);
         float rowWidth = Math.max(u(40f), settingsPanelViewport.width - u(4f));
         float arrayHeight = wrappedSettingRowHeight("Show on array", booleanLabelMaxWidth(rowWidth));
-        float height = u(1f) + arrayHeight + settingRowGap() + SET_ROW + settingRowGap() + moduleNoteHeight(module);
+        float height = u(1f) + moduleNoteHeight(module)
+                + (module.isLocked() ? 0f : arrayHeight + settingRowGap())
+                + (module.isBindable() ? SET_ROW + settingRowGap() : 0f);
 
         if (settings.isEmpty()) {
             height += u(30f);
@@ -4501,6 +4872,8 @@ public class NanoVGClickGuiScreen extends Screen {
             return CursorTypes.POINTING_HAND;
         if (hitRect(settingsPanelScrollbarThumbRect) || hitRect(settingsPanelScrollbarTrackRect))
             return CursorTypes.POINTING_HAND;
+        if (hitRect(configScrollbarThumbRect) || hitRect(configScrollbarTrackRect))
+            return CursorTypes.POINTING_HAND;
 
         if (isSettingsDockOpen() && hitRect(settingsPanelRect)) {
             CursorType settingsCursor = cursorForControls(settingsPanelControlStartIndex, controls.size());
@@ -4573,20 +4946,18 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private <T> float animateIdentity(Map<T, Float> states, Map<T, Long> frames, T key, boolean active, float speed) {
         Float current = states.get(key);
-        if (!active && current == null)
-            return 0f;
+        if (current == null) {
+            float initial = active ? 1f : 0f;
+            states.put(key, initial);
+            frames.put(key, animationFrame);
+            return initial;
+        }
 
         Long frame = frames.get(key);
         if (frame != null && frame == animationFrame)
-            return current == null ? 0f : current;
+            return current;
 
-        float progress = stepTowards(current == null ? 0f : current, active ? 1f : 0f, speed * frameDelta);
-        if (progress <= 0.001f && !active) {
-            states.remove(key);
-            frames.remove(key);
-            return 0f;
-        }
-
+        float progress = stepTowards(current, active ? 1f : 0f, speed * frameDelta);
         states.put(key, progress);
         frames.put(key, animationFrame);
         return progress;
@@ -5021,6 +5392,7 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private enum ControlType {
+        CONFIG_TAB,
         CONFIG_NAME,
         CONFIG_CREATE,
         CONFIG_LOAD,

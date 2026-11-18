@@ -2,7 +2,6 @@ package com.instrumentalist.krs.hacks.features.render;
 
 
 
-import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.KeyboardEvent;
 import com.instrumentalist.krs.events.features.MouseScrollEvent;
 import com.instrumentalist.krs.events.features.RenderHudEvent;
@@ -18,7 +17,7 @@ import xyz.breadloaf.imguimc.customwindow.ModuleRenderable;
 public class Zoom extends Module {
 
     public Zoom() {
-        super("Zoom", ModuleCategory.Render, Keys.KEY_UNKNOWN, true, false);
+        super("Zoom", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, false);
     }
 
     @Setting
@@ -60,8 +59,11 @@ public class Zoom extends Module {
 
     @Override
     public void onDisable() {
-        if (Client.loaded)
-            this.toggle();
+    }
+
+    @Override
+    public boolean isLocked() {
+        return true;
     }
 
     @Override

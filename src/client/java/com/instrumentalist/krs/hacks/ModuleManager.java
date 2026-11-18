@@ -124,6 +124,13 @@ public class ModuleManager implements EventListener {
         registeredEventManager.register(INSTANCE);
 
         activateInitialModuleStates();
+
+        for (Module module : allModules) {
+            if (module.isLocked()) {
+                module.enforceLock();
+                registeredEventManager.register(module);
+            }
+        }
     }
 
     public static synchronized void shutdown() {
@@ -173,6 +180,24 @@ public class ModuleManager implements EventListener {
         Interface.reloadSortedModules();
     }
 
+    public static synchronized void disableDeveloperModules() {
+        boolean changed = false;
+        for (Module module : allModules) {
+            if (module.moduleCategory != ModuleCategory.Dev || !module.tempEnabled)
+                continue;
+            try {
+                module.setState(false);
+                changed = true;
+            } catch (RuntimeException | Error failure) {
+                System.err.println("Failed to disable module: " + module.moduleName);
+                failure.printStackTrace(System.err);
+            }
+        }
+
+        if (changed)
+            Interface.reloadSortedModules();
+    }
+
     public static List<Field> getSettings(Object module) {
         if (module == null) return Collections.emptyList();
         return settingsCache.computeIfAbsent(module.getClass(), ModuleManager::collectSettings);
@@ -191,7 +216,7 @@ public class ModuleManager implements EventListener {
 
     public static boolean getModuleState(Class<? extends Module> moduleClass) {
         Module m = moduleByClass.get(moduleClass);
-        return m != null && m.tempEnabled;
+        return m != null && m.isFunctional();
     }
 
     public static <T extends Module> T getModule(Class<T> moduleClass) {
@@ -347,7 +372,7 @@ public class ModuleManager implements EventListener {
 
         if (mc.gui.screen() == null) {
             for (Module m : allModules) {
-                if (event.key == m.key && event.action == Keys.PRESS)
+                if (!m.isLocked() && event.key == m.key && event.action == Keys.PRESS)
                     m.toggle();
             }
         }
