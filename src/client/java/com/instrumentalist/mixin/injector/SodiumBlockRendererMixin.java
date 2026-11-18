@@ -1,6 +1,6 @@
 package com.instrumentalist.mixin.injector;
 
-import com.instrumentalist.krs.hacks.features.level.Xray;
+import com.instrumentalist.krs.hacks.features.world.Xray;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import org.spongepowered.asm.mixin.Mixin;

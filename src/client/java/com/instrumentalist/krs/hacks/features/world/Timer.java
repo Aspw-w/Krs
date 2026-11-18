@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 import com.instrumentalist.krs.events.features.TickEvent;
 import com.instrumentalist.krs.hacks.Module;
@@ -24,7 +24,7 @@ public class Timer extends Module {
     private static final BooleanValue moveOnly = new BooleanValue("Move Only", false, () -> mode.get().equalsIgnoreCase("vanilla"));
 
     public Timer() {
-        super("Timer", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
+        super("Timer", ModuleCategory.World, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

@@ -1,7 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
-import com.instrumentalist.krs.hacks.features.level.CaveFinder;
-import com.instrumentalist.krs.hacks.features.level.Xray;
+import com.instrumentalist.krs.hacks.features.world.CaveFinder;
+import com.instrumentalist.krs.hacks.features.world.Xray;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.vertex.QuadInstance;

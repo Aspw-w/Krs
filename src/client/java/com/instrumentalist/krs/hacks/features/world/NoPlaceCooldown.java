@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
@@ -7,7 +7,7 @@ import com.instrumentalist.krs.utils.input.Keys;
 public class NoPlaceCooldown extends Module {
 
     public NoPlaceCooldown() {
-        super("No Place Cooldown", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
+        super("No Place Cooldown", ModuleCategory.World, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

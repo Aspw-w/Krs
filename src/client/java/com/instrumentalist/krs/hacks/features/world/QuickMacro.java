@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 
 
@@ -12,7 +12,7 @@ import com.instrumentalist.krs.utils.input.Keys;
 public class QuickMacro extends Module {
 
     public QuickMacro() {
-        super("Quick Macro", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
+        super("Quick Macro", ModuleCategory.World, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting

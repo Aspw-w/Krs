@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
@@ -44,7 +44,7 @@ public class Xray extends Module {
     };
 
     public Xray() {
-        super("Xray", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
+        super("Xray", ModuleCategory.World, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

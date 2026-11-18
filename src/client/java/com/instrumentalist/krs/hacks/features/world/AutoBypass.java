@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 
 
@@ -21,7 +21,7 @@ import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 public class AutoBypass extends Module {
 
     public AutoBypass() {
-        super("Auto Bypass", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
+        super("Auto Bypass", ModuleCategory.World, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Setting

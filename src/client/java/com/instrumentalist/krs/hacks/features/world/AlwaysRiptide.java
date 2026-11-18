@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.events.features.UpdateEvent;
@@ -24,7 +24,7 @@ public class AlwaysRiptide extends Module {
     private AABB lastBox = null;
 
     public AlwaysRiptide() {
-        super("Always Riptide", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
+        super("Always Riptide", ModuleCategory.World, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

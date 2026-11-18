@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
@@ -36,7 +36,7 @@ public class Spammer extends Module {
     private final MSTimer delayTimer = new MSTimer();
 
     public Spammer() {
-        super("Spammer", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
+        super("Spammer", ModuleCategory.World, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

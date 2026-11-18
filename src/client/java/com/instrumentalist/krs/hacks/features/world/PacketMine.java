@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 import com.instrumentalist.krs.events.features.Render3DEvent;
 import com.instrumentalist.krs.events.features.SendPacketEvent;
@@ -32,7 +32,7 @@ public class PacketMine extends Module {
     private final BlockHighlight highlight = new BlockHighlight(0.3f, RenderColors.PACKET_MINE);
 
     public PacketMine() {
-        super("Packet Mine", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
+        super("Packet Mine", ModuleCategory.World, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

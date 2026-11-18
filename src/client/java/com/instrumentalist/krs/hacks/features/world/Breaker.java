@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.Client;
@@ -74,7 +74,7 @@ public class Breaker extends Module {
     private static long autoWhitelistLastScanTime = 0L;
 
     public Breaker() {
-        super("Breaker", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
+        super("Breaker", ModuleCategory.World, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

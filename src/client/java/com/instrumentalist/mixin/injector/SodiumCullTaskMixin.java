@@ -1,8 +1,8 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.level.CaveFinder;
-import com.instrumentalist.krs.hacks.features.level.Xray;
+import com.instrumentalist.krs.hacks.features.world.CaveFinder;
+import com.instrumentalist.krs.hacks.features.world.Xray;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;

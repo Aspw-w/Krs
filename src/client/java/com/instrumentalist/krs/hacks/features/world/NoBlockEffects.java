@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
@@ -10,7 +10,7 @@ import net.minecraft.world.level.block.Blocks;
 public class NoBlockEffects extends Module {
 
     public NoBlockEffects() {
-        super("No Block Effects", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
+        super("No Block Effects", ModuleCategory.World, Keys.KEY_UNKNOWN, false, true);
     }
 
     public static boolean shouldIgnore(Object entity) {

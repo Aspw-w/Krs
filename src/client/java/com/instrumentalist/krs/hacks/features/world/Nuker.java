@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.Client;
@@ -64,7 +64,7 @@ public class Nuker extends Module {
     private int originalSlot = -1;
 
     public Nuker() {
-        super("Nuker", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
+        super("Nuker", ModuleCategory.World, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
@@ -17,7 +17,7 @@ public class CaveFinder extends Module {
     private static volatile boolean active;
 
     public CaveFinder() {
-        super("Cave Finder", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
+        super("Cave Finder", ModuleCategory.World, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

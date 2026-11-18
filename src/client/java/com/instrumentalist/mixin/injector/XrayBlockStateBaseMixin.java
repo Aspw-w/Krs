@@ -4,7 +4,7 @@ import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.EventManager;
 import com.instrumentalist.krs.events.guards.BlockEventCollisionGuard;
 import com.instrumentalist.krs.events.features.BlockEvent;
-import com.instrumentalist.krs.hacks.features.level.Xray;
+import com.instrumentalist.krs.hacks.features.world.Xray;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;

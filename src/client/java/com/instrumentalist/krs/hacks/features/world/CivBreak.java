@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.Client;
@@ -56,7 +56,7 @@ public class CivBreak extends Module {
     private int stage = 0;
 
     public CivBreak() {
-        super("Civ Break", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
+        super("Civ Break", ModuleCategory.World, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

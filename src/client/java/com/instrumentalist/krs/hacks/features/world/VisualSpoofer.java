@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
@@ -8,7 +8,7 @@ import com.instrumentalist.krs.utils.input.Keys;
 public class VisualSpoofer extends Module {
 
     public VisualSpoofer() {
-        super("Visual Spoofer", ModuleCategory.Level, Keys.KEY_UNKNOWN, true, false);
+        super("Visual Spoofer", ModuleCategory.World, Keys.KEY_UNKNOWN, true, false);
     }
 
     @Override

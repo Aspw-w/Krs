@@ -1,6 +1,6 @@
 package com.instrumentalist.mixin.injector;
 
-import com.instrumentalist.krs.hacks.features.level.NoBlockEffects;
+import com.instrumentalist.krs.hacks.features.world.NoBlockEffects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.HoneyBlock;

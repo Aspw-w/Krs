@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.TickEvent;
@@ -109,7 +109,7 @@ public class NoteBot extends Module {
     private boolean controllingRotation;
 
     public NoteBot() {
-        super("Note Bot", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, true);
+        super("Note Bot", ModuleCategory.World, Keys.KEY_UNKNOWN, false, true);
     }
 
     @Override

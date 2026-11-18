@@ -1,6 +1,6 @@
 package com.instrumentalist.mixin.injector;
 
-import com.instrumentalist.krs.hacks.features.level.NoBlockEffects;
+import com.instrumentalist.krs.hacks.features.world.NoBlockEffects;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;

@@ -1,7 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
-import com.instrumentalist.krs.hacks.features.level.CaveFinder;
-import com.instrumentalist.krs.hacks.features.level.Xray;
+import com.instrumentalist.krs.hacks.features.world.CaveFinder;
+import com.instrumentalist.krs.hacks.features.world.Xray;
 import net.fabricmc.fabric.api.client.renderer.v1.mesh.MutableQuadView;
 import net.fabricmc.fabric.api.client.renderer.v1.mesh.QuadEmitter;
 import net.fabricmc.fabric.api.util.TriState;

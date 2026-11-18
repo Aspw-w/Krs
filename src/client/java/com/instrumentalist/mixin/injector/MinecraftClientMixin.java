@@ -16,7 +16,7 @@ import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.world.item.component.SwingAnimation;
-import com.instrumentalist.krs.hacks.features.level.NoPlaceCooldown;
+import com.instrumentalist.krs.hacks.features.world.NoPlaceCooldown;
 import com.instrumentalist.krs.hacks.features.render.Camera;
 import com.instrumentalist.krs.hacks.features.dev.GhostHand;
 import com.instrumentalist.krs.utils.world.QueuedMiner;

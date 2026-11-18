@@ -8,7 +8,7 @@ import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.features.combat.Reach;
 import com.instrumentalist.krs.hacks.features.exploit.ChestTP;
 import com.instrumentalist.krs.hacks.features.movement.MovementFix;
-import com.instrumentalist.krs.hacks.features.level.AlwaysRiptide;
+import com.instrumentalist.krs.hacks.features.world.AlwaysRiptide;
 import com.instrumentalist.krs.hacks.features.movement.Sprint;
 import com.instrumentalist.krs.hacks.features.player.FastBreak;
 import com.instrumentalist.krs.utils.move.MovementUtil;

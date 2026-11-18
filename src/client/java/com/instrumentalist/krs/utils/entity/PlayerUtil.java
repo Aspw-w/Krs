@@ -1,7 +1,7 @@
 package com.instrumentalist.krs.utils.entity;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.level.VisualSpoofer;
+import com.instrumentalist.krs.hacks.features.world.VisualSpoofer;
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import net.minecraft.core.BlockPos;

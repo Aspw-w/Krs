@@ -1,4 +1,4 @@
-package com.instrumentalist.krs.hacks.features.level;
+package com.instrumentalist.krs.hacks.features.world;
 
 
 
@@ -16,7 +16,7 @@ import java.util.List;
 public class AntiCheatDetector extends Module {
 
     public AntiCheatDetector() {
-        super("Anti Cheat Detector", ModuleCategory.Level, Keys.KEY_UNKNOWN, false, false);
+        super("Anti Cheat Detector", ModuleCategory.World, Keys.KEY_UNKNOWN, false, false);
     }
 
     public static boolean shouldNotify = false;

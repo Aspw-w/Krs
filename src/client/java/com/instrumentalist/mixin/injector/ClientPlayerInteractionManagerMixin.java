@@ -4,7 +4,7 @@ import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.AttackEvent;
 import com.instrumentalist.krs.events.features.CancelBlockBreakingEvent;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.level.NoBreakCooldown;
+import com.instrumentalist.krs.hacks.features.world.NoBreakCooldown;
 import com.instrumentalist.krs.utils.world.QueuedMiner;
 import com.instrumentalist.krs.utils.entity.ItemUseHold;
 import net.minecraft.client.Minecraft;
