@@ -206,15 +206,6 @@ public class Interface extends Module {
             true
     );
 
-    @Setting
-    public static final FloatValue shadowStrength = new FloatValue(
-            "Shadow Strength",
-            1f,
-            0f,
-            3f,
-            "x"
-    );
-
     public static List<Module> sortedModules;
 
     private static volatile boolean sortedModulesDirty = true;
@@ -2338,7 +2329,7 @@ public class Interface extends Module {
             ModuleCategory category = categories.get(i);
             float rowY = y + 6f + i * 22f;
             boolean selected = i == tabGuiCategoryIndex;
-            Color categoryColor = selected ? NanoVGTheme.ACCENT : NanoVGTheme.TEXT;
+            Color categoryColor = selected ? NanoVGTheme.TEXT : NanoVGTheme.MUTED;
             NVGFont categoryFont = selected ? NVGFonts.INTER_SEMIBOLD : NVGFonts.INTER;
             categoryFont.drawText(category.name(), x + 12f, rowY + 3f, HUD_FONT_SIZE, categoryColor, Alignment.LEFT_TOP, true);
         }
@@ -2369,7 +2360,7 @@ public class Interface extends Module {
                 Module module = modules.get(i);
                 float rowY = y + 6f + (i - firstModule) * 22f;
                 NVGFont moduleFont = module.tempEnabled ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
-                moduleFont.drawText(module.moduleName, x + 12f, rowY + 3f, HUD_FONT_SIZE, NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
+                moduleFont.drawText(module.moduleName, x + 12f, rowY + 3f, HUD_FONT_SIZE, module.tempEnabled ? NanoVGTheme.TEXT : NanoVGTheme.MUTED, Alignment.LEFT_TOP, true);
             }
 
             if (modules.size() > visibleRows) {
@@ -2631,9 +2622,9 @@ public class Interface extends Module {
 
             int firstEnd = text.offsetByCodePoints(0, 1);
             int lastStart = text.offsetByCodePoints(text.length(), -1);
-            float width = NVGFonts.INTER_SEMIBOLD.getWidth(text, size);
-            this.startX = x + NVGFonts.INTER_SEMIBOLD.getWidth(text.substring(0, firstEnd), size) * 0.5f;
-            this.endX = x + width - NVGFonts.INTER_SEMIBOLD.getWidth(text.substring(lastStart), size) * 0.5f;
+            float width = NVGFonts.INTER_MEDIUM.getWidth(text, size);
+            this.startX = x + NVGFonts.INTER_MEDIUM.getWidth(text.substring(0, firstEnd), size) * 0.5f;
+            this.endX = x + width - NVGFonts.INTER_MEDIUM.getWidth(text.substring(lastStart), size) * 0.5f;
         }
 
         @Override
@@ -2750,11 +2741,11 @@ public class Interface extends Module {
         switch (waterMarkMode.get().toLowerCase(Locale.ROOT)) {
             case "simple":
                 waterText = waterMarkText.get() + " " + Client.clientVersion + " | " + mc.getFps() + " fps";
-                float boxWidth = NVGFonts.INTER_SEMIBOLD.getWidth(waterText, 20f) + 21f;
+                float boxWidth = NVGFonts.INTER_MEDIUM.getWidth(waterText, 20f) + 21f;
                 float boxHeight = NVGFonts.INTER.getHeight(20f) + 13f;
                 NanoVGTheme.renderPanel(vg, 16f, 16f, boxWidth, boxHeight, NanoVGTheme.RADIUS_PANEL, 1f);
                 watermarkGlyphColour.update(waterText, 26f, 20f, WATERMARK_SOFT_WHITE);
-                NVGFonts.INTER_SEMIBOLD.drawGradientText(waterText, 26f, 22f, 20f, Alignment.LEFT_TOP, true, watermarkGlyphColour);
+                NVGFonts.INTER_MEDIUM.drawGradientText(waterText, 26f, 22f, 20f, Alignment.LEFT_TOP, true, watermarkGlyphColour);
                 break;
 
             case "bullshit":
@@ -2763,13 +2754,13 @@ public class Interface extends Module {
                 float padding = 12f;
                 waterText = waterMarkText.get() + " " + Client.clientVersion;
                 String fpsText = mc.getFps() + " fps";
-                float titleWidth = NVGFonts.INTER_SEMIBOLD.getWidth(waterText, 20f);
+                float titleWidth = NVGFonts.INTER_MEDIUM.getWidth(waterText, 20f);
                 float fpsWidth = NVGFonts.INTER.getWidth(fpsText, 18f);
                 float width = Math.max(titleWidth, fpsWidth) + padding * 2;
                 float height = NVGFonts.INTER.getHeight(20f) + NVGFonts.INTER.getHeight(18f) + padding * 3;
                 NanoVGTheme.renderPanel(vg, x, y, width, height - 6f, NanoVGTheme.RADIUS_MENU, 1f);
                 watermarkGlyphColour.update(waterText, x + padding, 20f, 255);
-                NVGFonts.INTER_SEMIBOLD.drawGradientText(waterText, x + padding, y + padding, 20f, Alignment.LEFT_TOP, true, watermarkGlyphColour);
+                NVGFonts.INTER_MEDIUM.drawGradientText(waterText, x + padding, y + padding, 20f, Alignment.LEFT_TOP, true, watermarkGlyphColour);
                 NVGFonts.INTER.drawText(fpsText, x + padding, y + padding + NVGFonts.INTER.getHeight(20f) + 6f, 18f, new Color(WATERMARK_SOFT_WHITE, WATERMARK_SOFT_WHITE, WATERMARK_SOFT_WHITE), Alignment.LEFT_TOP, true);
                 break;
         }
@@ -2781,7 +2772,7 @@ public class Interface extends Module {
         switch (waterMarkMode.get().toLowerCase(Locale.ROOT)) {
             case "simple":
                 waterText = waterMarkText.get() + " " + Client.clientVersion + " | " + mc.getFps() + " fps";
-                float boxWidth = NVGFonts.INTER_SEMIBOLD.getWidth(waterText, 20f) + 21f;
+                float boxWidth = NVGFonts.INTER_MEDIUM.getWidth(waterText, 20f) + 21f;
                 float boxHeight = NVGFonts.INTER.getHeight(20f) + 13f;
                 NanoVGTheme.renderPanelEffects(vg, 16f, 16f, boxWidth, boxHeight, NanoVGTheme.RADIUS_PANEL, 1f);
                 break;
@@ -2792,7 +2783,7 @@ public class Interface extends Module {
                 float padding = 12f;
                 waterText = waterMarkText.get() + " " + Client.clientVersion;
                 String fpsText = mc.getFps() + " fps";
-                float titleWidth = NVGFonts.INTER_SEMIBOLD.getWidth(waterText, 20f);
+                float titleWidth = NVGFonts.INTER_MEDIUM.getWidth(waterText, 20f);
                 float fpsWidth = NVGFonts.INTER.getWidth(fpsText, 18f);
                 float width = Math.max(titleWidth, fpsWidth) + padding * 2;
                 float height = NVGFonts.INTER.getHeight(20f) + NVGFonts.INTER.getHeight(18f) + padding * 3;

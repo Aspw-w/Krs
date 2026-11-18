@@ -4,7 +4,6 @@ import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.utils.GuiInputBlocker;
 import com.instrumentalist.krs.utils.audio.Mp3MusicPlayer;
-import com.instrumentalist.krs.hacks.features.render.Interface;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.network.FileUtil;
@@ -43,8 +42,10 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
     private static final float MUSIC_SLIDER_TRACK_HEIGHT = 7f;
     private static final Color BUTTON_IDLE = NanoVGTheme.base(168);
     private static final Color BUTTON_HOVERED = NanoVGTheme.base(210);
-    private static final Color HOVER_LINE = NanoVGTheme.accentWarm(230);
-    private static final Color HOVER_TEXT = new Color(0xFF, 0x8E, 0x78);
+    private static final Color HOVER_LINE = NanoVGTheme.accent(235);
+    private static final Color IDLE_LINE = NanoVGTheme.muted(200);
+    private static final Color HOVER_TEXT = NanoVGTheme.TEXT;
+    private static final Color IDLE_TEXT = NanoVGTheme.text(200);
     private static final float STARTUP_LOAD_BAR_FADE_SECONDS = 0.25f;
     private static float startupLoadBarAlpha;
     private static long startupLoadBarFadeNanos;
@@ -198,12 +199,12 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         vg.roundedRectangle(state.x - 110f, state.y - 34f, 220f, 38f, NanoVGTheme.RADIUS_PANEL, baseColor);
 
         if (state.animation > 1f) {
-            Color gradientColor = state.hovered ? HOVER_LINE : Interface.getFadedColor(0, 1);
+            Color gradientColor = state.hovered ? HOVER_LINE : IDLE_LINE;
             vg.roundedRectangle(state.x - state.animation, state.y - 2.5f, state.animation * 2f, 3f, 2f, gradientColor);
         }
 
         NVGFont font = state.fontSize > 22f ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
-        font.drawText(state.label, state.x, state.y - 15f - (state.fontSize - 21f), state.fontSize, state.hovered ? HOVER_TEXT : NanoVGTheme.TEXT, Alignment.CENTER_MIDDLE, true);
+        font.drawText(state.label, state.x, state.y - 15f - (state.fontSize - 21f), state.fontSize, state.hovered ? HOVER_TEXT : IDLE_TEXT, Alignment.CENTER_MIDDLE, true);
     }
 
     private void renderMusicVolumeSlider(NVGU vg, float centerX, float mouseX, float mouseY) {
@@ -225,7 +226,7 @@ public class CustomTitleScreen extends Screen implements IMinecraft {
         vg.flushEffectBatch();
         vg.roundedRectangle(sliderX, sliderY, MUSIC_SLIDER_WIDTH, MUSIC_SLIDER_TRACK_HEIGHT, radius, NanoVGTheme.CONTROL_TRACK);
         if (fill > 0.001f)
-            vg.roundedRectangle(sliderX, sliderY, MUSIC_SLIDER_WIDTH * fill, MUSIC_SLIDER_TRACK_HEIGHT, radius, NanoVGTheme.sliderFill(235));
+            vg.roundedRectangle(sliderX, sliderY, MUSIC_SLIDER_WIDTH * fill, MUSIC_SLIDER_TRACK_HEIGHT, radius, NanoVGTheme.sliderFill(190));
         vg.roundedRectangle(knobX, knobY, knobWidth, knobHeight, Math.min(knobWidth, knobHeight) / 2f, NanoVGTheme.KNOB_FILL);
     }
 

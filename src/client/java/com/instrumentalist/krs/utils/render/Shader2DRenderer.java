@@ -1,6 +1,5 @@
 package com.instrumentalist.krs.utils.render;
 
-import com.instrumentalist.krs.hacks.features.render.Interface;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL13;
@@ -2174,10 +2173,10 @@ public final class Shader2DRenderer {
         return true;
     }
 
+    private static final float SHADOW_STRENGTH = 1.5f;
+
     private static float glassShadowOpacity(GlassRequest request) {
-        Float strength = Interface.shadowStrength.get();
-        float scale = strength != null && Float.isFinite(strength) ? Math.max(strength, 0f) : 1f;
-        return clamp(request.shadowOpacity * scale, 0f, 1f);
+        return clamp(request.shadowOpacity * SHADOW_STRENGTH, 0f, 1f);
     }
 
     private static boolean isDrawableConnectedGlassRequest(ConnectedGlassRequest request) {
@@ -2865,16 +2864,16 @@ public final class Shader2DRenderer {
             GlassRequest request = new GlassRequest();
             request.refraction = 1.45f;
             request.chromAberration = 0.02f;
-            request.edgeHighlight = 0.42f;
+            request.edgeHighlight = 0.2f;
             request.specular = 0f;
             request.fresnel = 0f;
             request.blurAmount = 0.32f;
             request.brightness = -0.22f;
             request.saturation = 0.08f;
             request.tintStrength = 0f;
-            request.shadowOpacity = 0.16f;
-            request.shadowSpread = 16f;
-            request.shadowOffsetY = 0f;
+            request.shadowOpacity = 0.2f;
+            request.shadowSpread = 8f;
+            request.shadowOffsetY = 3f;
             return request;
         }
 
@@ -2882,16 +2881,16 @@ public final class Shader2DRenderer {
             GlassRequest request = new GlassRequest();
             request.refraction = 1.25f;
             request.chromAberration = 0.015f;
-            request.edgeHighlight = 0.38f;
+            request.edgeHighlight = 0.18f;
             request.specular = 0f;
             request.fresnel = 0f;
             request.blurAmount = 0.26f;
             request.brightness = -0.18f;
             request.saturation = 0.05f;
             request.tintStrength = 0f;
-            request.shadowOpacity = 0.12f;
-            request.shadowSpread = 10f;
-            request.shadowOffsetY = 0f;
+            request.shadowOpacity = 0.14f;
+            request.shadowSpread = 6f;
+            request.shadowOffsetY = 2f;
             return request;
         }
 
@@ -2899,7 +2898,7 @@ public final class Shader2DRenderer {
             GlassRequest request = new GlassRequest();
             request.refraction = 1.35f;
             request.chromAberration = 0.05f;
-            request.edgeHighlight = 0.32f;
+            request.edgeHighlight = 0.15f;
             request.specular = 0f;
             request.fresnel = 1f;
             request.blurAmount = 0.22f;
@@ -2907,8 +2906,8 @@ public final class Shader2DRenderer {
             request.saturation = 0f;
             request.tintStrength = 0f;
             request.shadowOpacity = 0.18f;
-            request.shadowSpread = 10f;
-            request.shadowOffsetY = 0f;
+            request.shadowSpread = 5f;
+            request.shadowOffsetY = 1.5f;
             request.zRadius = 40f;
             return request;
         }

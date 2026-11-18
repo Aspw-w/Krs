@@ -7,14 +7,14 @@ import java.awt.Color;
 import java.util.List;
 
 public final class NanoVGTheme {
-    public static final Color BASE = new Color(0x13, 0x12, 0x1D);
-    public static final Color TEXT = new Color(0xF5, 0xF4, 0xF2);
-    public static final Color MUTED = new Color(0x9F, 0x9D, 0xB0);
-    public static final Color DANGER = new Color(0xF0, 0x40, 0x4C);
-    public static final Color WARNING = new Color(0xF7, 0xB9, 0x3E);
-    public static final Color ACCENT = new Color(0x8A, 0x96, 0xFF);
+    public static final Color BASE = new Color(0x11, 0x11, 0x13);
+    public static final Color TEXT = new Color(0xF2, 0xF2, 0xF2);
+    public static final Color MUTED = new Color(0x8C, 0x8C, 0x92);
+    public static final Color DANGER = new Color(0xE5, 0x48, 0x4D);
+    public static final Color WARNING = new Color(0xE8, 0xB0, 0x4A);
+    public static final Color ACCENT = new Color(0xED, 0xED, 0xED);
     public static final Color ACCENT_WARM = new Color(0xFF, 0x6C, 0x52);
-    public static final Color ICON_IDLE = new Color(0xB2, 0xB4, 0xCA);
+    public static final Color ICON_IDLE = new Color(0xA0, 0xA0, 0xA6);
     public static final float RADIUS_LABEL = 4f;
     public static final float RADIUS_HUD = 6f;
     public static final float RADIUS_PANEL = 10f;
@@ -30,11 +30,12 @@ public final class NanoVGTheme {
     public static final Color COMPACT_BACKGROUND = base(78);
     public static final Color SWITCH_ON = ACCENT;
     public static final Color SLIDER_FILL = ACCENT;
-    public static final Color INPUT_FOCUS = new Color(0xE6, 0xE8, 0xFA);
-    public static final Color SCROLLBAR_THUMB = new Color(0xE6, 0xE8, 0xFA);
-    public static final Color CONTROL_TRACK = new Color(255, 255, 255, 190);
+    public static final Color INPUT_FOCUS = new Color(0xE6, 0xE6, 0xE6);
+    public static final Color SCROLLBAR_THUMB = new Color(0xE6, 0xE6, 0xE6);
+    public static final Color CONTROL_TRACK = new Color(255, 255, 255, 56);
     public static final Color LIST_CHIP = new Color(255, 255, 255, 210);
     public static final Color KNOB_FILL = Color.WHITE;
+    public static final Color KNOB_ON_FILL = new Color(0x1A, 0x1A, 0x1C);
     private static final float[] CONNECTED_BOXES = new float[256];
     private static final float[] CONNECTED_RADII = new float[256];
     private static final float[] CORNER_SCRATCH = new float[4];

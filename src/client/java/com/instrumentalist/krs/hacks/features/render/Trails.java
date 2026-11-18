@@ -16,6 +16,7 @@ import org.lwjgl.nanovg.NVGPaint;
 import org.nvgu.NVGU;
 import org.nvgu.util.NVGUColour;
 
+import com.instrumentalist.krs.utils.render.NanoVGTheme;
 import java.awt.Color;
 
 import static org.lwjgl.nanovg.NanoVG.NVG_ONE;
@@ -39,8 +40,8 @@ public class Trails extends Module {
     private static final int MAX_SAMPLES = LENGTH * SUBDIVISIONS + BRIDGE_STEPS + 4;
 
     private static final float WIDTH = 2.5f;
-    private static final Color HEAD_COLOUR = new Color(110, 190, 255);
-    private static final Color TAIL_COLOUR = new Color(255, 90, 200);
+    private static final Color HEAD_COLOUR = NanoVGTheme.ACCENT;
+    private static final Color TAIL_COLOUR = NanoVGTheme.MUTED;
 
     private final double[] xs = new double[CAPACITY];
     private final double[] ys = new double[CAPACITY];

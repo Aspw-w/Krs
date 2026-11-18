@@ -9,7 +9,6 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.utils.input.Keys;
 import com.instrumentalist.krs.utils.render.LegacyAtmosphere;
 import com.instrumentalist.krs.utils.render.LegacyWater;
-import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.mojang.renderpearl.api.commands.RenderPass;
 import net.minecraft.client.Camera;
 import net.minecraft.client.OptionInstance;
@@ -49,48 +48,6 @@ import org.joml.Vector4f;
 import java.util.Random;
 
 public class LegacyRenderer extends Module {
-
-    @Setting
-    public static final BooleanValue lightmap = new BooleanValue("Lightmap", true);
-
-    @Setting
-    public static final BooleanValue fog = new BooleanValue("Fog", true);
-
-    @Setting
-    public static final BooleanValue sky = new BooleanValue("Sky", true);
-
-    @Setting
-    public static final BooleanValue clouds = new BooleanValue("Clouds", true);
-
-    @Setting
-    public static final BooleanValue biomeBlend = new BooleanValue("Biome Blend", true);
-
-    @Setting
-    public static final BooleanValue noChunkFade = new BooleanValue("No Chunk Fade", true);
-
-    @Setting
-    public static final BooleanValue shading = new BooleanValue("Shading", true);
-
-    @Setting
-    public static final BooleanValue water = new BooleanValue("Water", true);
-
-    @Setting
-    public static final BooleanValue weather = new BooleanValue("Weather", true);
-
-    @Setting
-    public static final BooleanValue hitParticles = new BooleanValue("Hit Particles", true);
-
-    @Setting
-    public static final BooleanValue playerAnimations = new BooleanValue("Player Animations", true);
-
-    @Setting
-    public static final BooleanValue camera = new BooleanValue("Camera", true);
-
-    @Setting
-    public static final BooleanValue equipAnimation = new BooleanValue("Equip Animation", true);
-
-    @Setting
-    public static final BooleanValue firstPerson = new BooleanValue("First Person", true);
 
     private static final float CLOUD_HEIGHT = 128.0F + 0.33F;
     private static final int SWAMP_WATER_COLOR = 0xE0FFAE;
@@ -242,47 +199,47 @@ public class LegacyRenderer extends Module {
     }
 
     public static boolean isLightmapActive() {
-        return active() && lightmap.get() && !FullBright.isBrightening();
+        return active() && !FullBright.isBrightening();
     }
 
     public static boolean isFogActive() {
-        return active() && fog.get();
+        return active();
     }
 
     public static boolean isSkyActive() {
-        return active() && sky.get();
+        return active();
     }
 
     public static boolean isCloudsActive() {
-        return active() && clouds.get();
+        return active();
     }
 
     public static boolean isBiomeBlendActive() {
-        return active() && biomeBlend.get();
+        return active();
     }
 
     public static boolean isNoChunkFadeActive() {
-        return active() && noChunkFade.get();
+        return active();
     }
 
     public static boolean isShadingActive() {
-        return active() && shading.get();
+        return active();
     }
 
     public static boolean isWaterActive() {
-        return active() && water.get();
+        return active();
     }
 
     public static boolean isHitParticlesActive() {
-        return active() && hitParticles.get();
+        return active();
     }
 
     public static boolean isWeatherActive() {
-        return active() && weather.get();
+        return active();
     }
 
     public static boolean isWaterConfigured() {
-        return ModuleManager.getModuleState(LegacyRenderer.class) && water.get();
+        return ModuleManager.getModuleState(LegacyRenderer.class);
     }
 
     public static CardinalLighting cardinalLighting(CardinalLighting original) {
@@ -290,7 +247,7 @@ public class LegacyRenderer extends Module {
     }
 
     public static CardinalLighting.Type cardinalLightingType(CardinalLighting.Type original) {
-        return ModuleManager.getModuleState(LegacyRenderer.class) && shading.get() ? CardinalLighting.Type.DEFAULT : original;
+        return ModuleManager.getModuleState(LegacyRenderer.class) ? CardinalLighting.Type.DEFAULT : original;
     }
 
     public static int waterColor(Biome biome, int original) {
@@ -304,19 +261,19 @@ public class LegacyRenderer extends Module {
     }
 
     public static boolean isPlayerAnimationsActive() {
-        return active() && playerAnimations.get();
+        return active();
     }
 
     public static boolean isCameraActive() {
-        return active() && camera.get();
+        return active();
     }
 
     public static boolean isEquipAnimationActive() {
-        return active() && equipAnimation.get();
+        return active();
     }
 
     public static boolean isFirstPersonActive() {
-        return active() && firstPerson.get() && !ModuleManager.getModuleState(ViewModel.class) && !OldHitting.shouldBlock();
+        return active() && !ModuleManager.getModuleState(ViewModel.class) && !OldHitting.shouldBlock();
     }
 
     public static boolean callWithoutSwing(java.util.function.BooleanSupplier call) {
