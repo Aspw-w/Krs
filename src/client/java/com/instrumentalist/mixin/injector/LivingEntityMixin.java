@@ -3,7 +3,6 @@ package com.instrumentalist.mixin.injector;
 
 
 import com.instrumentalist.krs.hacks.features.combat.TargetStrafe;
-import com.instrumentalist.krs.hacks.features.level.ItemDropChanger;
 import com.instrumentalist.krs.hacks.features.movement.ElytraFly;
 import com.instrumentalist.krs.hacks.features.movement.MovementFix;
 import com.instrumentalist.krs.hacks.features.level.NoBlockEffects;
@@ -266,14 +265,6 @@ public abstract class LivingEntityMixin extends EntityMixin implements ILegacySw
             return ((LivingEntity) (Object) this).getMainHandItem();
 
         return original;
-    }
-
-    @WrapOperation(method = "drop(Lnet/minecraft/world/item/ItemStack;ZLnet/minecraft/util/Prediction;)Lnet/minecraft/world/entity/item/ItemEntity;", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;swing(Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/item/component/SwingAnimation;Z)Z"))
-    private boolean dropItemHook(LivingEntity instance, InteractionHand hand, SwingAnimation animation, boolean sendToSwingingEntity, Operation<Boolean> original) {
-        if (!(instance instanceof LocalPlayer) || ItemDropChanger.hookDropItemSwing(hand))
-            return original.call(instance, hand, animation, sendToSwingingEntity);
-
-        return false;
     }
 
     @ModifyReturnValue(method = "maxUpStep", at = @At("RETURN"))

@@ -24,7 +24,6 @@ import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 
-import com.instrumentalist.krs.hacks.features.level.ItemDropChanger;
 import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -114,14 +113,5 @@ public abstract class ClientPlayerInteractionManagerMixin {
         Client.eventManager.call(event);
         if (event.isCancelled())
             ci.cancel();
-    }
-
-    // Since 26.3 the drop key goes through dropItem, which only plays the local swing.
-    @WrapOperation(method = "dropItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;swing(Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/item/component/SwingAnimation;Z)Z"))
-    private boolean dropItemHook(LocalPlayer instance, InteractionHand hand, SwingAnimation animation, boolean sendToSwingingEntity, Operation<Boolean> original) {
-        if (ItemDropChanger.hookDropItemSwing(hand))
-            return original.call(instance, hand, animation, sendToSwingingEntity);
-
-        return false;
     }
 }
