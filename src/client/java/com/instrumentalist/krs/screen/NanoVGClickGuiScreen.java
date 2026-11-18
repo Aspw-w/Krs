@@ -31,26 +31,12 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.multiplayer.PlayerInfo;
-import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import com.instrumentalist.krs.utils.input.Keys;
-import com.instrumentalist.krs.utils.command.ChatCommandTree;
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.ParseResults;
-import com.mojang.brigadier.StringReader;
-import com.mojang.brigadier.context.SuggestionContext;
-import com.mojang.brigadier.suggestion.Suggestion;
-import com.mojang.brigadier.suggestion.Suggestions;
-import com.mojang.brigadier.tree.CommandNode;
-import com.mojang.brigadier.tree.LiteralCommandNode;
-import net.minecraft.client.multiplayer.ClientSuggestionProvider;
 import org.nvgu.NVGU;
 import org.nvgu.util.Alignment;
 import org.nvgu.util.Border;
 import org.nvgu.util.NVGFont;
-import xyz.breadloaf.imguimc.customwindow.ModuleRenderable;
 
 import java.awt.Color;
 import java.io.File;
@@ -62,7 +48,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -74,19 +59,6 @@ import java.util.function.Consumer;
 public class NanoVGClickGuiScreen extends Screen {
     private static final float LAYOUT = 1.35f;
     private static final float TEXT_SHADOW_SCALE = 0.5f;
-    private static final float PANEL_HEADER_HEIGHT = u(42f);
-    private static final float PANEL_FOOTER_HEIGHT = u(22f);
-    private static final float PANEL_PADDING = u(10f);
-    private static final float CATEGORY_SIDEBAR_WIDTH = u(126f);
-    private static final float CATEGORY_CONTENT_GAP = u(10f);
-    private static final float SETTINGS_PANEL_HEADER_HEIGHT = u(44f);
-    private static final float SETTINGS_DOCK_GAP = u(8f);
-    private static final float ROW_HEIGHT = u(32f);
-    private static final float SETTING_ROW_HEIGHT = u(27f);
-    private static final float SETTING_ROW_STEP = u(34f);
-    private static final float SWITCH_WIDTH = u(31f);
-    private static final float SWITCH_HEIGHT = u(15f);
-    private static final float NAME_LINE_HEIGHT = u(16f);
     private static final Rect EMPTY_RECT = new Rect(-100000f, -100000f, 0f, 0f);
     private static final float COLUMN_TOP = u(30f);
     private static final float COLUMN_MARGIN = u(14f);
@@ -110,39 +82,20 @@ public class NanoVGClickGuiScreen extends Screen {
     private static final float SET_BAR_SPACE = u(15f);
     private static final float SET_SWITCH_WIDTH = u(24f);
     private static final float SET_SWITCH_HEIGHT = u(12f);
-    private static final String CLIENT_COLUMN_KEY = "client";
     private static final int WRAP_CACHE_LIMIT = 4096;
     private static final Map<WrapKey, List<String>> WRAP_CACHE = new HashMap<>();
-    private static final int ROOT_PANEL_BACKGROUND_ALPHA_OFFSET = 70;
-    private static final int COMPACT_BACKGROUND_ALPHA_OFFSET = 35;
-    private static final DateTimeFormatter CONFIG_UPDATED_FORMAT = DateTimeFormatter
-            .ofPattern("yyyy/MM/dd HH:mm:ss", Locale.ROOT)
-            .withZone(ZoneId.systemDefault());
     private static final DateTimeFormatter CONFIG_LIST_UPDATED_FORMAT = DateTimeFormatter
             .ofPattern("MM/dd HH:mm", Locale.ROOT)
             .withZone(ZoneId.systemDefault());
 
     private static NanoVGClickGuiScreen detachedClosingScreen;
     private static Module rememberedSettingsPanelModule;
-    private static ConfigEntry rememberedSettingsPanelConfig;
-    private static ModuleCategory rememberedSelectedCategory = ModuleCategory.Combat;
-    private static boolean rememberedConfigView;
     private static ConfigTab rememberedConfigTab = ConfigTab.MODULE;
-    private static boolean rememberedCommandView;
-    private static CommandTab rememberedCommandTab = CommandTab.COMMAND;
-    private static final int MAX_COMMAND_INPUT_LENGTH = 256;
-    private static final int MAX_COMMAND_HISTORY = 50;
-    private static final int MAX_COMMAND_SUGGESTION_ROWS = 10;
-    private static final List<String> commandHistory = new ArrayList<>();
     private static Module rememberedOpenedListModule;
     private static ListValue rememberedOpenedListValue;
-    private static float rememberedListScroll;
-    private static float rememberedTargetListScroll;
     private static float rememberedSettingsPanelScroll;
     private static float rememberedTargetSettingsPanelScroll;
-    private static final Map<ModuleCategory, ScrollState> rememberedCategoryScrolls = new EnumMap<>(ModuleCategory.class);
 
-    private final List<TabBounds> tabBounds = new ArrayList<>();
     private final List<ModuleRowBounds> moduleRows = new ArrayList<>();
     private final List<ControlBounds> controls = new ArrayList<>();
     private final List<Rect> inputClips = new ArrayList<>();
@@ -150,17 +103,14 @@ public class NanoVGClickGuiScreen extends Screen {
     private final List<PendingControlGlass> pendingControlGlass = new ArrayList<>();
     private final List<Runnable> pendingControlForegrounds = new ArrayList<>();
     private boolean deferControlChrome;
-    private final Map<ModuleCategory, ScrollState> categoryScrolls = new EnumMap<>(ModuleCategory.class);
     private final Map<Module, List<SettingValue<?>>> moduleSettingsCache = new IdentityHashMap<>();
     private final Map<Module, Float> expandedSettingsHeightCache = new IdentityHashMap<>();
     private final Map<Module, Boolean> renderableSettingsCache = new IdentityHashMap<>();
     private final Map<Module, Float> enabledAnimations = new IdentityHashMap<>();
-    private final Map<Module, Float> expansionAnimations = new IdentityHashMap<>();
     private final Map<ListValue, Float> listDropdownAnimations = new IdentityHashMap<>();
     private final Map<SettingValue<?>, Float> settingVisibilityAnimations = new IdentityHashMap<>();
     private final Map<Object, Float> switchAnimations = new IdentityHashMap<>();
     private final Map<Module, Long> enabledAnimationFrames = new IdentityHashMap<>();
-    private final Map<Module, Long> expansionAnimationFrames = new IdentityHashMap<>();
     private final Map<ListValue, Long> listDropdownAnimationFrames = new IdentityHashMap<>();
     private final Map<SettingValue<?>, Long> settingVisibilityAnimationFrames = new IdentityHashMap<>();
     private final Map<Object, Long> switchAnimationFrames = new IdentityHashMap<>();
@@ -168,38 +118,11 @@ public class NanoVGClickGuiScreen extends Screen {
     private final Consumer<NVGU> nanoVgRenderer = this::render;
     private final Screen returnScreen;
 
-    private ModuleCategory selectedCategory = ModuleCategory.Combat;
-    private boolean configView;
     private ConfigTab selectedConfigTab = ConfigTab.MODULE;
-    private boolean commandView;
-    private CommandTab selectedCommandTab = CommandTab.COMMAND;
-    private String commandInput = "";
-    private int commandHistoryIndex = -1;
-    private List<Suggestion> commandSuggestionList = List.of();
-    private List<String> commandUsageLines = List.of();
-    private String commandSuggestionInput;
-    private int commandSuggestionCaret = -1;
-    private String commandSuggestionAppliedInput;
-    private String commandSuggestionOriginal = "";
-    private int commandSuggestionIndex;
-    private int commandSuggestionOffset;
-    private int commandSuggestionVisibleRows;
-    private boolean commandSuggestionsVisible;
-    private boolean commandSuggestionTabCycles;
-    private Rect commandInputRect = new Rect(0f, 0f, 0f, 0f);
-    private Rect commandSuggestionRect = new Rect(0f, 0f, 0f, 0f);
-    private String lastSeenCommandLog;
-    private int lastSeenCommandLogCount = -1;
-    private float commandLogWrapWidth = -1f;
-    private final Map<String, List<String>> commandLogLineCache = new IdentityHashMap<>();
     private String searchQuery = "";
     private String newConfigName = "";
     private String renameConfigName = "";
     private ConfigEntry renamingConfig;
-    private float listScroll;
-    private float targetListScroll;
-    private float scrollVelocity;
-    private float maxListScroll;
     private float settingsPanelScroll;
     private float targetSettingsPanelScroll;
     private float settingsPanelScrollVelocity;
@@ -213,14 +136,8 @@ public class NanoVGClickGuiScreen extends Screen {
     private long lastFrameNanos;
     private long animationFrame;
     private boolean closing;
-    private Rect closeRect = new Rect(0f, 0f, 0f, 0f);
     private Rect searchRect = new Rect(0f, 0f, 0f, 0f);
-    private Rect searchClearRect = new Rect(0f, 0f, 0f, 0f);
-    private Rect listViewport = new Rect(0f, 0f, 0f, 0f);
-    private Rect scrollbarTrackRect = new Rect(0f, 0f, 0f, 0f);
-    private Rect scrollbarThumbRect = new Rect(0f, 0f, 0f, 0f);
     private Rect settingsPanelRect = new Rect(0f, 0f, 0f, 0f);
-    private Rect settingsPanelCloseRect = new Rect(0f, 0f, 0f, 0f);
     private Rect settingsPanelViewport = new Rect(0f, 0f, 0f, 0f);
     private Rect settingsPanelScrollbarTrackRect = new Rect(0f, 0f, 0f, 0f);
     private Rect settingsPanelScrollbarThumbRect = new Rect(0f, 0f, 0f, 0f);
@@ -240,12 +157,9 @@ public class NanoVGClickGuiScreen extends Screen {
     private SliderDrag activeSlider;
     private ControlBounds pressedControl;
     private Module pressedModule;
-    private ScrollbarDrag activeScrollbar;
     private ScrollbarDrag activeSettingsPanelScrollbar;
     private Module settingsPanelModule;
     private Module settingsPanelRenderModule;
-    private ConfigEntry settingsPanelConfig;
-    private ConfigEntry settingsPanelRenderConfig;
     private int settingsPanelControlStartIndex;
     private Module hoveredModule;
     private Module tooltipHoverModule;
@@ -253,7 +167,6 @@ public class NanoVGClickGuiScreen extends Screen {
     private String tooltipText = "";
     private float settingsDockReveal;
     private Module pendingSettingsPanelModule;
-    private float tabMarkY = Float.NaN;
     private final List<GuiColumn> columns = new ArrayList<>();
     private boolean typeSearchOpen;
     private Rect configManagerRect = EMPTY_RECT;
@@ -364,20 +277,7 @@ public class NanoVGClickGuiScreen extends Screen {
             return true;
         }
 
-        if (button == Keys.MOUSE_BUTTON_LEFT && closeRect.contains(mouseX, mouseY)) {
-            if (isModuleView())
-                onClose();
-            else
-                returnToColumns();
-            return true;
-        }
-
         if (isSettingsDockOpen()) {
-            if (button == Keys.MOUSE_BUTTON_LEFT && settingsPanelCloseRect.contains(mouseX, mouseY)) {
-                closeSettingsPanel();
-                return true;
-            }
-
             if (button == Keys.MOUSE_BUTTON_LEFT && maxSettingsPanelScroll > 0f
                     && settingsPanelScrollbarTrackRect.contains(mouseX, mouseY)) {
                 closeListDropdown();
@@ -406,7 +306,7 @@ public class NanoVGClickGuiScreen extends Screen {
             }
         }
 
-        if (button == Keys.MOUSE_BUTTON_LEFT && isModuleView() && maxConfigListScroll > 0f
+        if (button == Keys.MOUSE_BUTTON_LEFT && maxConfigListScroll > 0f
                 && configScrollbarTrackRect.contains(mouseX, mouseY)) {
             clearTextFocus();
             float offsetY = configScrollbarThumbRect.contains(mouseX, mouseY)
@@ -414,20 +314,6 @@ public class NanoVGClickGuiScreen extends Screen {
                     : configScrollbarThumbRect.height / 2f;
             activeConfigScrollbar = new ScrollbarDrag(offsetY);
             updateConfigScrollbarDrag(mouseY);
-            return true;
-        }
-
-        if (button == Keys.MOUSE_BUTTON_LEFT && !searchQuery.isBlank() && searchClearRect.contains(mouseX, mouseY)) {
-            clearSearch();
-            return true;
-        }
-
-        if (button == Keys.MOUSE_BUTTON_LEFT && maxListScroll > 0f && scrollbarTrackRect.contains(mouseX, mouseY)) {
-            closeListDropdown();
-            clearTextFocus();
-            float offsetY = scrollbarThumbRect.contains(mouseX, mouseY) ? mouseY - scrollbarThumbRect.y : scrollbarThumbRect.height / 2f;
-            activeScrollbar = new ScrollbarDrag(offsetY);
-            updateScrollbarDrag(mouseY);
             return true;
         }
 
@@ -444,35 +330,6 @@ public class NanoVGClickGuiScreen extends Screen {
             focusSearch();
             beginTextSelectionOrSelectAll(mouseX, doubleClick);
             return true;
-        }
-
-        if (button == Keys.MOUSE_BUTTON_LEFT) {
-            for (TabBounds tab : tabBounds) {
-                if (tab.rect.contains(mouseX, mouseY)) {
-                    storeCurrentCategoryScroll();
-                    if (tab.isConfig()) {
-                        configView = true;
-                        commandView = false;
-                        selectedConfigTab = tab.configTab();
-                        searchQuery = "";
-                        resetListScroll();
-                    } else if (tab.isCommand()) {
-                        configView = false;
-                        commandView = true;
-                        selectedCommandTab = tab.commandTab();
-                        searchQuery = "";
-                        resetCommandScroll();
-                    } else {
-                        selectedCategory = tab.category();
-                        configView = false;
-                        commandView = false;
-                        searchQuery = "";
-                        restoreCategoryScroll(selectedCategory);
-                    }
-                    clearInteractionState();
-                    return true;
-                }
-            }
         }
 
         for (ModuleRowBounds row : moduleRows) {
@@ -503,7 +360,7 @@ public class NanoVGClickGuiScreen extends Screen {
             closeListDropdown();
         }
 
-        if (isModuleView() && settingsPanelModule != null && button == Keys.MOUSE_BUTTON_RIGHT) {
+        if (settingsPanelModule != null && button == Keys.MOUSE_BUTTON_RIGHT) {
             closeSettingsPanel();
             return true;
         }
@@ -528,11 +385,6 @@ public class NanoVGClickGuiScreen extends Screen {
             return true;
         }
 
-        if (activeScrollbar != null) {
-            updateScrollbarDrag(NanoVGManager.toScaledMouseY(event.y()));
-            return true;
-        }
-
         if (activeSlider == null) return false;
 
         updateSlider(activeSlider, NanoVGManager.toScaledMouseX(event.x()));
@@ -544,7 +396,6 @@ public class NanoVGClickGuiScreen extends Screen {
         activeSlider = null;
         pressedControl = null;
         pressedModule = null;
-        activeScrollbar = null;
         activeSettingsPanelScrollbar = null;
         activeConfigScrollbar = null;
         draggingTextSelection = false;
@@ -558,11 +409,6 @@ public class NanoVGClickGuiScreen extends Screen {
 
         if (nudgeHoveredColorSlider(scaledX, scaledY, vertical))
             return true;
-
-        if (commandSuggestionsVisible && !commandSuggestionList.isEmpty() && commandSuggestionRect.contains(scaledX, scaledY)) {
-            scrollCommandSuggestions(vertical > 0d ? -1 : 1);
-            return true;
-        }
 
         if (isSettingsDockOpen()
                 && (settingsPanelViewport.contains(scaledX, scaledY)
@@ -582,7 +428,7 @@ public class NanoVGClickGuiScreen extends Screen {
             return true;
         }
 
-        if (isModuleView() && (configListViewport.contains(scaledX, scaledY) || configScrollbarTrackRect.contains(scaledX, scaledY))) {
+        if ((configListViewport.contains(scaledX, scaledY) || configScrollbarTrackRect.contains(scaledX, scaledY))) {
             if (maxConfigListScroll > 0f) {
                 float previousTarget = targetConfigListScroll;
                 float scrollStep = Math.clamp(configListViewport.height * 0.11f, u(36f), u(64f));
@@ -593,14 +439,6 @@ public class NanoVGClickGuiScreen extends Screen {
                         22f
                 );
             }
-            return true;
-        }
-
-        if (listViewport.contains(scaledX, scaledY) || scrollbarTrackRect.contains(scaledX, scaledY)) {
-            float previousTarget = targetListScroll;
-            float scrollStep = Math.clamp(listViewport.height * 0.11f, u(36f), u(64f));
-            targetListScroll = Math.clamp(targetListScroll - (float) vertical * scrollStep, 0f, maxListScroll);
-            scrollVelocity = Math.clamp(scrollVelocity + (targetListScroll - previousTarget) * 0.08f, -22f, 22f);
             return true;
         }
 
@@ -630,8 +468,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
         boolean commandModifier = (event.modifiers() & (Keys.MOD_CONTROL | Keys.MOD_SUPER)) != 0;
         if (key == Keys.KEY_F && commandModifier) {
-            if (isModuleView())
-                typeSearchOpen = true;
+            typeSearchOpen = true;
             focusSearch();
             syncTextInput();
             return true;
@@ -646,18 +483,8 @@ public class NanoVGClickGuiScreen extends Screen {
                 return true;
             }
 
-            if (textFocus == TextFocus.COMMAND && handleCommandSuggestionKey(key, (event.modifiers() & Keys.MOD_SHIFT) != 0))
-                return true;
-
-            if (textFocus == TextFocus.COMMAND && (key == Keys.KEY_UP || key == Keys.KEY_DOWN)) {
-                browseCommandHistory(key == Keys.KEY_UP ? -1 : 1);
-                return true;
-            }
-
             if (key == Keys.KEY_ENTER || key == Keys.KEY_KP_ENTER) {
-                if (textFocus == TextFocus.COMMAND)
-                    runCommandInput();
-                else if (textFocus == TextFocus.CONFIG_NAME)
+                if (textFocus == TextFocus.CONFIG_NAME)
                     createConfigFromInput();
                 else if (textFocus == TextFocus.CONFIG_RENAME) {
                     if (commitConfigRename())
@@ -707,7 +534,7 @@ public class NanoVGClickGuiScreen extends Screen {
             }
         }
 
-        if (key == Keys.KEY_ESCAPE && isModuleView()) {
+        if (key == Keys.KEY_ESCAPE) {
             if (textFocus == TextFocus.CONFIG_NAME) {
                 newConfigName = "";
                 resetTextFocus();
@@ -719,17 +546,6 @@ public class NanoVGClickGuiScreen extends Screen {
                 resetTextFocus();
                 return true;
             }
-        }
-
-        if ((key == Keys.KEY_UP || key == Keys.KEY_DOWN) && !isModuleView()) {
-            cycleCategory(key == Keys.KEY_DOWN ? 1 : -1);
-            return true;
-        }
-
-        if (key == Keys.KEY_PAGE_UP || key == Keys.KEY_PAGE_DOWN
-                || key == Keys.KEY_HOME || key == Keys.KEY_END) {
-            scrollWithKeyboard(key);
-            return true;
         }
 
         return super.keyPressed(event);
@@ -789,7 +605,6 @@ public class NanoVGClickGuiScreen extends Screen {
         activeSlider = null;
         pressedControl = null;
         pressedModule = null;
-        activeScrollbar = null;
         activeSettingsPanelScrollbar = null;
         bindingModule = null;
         bindingValue = null;
@@ -808,7 +623,6 @@ public class NanoVGClickGuiScreen extends Screen {
         activeSlider = null;
         pressedControl = null;
         pressedModule = null;
-        activeScrollbar = null;
         activeSettingsPanelScrollbar = null;
         bindingModule = null;
         bindingValue = null;
@@ -823,29 +637,11 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private void restoreUiState() {
-        categoryScrolls.clear();
-        categoryScrolls.putAll(rememberedCategoryScrolls);
         settingsPanelModule = rememberedSettingsPanelModule;
         settingsPanelRenderModule = rememberedSettingsPanelModule;
-        settingsPanelConfig = restoreRememberedConfig(rememberedSettingsPanelConfig);
-        settingsPanelRenderConfig = settingsPanelConfig;
-        selectedCategory = rememberedSelectedCategory == null ? ModuleCategory.Combat : rememberedSelectedCategory;
-        configView = rememberedConfigView;
         selectedConfigTab = rememberedConfigTab == null ? ConfigTab.MODULE : rememberedConfigTab;
-        commandView = rememberedCommandView && !configView;
-        selectedCommandTab = rememberedCommandTab == null ? CommandTab.COMMAND : rememberedCommandTab;
         openedListModule = rememberedOpenedListModule;
         openedListValue = rememberedOpenedListValue;
-        ScrollState selectedScroll = isModuleView() && selectedCategory != null ? categoryScrolls.get(selectedCategory) : null;
-        if (selectedScroll != null) {
-            listScroll = selectedScroll.listScroll();
-            targetListScroll = selectedScroll.targetListScroll();
-        } else {
-            targetListScroll = rememberedTargetListScroll;
-            listScroll = rememberedListScroll;
-            if (isModuleView() && selectedCategory != null)
-                categoryScrolls.put(selectedCategory, new ScrollState(listScroll, targetListScroll));
-        }
         settingsPanelScroll = rememberedSettingsPanelScroll;
         targetSettingsPanelScroll = rememberedTargetSettingsPanelScroll;
         restoreSettingsPanelAnimations();
@@ -858,8 +654,6 @@ public class NanoVGClickGuiScreen extends Screen {
         }
 
         if (settingsPanelModule != null) {
-            expansionAnimations.put(settingsPanelModule, 1f);
-
             for (SettingValue<?> setting : collectSettings(settingsPanelModule)) {
                 if (setting.canDisplay.canDisplay())
                     settingVisibilityAnimations.put(setting, 1f);
@@ -873,22 +667,12 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private void rememberUiState() {
-        storeCurrentCategoryScroll();
         rememberedSettingsPanelModule = pendingSettingsPanelModule != null ? pendingSettingsPanelModule : settingsPanelModule;
-        rememberedSettingsPanelConfig = settingsPanelConfig;
-        rememberedSelectedCategory = selectedCategory;
-        rememberedConfigView = configView;
         rememberedConfigTab = selectedConfigTab;
-        rememberedCommandView = commandView;
-        rememberedCommandTab = selectedCommandTab;
         rememberedOpenedListModule = openedListModule;
         rememberedOpenedListValue = openedListValue;
-        rememberedListScroll = listScroll;
-        rememberedTargetListScroll = targetListScroll;
         rememberedSettingsPanelScroll = settingsPanelScroll;
         rememberedTargetSettingsPanelScroll = targetSettingsPanelScroll;
-        rememberedCategoryScrolls.clear();
-        rememberedCategoryScrolls.putAll(categoryScrolls);
     }
 
     private void render(NVGU vg) {
@@ -907,7 +691,6 @@ public class NanoVGClickGuiScreen extends Screen {
         animationFrame++;
         clearFrameLayoutCaches();
         openProgress = stepTowards(openProgress, closing ? 0f : 1f, 0.08f * delta);
-        updateSmoothScroll(delta);
         updateSettingsPanelSmoothScroll(delta);
 
         if (closing && openProgress <= 0.001f) {
@@ -915,10 +698,6 @@ public class NanoVGClickGuiScreen extends Screen {
             return;
         }
 
-        if (isModuleView() && settingsPanelConfig != null)
-            closeSettingsPanel();
-
-        tabBounds.clear();
         moduleRows.clear();
         controls.clear();
         textFields.clear();
@@ -933,22 +712,14 @@ public class NanoVGClickGuiScreen extends Screen {
             pendingSettingsPanelModule = null;
             openSettingsPanel(pending);
         }
-        if (settingsPanelModule != null) {
+        if (settingsPanelModule != null)
             settingsPanelRenderModule = settingsPanelModule;
-            settingsPanelRenderConfig = null;
-        } else if (settingsPanelConfig != null) {
-            settingsPanelRenderConfig = settingsPanelConfig;
-            settingsPanelRenderModule = null;
-        }
         settingsDockReveal = settingsPanelReveal();
-        if (settingsDockReveal <= 0f) {
+        if (settingsDockReveal <= 0f)
             settingsPanelRenderModule = null;
-            settingsPanelRenderConfig = null;
-        }
 
         float screenWidth = NanoVGManager.getScaledScreenWidth();
         float screenHeight = NanoVGManager.getScaledScreenHeight();
-        Rect panel = panelBounds(screenWidth, screenHeight);
         updateScaledMouse();
         boolean staticFallbackBackdrop = !isInGame() && !hasBackgroundScreen();
 
@@ -958,20 +729,9 @@ public class NanoVGClickGuiScreen extends Screen {
             Shader2DRenderer.INSTANCE.beginFrame();
 
         vg.globalAlpha(easeOut(openProgress), () -> {
-            if (isModuleView()) {
-                renderColumnView(vg, screenWidth, screenHeight);
-                renderConfigManager(vg, screenWidth, screenHeight);
-                renderFloatingModulePanel(vg, screenWidth, screenHeight);
-            } else {
-                columns.clear();
-                configManagerRect = EMPTY_RECT;
-                configListViewport = EMPTY_RECT;
-                configScrollbarTrackRect = EMPTY_RECT;
-                configScrollbarThumbRect = EMPTY_RECT;
-                renderPanelEffects(vg, panel.x, panel.y, panel.width, panel.height);
-                renderPanel(vg, panel.x, panel.y, panel.width, panel.height);
-                renderSettingsPanel(vg, panel);
-            }
+            renderColumnView(vg, screenWidth, screenHeight);
+            renderConfigManager(vg, screenWidth, screenHeight);
+            renderFloatingModulePanel(vg, screenWidth, screenHeight);
             renderHoverTooltip(vg);
             applyHoverCursor();
         });
@@ -983,12 +743,6 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private static float font(float size) {
         return Math.round(size * LAYOUT);
-    }
-
-    private static Rect panelBounds(float screenWidth, float screenHeight) {
-        float panelWidth = Math.min(u(860f), Math.max(u(560f), screenWidth - u(36f)));
-        float panelHeight = Math.min(u(590f), Math.max(u(390f), screenHeight - u(36f)));
-        return new Rect((screenWidth - panelWidth) / 2f, (screenHeight - panelHeight) / 2f, panelWidth, panelHeight);
     }
 
     private void updateScaledMouse() {
@@ -1009,79 +763,11 @@ public class NanoVGClickGuiScreen extends Screen {
         renderableSettingsCache.clear();
     }
 
-    private void storeCurrentCategoryScroll() {
-        if (!isModuleView() || !searchQuery.isBlank() || selectedCategory == null)
-            return;
-
-        categoryScrolls.put(selectedCategory, new ScrollState(listScroll, targetListScroll));
-    }
-
-    private void restoreCategoryScroll(ModuleCategory category) {
-        if (category == null) {
-            resetListScroll();
-            return;
-        }
-
-        ScrollState state = categoryScrolls.get(category);
-        if (state == null) {
-            resetListScroll();
-            return;
-        }
-
-        listScroll = state.listScroll();
-        targetListScroll = state.targetListScroll();
-        scrollVelocity = 0f;
-    }
-
-    private void resetListScroll() {
-        targetListScroll = 0f;
-        listScroll = 0f;
-        scrollVelocity = 0f;
-    }
-
     private float updateDelta() {
         long now = System.nanoTime();
         float delta = lastFrameNanos == 0L ? 1f : Math.clamp((now - lastFrameNanos) / 16_666_666f, 0.25f, 3f);
         lastFrameNanos = now;
         return delta;
-    }
-
-    private void updateSmoothScroll(float delta) {
-        if (listViewport.height <= 0f)
-            return;
-
-        targetListScroll = Math.clamp(targetListScroll, 0f, maxListScroll);
-
-        if (activeScrollbar != null) {
-            scrollVelocity = 0f;
-            listScroll = targetListScroll;
-            return;
-        }
-
-        if (maxListScroll <= 0f) {
-            targetListScroll = 0f;
-            listScroll = 0f;
-            scrollVelocity = 0f;
-            return;
-        }
-
-        float distance = targetListScroll - listScroll;
-        scrollVelocity += distance * 0.045f * delta;
-        scrollVelocity *= (float) Math.pow(0.74f, delta);
-        scrollVelocity = Math.clamp(scrollVelocity, -42f, 42f);
-
-        listScroll += scrollVelocity * delta;
-        listScroll = approach(listScroll, targetListScroll, 1f - (float) Math.pow(0.91f, delta));
-
-        if (listScroll < 0f || listScroll > maxListScroll) {
-            listScroll = Math.clamp(listScroll, 0f, maxListScroll);
-            scrollVelocity = 0f;
-        }
-
-        if (Math.abs(targetListScroll - listScroll) < 0.06f && Math.abs(scrollVelocity) < 0.06f) {
-            listScroll = targetListScroll;
-            scrollVelocity = 0f;
-        }
     }
 
     private void updateSettingsPanelSmoothScroll(float delta) {
@@ -1175,13 +861,6 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private void renderColumnView(NVGU vg, float screenWidth, float screenHeight) {
-        closeRect = EMPTY_RECT;
-        searchClearRect = EMPTY_RECT;
-        listViewport = EMPTY_RECT;
-        scrollbarTrackRect = EMPTY_RECT;
-        scrollbarThumbRect = EMPTY_RECT;
-        maxListScroll = 0f;
-
         if (typeSearchOpen && textFocus != TextFocus.SEARCH && searchQuery.isEmpty())
             typeSearchOpen = false;
 
@@ -1251,7 +930,7 @@ public class NanoVGClickGuiScreen extends Screen {
             if (category == ModuleCategory.Dev && (!query.isBlank() || !ConfigManager.isDeveloperFeaturesEnabled()))
                 continue;
 
-            GuiColumn column = new GuiColumn(category, category.name());
+            GuiColumn column = new GuiColumn(category.name());
             for (Module module : ModuleManager.allModules) {
                 if (module.moduleCategory != category)
                     continue;
@@ -1264,13 +943,6 @@ public class NanoVGClickGuiScreen extends Screen {
 
             column.rows.sort(Comparator.comparing(ColumnRow::label, String.CASE_INSENSITIVE_ORDER));
             columns.add(column);
-        }
-
-        if (query.isBlank()) {
-            GuiColumn client = new GuiColumn(CLIENT_COLUMN_KEY, "Client");
-            for (CommandTab tab : CommandTab.values())
-                client.rows.add(tabColumnRow(tab.sidebarLabel, null, tab));
-            columns.add(client);
         }
 
         float rowHeight = columnRowHeight();
@@ -1326,12 +998,7 @@ public class NanoVGClickGuiScreen extends Screen {
         float labelWidth = NVGFonts.INTER_MEDIUM.getWidth(module.moduleName, COLUMN_FONT);
         if (module.isLocked())
             labelWidth += NVGFonts.ICON.getWidth(MaterialIcon.LOCK, COLUMN_FONT) + u(4f);
-        return new ColumnRow(module, null, null, module.moduleName, labelWidth + COLUMN_PADDING_X * 2f);
-    }
-
-    private static ColumnRow tabColumnRow(String label, ConfigTab configTab, CommandTab commandTab) {
-        float labelWidth = NVGFonts.INTER_MEDIUM.getWidth(label, COLUMN_FONT);
-        return new ColumnRow(null, configTab, commandTab, label, labelWidth + COLUMN_PADDING_X * 2f);
+        return new ColumnRow(module, module.moduleName, labelWidth + COLUMN_PADDING_X * 2f);
     }
 
     private void renderColumnContent(NVGU vg, GuiColumn column) {
@@ -1353,16 +1020,7 @@ public class NanoVGClickGuiScreen extends Screen {
             boolean hovered = !overPanel && isHovered(hit);
             float textX = strip.x + u(6f);
             float textY = strip.y + textOffset;
-            String hoverKey = "column-hover:" + column.key + ":" + row.label();
-            float hover = animate(hoverKey, hovered, 0.22f);
-
             Module module = row.module();
-            if (module == null) {
-                tabBounds.add(new TabBounds(null, row.configTab(), row.commandTab(), hit));
-                NVGFonts.INTER_MEDIUM.drawText(row.label(), textX, textY, COLUMN_FONT, mix(NanoVGTheme.muted(235), NanoVGTheme.TEXT, hover), Alignment.LEFT_TOP, true);
-                continue;
-            }
-
             addModuleRow(module, hit);
             if (hovered)
                 rememberHoveredModule(module);
@@ -1655,7 +1313,6 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private void renderFloatingModulePanel(NVGU vg, float screenWidth, float screenHeight) {
         settingsPanelControlStartIndex = controls.size();
-        settingsPanelCloseRect = EMPTY_RECT;
 
         Module module = settingsPanelRenderModule;
         float reveal = settingsDockReveal;
@@ -1748,211 +1405,6 @@ public class NanoVGClickGuiScreen extends Screen {
         }
     }
 
-    private void returnToColumns() {
-        storeCurrentCategoryScroll();
-        configView = false;
-        commandView = false;
-        searchQuery = "";
-        if (settingsPanelConfig != null)
-            closeSettingsPanel();
-        clearInteractionState();
-    }
-
-    private void renderPanelEffects(NVGU vg, float x, float y, float width, float height) {
-        vg.beginEffectBatch();
-        NanoVGTheme.renderPanelEffects(vg, x, y, width, height, u(NanoVGTheme.RADIUS_PANEL), 1f);
-        vg.flushEffectBatch();
-    }
-
-    private void renderPanel(NVGU vg, float x, float y, float width, float height) {
-        NanoVGTheme.renderPanel(vg, x, y, width, height, u(NanoVGTheme.RADIUS_PANEL), 1f, ROOT_PANEL_BACKGROUND_ALPHA_OFFSET);
-
-        renderHeader(vg, x, y, width);
-        Rect content = panelContentBounds(new Rect(x, y, width, height));
-        NanoVGTheme.renderCompact(vg, content.x, content.y, CATEGORY_SIDEBAR_WIDTH, content.height, u(NanoVGTheme.RADIUS_HUD), 1f, COMPACT_BACKGROUND_ALPHA_OFFSET);
-        renderTabs(vg, content.x, content.y, CATEGORY_SIDEBAR_WIDTH, content.height);
-
-        Rect mainContent = mainContentBounds(content);
-        float listWidth = mainContent.width - settingsDockReservedWidth(content.width, settingsDockReveal);
-        int visibleCount = configView
-                ? renderConfigList(vg, mainContent.x, mainContent.y, listWidth, mainContent.height)
-                : commandView
-                ? renderCommandList(vg, mainContent.x, mainContent.y, listWidth, mainContent.height)
-                : renderModuleList(vg, mainContent.x, mainContent.y, listWidth, mainContent.height);
-        renderFooter(vg, x + PANEL_PADDING, y + height - PANEL_FOOTER_HEIGHT - u(4f), width - PANEL_PADDING * 2f, visibleCount);
-    }
-
-    private void renderSettingsPanel(NVGU vg, Rect parentPanel) {
-        settingsPanelControlStartIndex = controls.size();
-
-        Module module = settingsPanelRenderModule;
-        ConfigEntry config = settingsPanelRenderConfig;
-        float reveal = settingsDockReveal;
-        if ((module == null && config == null) || reveal <= 0f) {
-            settingsPanelRect = new Rect(0f, 0f, 0f, 0f);
-            settingsPanelCloseRect = new Rect(0f, 0f, 0f, 0f);
-            settingsPanelViewport = new Rect(0f, 0f, 0f, 0f);
-            settingsPanelScrollbarTrackRect = new Rect(0f, 0f, 0f, 0f);
-            settingsPanelScrollbarThumbRect = new Rect(0f, 0f, 0f, 0f);
-            maxSettingsPanelScroll = 0f;
-            return;
-        }
-
-        Rect content = panelContentBounds(parentPanel);
-        Rect mainContent = mainContentBounds(content);
-        float dockWidth = settingsDockWidth(content.width);
-        float slide = (1f - reveal) * dockWidth;
-        settingsPanelRect = new Rect(
-                mainContent.x + mainContent.width - dockWidth + slide,
-                mainContent.y,
-                dockWidth,
-                mainContent.height
-        );
-        settingsPanelCloseRect = new Rect(
-                settingsPanelRect.x + settingsPanelRect.width - u(28f),
-                settingsPanelRect.y + u(8f),
-                u(20f),
-                u(20f)
-        );
-
-        Rect dockClip = mainContent;
-        float headerNameX = module != null
-                ? settingsPanelRect.x + u(12f) + SWITCH_WIDTH + u(8f)
-                : settingsPanelRect.x + u(12f);
-        float headerNameWidth = Math.max(u(40f), settingsPanelCloseRect.x - u(8f) - headerNameX);
-        String headerName = module != null ? module.moduleName : config.name();
-        NVGFont headerNameFont = NVGFonts.INTER_SEMIBOLD;
-        float headerHeight = SETTINGS_PANEL_HEADER_HEIGHT
-                + (wrappedLineCount(headerName, headerNameFont, font(14f), headerNameWidth) - 1) * NAME_LINE_HEIGHT;
-        float settingsListX = settingsPanelRect.x + u(6f);
-        float settingsListY = settingsPanelRect.y + headerHeight + u(4f);
-        float settingsListWidth = settingsPanelRect.width - u(12f);
-        float settingsListHeight = settingsPanelRect.height - headerHeight - u(10f);
-        settingsPanelViewport = new Rect(
-                settingsListX + u(5f),
-                settingsListY + u(5f),
-                settingsListWidth - u(16f),
-                settingsListHeight - u(10f)
-        );
-        float settingsContentHeight = module != null ? expandedSettingsHeight(module) : configInfoHeight();
-        maxSettingsPanelScroll = Math.max(0f, settingsContentHeight - settingsPanelViewport.height);
-        targetSettingsPanelScroll = Math.clamp(targetSettingsPanelScroll, 0f, maxSettingsPanelScroll);
-        settingsPanelScroll = Math.clamp(settingsPanelScroll, 0f, maxSettingsPanelScroll);
-        if (maxSettingsPanelScroll <= 0f)
-            settingsPanelScrollVelocity = 0f;
-
-        vg.globalAlpha(reveal, () -> {
-            deferControlChrome = true;
-            try {
-                withInputClip(dockClip, () -> vg.scissor(dockClip.x, dockClip.y, dockClip.width, dockClip.height, () -> {
-                    NanoVGTheme.renderPanel(
-                            vg,
-                            settingsPanelRect.x,
-                            settingsPanelRect.y,
-                            settingsPanelRect.width,
-                            settingsPanelRect.height,
-                            u(8f),
-                            1f
-                    );
-                    vg.rectangle(
-                            settingsPanelRect.x + 1f,
-                            settingsPanelRect.y + headerHeight,
-                            settingsPanelRect.width - 2f,
-                            u(1f),
-                            alpha(255, 255, 255, 28)
-                    );
-
-                    float headerFont = font(14f);
-                    if (module != null) {
-                        Rect enableRect = new Rect(
-                                settingsPanelRect.x + u(12f),
-                                settingsPanelRect.y + u(14f),
-                                SWITCH_WIDTH,
-                                SWITCH_HEIGHT
-                        );
-                        drawWrappedText(headerNameFont, headerName, headerNameX, settingsPanelRect.y + u(14f), headerFont,
-                                headerNameWidth, NAME_LINE_HEIGHT, NanoVGTheme.TEXT, Alignment.LEFT_TOP);
-                        if (settingsPanelModule != null && !module.isLocked())
-                            addControl(ControlType.MODULE_ENABLED, enableRect.expand(u(4f), u(6f)), module, null, 0);
-                        if (!module.isLocked()) drawSwitch(
-                                vg,
-                                enableRect.x,
-                                enableRect.y,
-                                enableRect.width,
-                                enableRect.height,
-                                animateIdentity(enabledAnimations, enabledAnimationFrames, module, module.tempEnabled, 0.12f),
-                                "enable:" + System.identityHashCode(module),
-                                isPressed(ControlType.MODULE_ENABLED, module)
-                        );
-                    } else {
-                        drawWrappedText(headerNameFont, headerName, headerNameX, settingsPanelRect.y + u(14f), headerFont,
-                                headerNameWidth, NAME_LINE_HEIGHT, NanoVGTheme.TEXT, Alignment.LEFT_TOP);
-                    }
-
-                    boolean closeHovered = settingsPanelCloseRect.contains(scaledMouseX, scaledMouseY);
-                    float closeProgress = animate("settings-panel-close", closeHovered, 0.18f);
-                    vg.roundedRectangle(
-                            settingsPanelCloseRect.x,
-                            settingsPanelCloseRect.y,
-                            settingsPanelCloseRect.width,
-                            settingsPanelCloseRect.height,
-                            u(5f),
-                            mix(alpha(255, 255, 255, 10), alpha(255, 74, 74, 50), closeProgress)
-                    );
-                    NVGFonts.ICON.drawText(
-                            MaterialIcon.CLOSE,
-                            settingsPanelCloseRect.centerX(),
-                            settingsPanelCloseRect.centerY() - u(1f),
-                            font(12f),
-                            mix(NanoVGTheme.iconIdle(230), alpha(255, 195, 195, 245), closeProgress),
-                            Alignment.CENTER_MIDDLE,
-                            true
-                    );
-
-                    NanoVGTheme.renderCompact(vg, settingsListX, settingsListY, settingsListWidth, settingsListHeight, u(NanoVGTheme.RADIUS_HUD), 1f, COMPACT_BACKGROUND_ALPHA_OFFSET);
-                    withInputClip(settingsPanelViewport, () -> vg.scissor(
-                            settingsPanelViewport.x,
-                            settingsPanelViewport.y,
-                            settingsPanelViewport.width,
-                            settingsPanelViewport.height,
-                            () -> {
-                                if (module != null)
-                                    renderExpandedSettings(
-                                            vg,
-                                            module,
-                                            settingsPanelViewport.x,
-                                            settingsPanelViewport.y - settingsPanelScroll,
-                                            settingsPanelViewport.width
-                                    );
-                                else
-                                    renderConfigInfo(
-                                            vg,
-                                            config,
-                                            settingsPanelViewport.x,
-                                            settingsPanelViewport.y - settingsPanelScroll,
-                                            settingsPanelViewport.width
-                                    );
-                            }
-                    ));
-                }));
-                flushPendingControlGlass(vg);
-                vg.scissor(dockClip.x, dockClip.y, dockClip.width, dockClip.height, () -> {
-                    drawPendingControlForegrounds(vg);
-                    renderSettingsPanelScrollbar(vg, settingsContentHeight);
-                });
-            } finally {
-                deferControlChrome = false;
-                pendingControlGlass.clear();
-                pendingControlForegrounds.clear();
-            }
-        });
-
-        if (!isSettingsDockOpen()) {
-            while (controls.size() > settingsPanelControlStartIndex)
-                controls.remove(controls.size() - 1);
-        }
-    }
-
     private float settingsPanelReveal() {
         boolean open = isSettingsDockOpen();
         float current = animations.getOrDefault("settings-panel-open", 0f);
@@ -1969,941 +1421,8 @@ public class NanoVGClickGuiScreen extends Screen {
         return reveal <= 0.0005f ? 0f : reveal;
     }
 
-    private static float settingsDockWidth(float contentWidth) {
-        return Math.clamp(contentWidth * 0.40f, u(248f), u(332f));
-    }
-
-    private static float settingsDockReservedWidth(float contentWidth, float reveal) {
-        return (settingsDockWidth(contentWidth) + SETTINGS_DOCK_GAP) * Math.clamp(reveal, 0f, 1f);
-    }
-
-    private static Rect panelContentBounds(Rect panel) {
-        return new Rect(
-                panel.x + PANEL_PADDING,
-                panel.y + PANEL_HEADER_HEIGHT + PANEL_PADDING,
-                panel.width - PANEL_PADDING * 2f,
-                panel.height - PANEL_HEADER_HEIGHT - PANEL_PADDING * 2f - PANEL_FOOTER_HEIGHT
-        );
-    }
-
-    private static Rect mainContentBounds(Rect content) {
-        return new Rect(
-                content.x + CATEGORY_SIDEBAR_WIDTH + CATEGORY_CONTENT_GAP,
-                content.y,
-                content.width - CATEGORY_SIDEBAR_WIDTH - CATEGORY_CONTENT_GAP,
-                content.height
-        );
-    }
-
-    private void renderHeader(NVGU vg, float x, float y, float width) {
-        closeRect = new Rect(x + width - u(30f), y + u(11f), u(18f), u(18f));
-        searchRect = new Rect(x + width - u(242f), y + u(10f), u(196f), u(20f));
-
-        renderSearch(vg, searchRect);
-
-        boolean closeHovered = closeRect.contains(scaledMouseX, scaledMouseY);
-        vg.roundedRectangle(closeRect.x, closeRect.y, closeRect.width, closeRect.height, u(4f), closeHovered ? alpha(255, 90, 90, 120) : alpha(255, 255, 255, 18));
-        NVGFonts.ICON.drawText(MaterialIcon.CLOSE, closeRect.centerX(), closeRect.centerY() - u(1f), font(14f), closeHovered ? NanoVGTheme.TEXT : NanoVGTheme.muted(220), Alignment.CENTER_MIDDLE, true);
-
-        vg.rectangle(x + u(10f), y + PANEL_HEADER_HEIGHT - u(1f), width - u(20f), u(1f), alpha(255, 255, 255, 40));
-    }
-
-    private void renderSearch(NVGU vg, Rect rect) {
-        boolean focused = textFocus == TextFocus.SEARCH;
-        vg.roundedRectangle(rect.x, rect.y, rect.width, rect.height, u(5f), alpha(255, 255, 255, focused ? 30 : 16));
-        vg.roundedRectangleBorder(rect.x, rect.y, rect.width, rect.height, u(5f), u(1f), focused ? NanoVGTheme.inputFocus(120) : alpha(255, 255, 255, 30), Border.INSIDE);
-        NVGFonts.ICON.drawText(MaterialIcon.SEARCH, rect.x + u(7f), rect.y + u(3f), font(12f), focused ? NanoVGTheme.INPUT_FOCUS : NanoVGTheme.iconIdle(220), Alignment.LEFT_TOP, true);
-
-        String text = inputText(searchQuery, focused, "Search");
-        Color color = searchQuery.isBlank() && !focused ? NanoVGTheme.muted(205) : alpha(255, 255, 255, 235);
-        float textReserve = searchQuery.isBlank() ? u(33f) : u(51f);
-        float searchFont = font(11f);
-        renderInputText(vg, TextFocus.SEARCH, null, focused, text, searchFont, rect.x + u(24f), rect.y + u(4.5f), rect.y + u(5f), rect.width - textReserve, rect, color);
-
-        if (searchQuery.isBlank()) {
-            searchClearRect = new Rect(0f, 0f, 0f, 0f);
-            return;
-        }
-
-        searchClearRect = new Rect(rect.x + rect.width - u(19f), rect.y + u(2f), u(16f), u(16f));
-        boolean clearHovered = searchClearRect.contains(scaledMouseX, scaledMouseY);
-        vg.roundedRectangle(searchClearRect.x, searchClearRect.y, searchClearRect.width, searchClearRect.height, u(4f),
-                alpha(255, 255, 255, 10));
-        NVGFonts.ICON.drawText(MaterialIcon.CLOSE, searchClearRect.centerX(), searchClearRect.centerY() - u(1f), font(11f),
-                clearHovered ? NanoVGTheme.TEXT : NanoVGTheme.muted(210), Alignment.CENTER_MIDDLE, true);
-    }
-
-    private void renderFooter(NVGU vg, float x, float y, float width, int visibleCount) {
-        vg.rectangle(x, y - u(2f), width, u(1f), alpha(255, 255, 255, 28));
-
-        String countLabel;
-        if (!searchQuery.isBlank())
-            countLabel = visibleCount + (visibleCount == 1 ? " result" : " results");
-        else if (configView)
-            countLabel = visibleCount + (visibleCount == 1 ? " config" : " configs");
-        else if (commandView && selectedCommandTab == CommandTab.MULTIPLAY)
-            countLabel = visibleCount + (visibleCount == 1 ? " player" : " players");
-        else if (commandView)
-            countLabel = visibleCount + (visibleCount == 1 ? " log" : " logs");
-        else
-            countLabel = visibleCount + (visibleCount == 1 ? " module" : " modules");
-        NVGFonts.INTER.drawText(countLabel, x + width - u(2f), y + u(5f), font(10f),
-                searchQuery.isBlank() ? NanoVGTheme.muted(220) : NanoVGTheme.text(230),
-                Alignment.RIGHT_TOP, true);
-    }
-
-    private void renderTabs(NVGU vg, float x, float y, float width, float height) {
-        ModuleCategory[] categories = ModuleCategory.values();
-        ConfigTab[] configTabs = ConfigTab.values();
-        CommandTab[] commandTabs = CommandTab.values();
-        int tabCount = categories.length + configTabs.length + commandTabs.length;
-        float naturalHeight = u(5f) + tabCount * u(27f) + u(11f) * 2f;
-        float fit = Math.clamp(height / naturalHeight, 0.72f, 1f);
-        float gap = u(5f) * fit;
-        float tabHeight = u(22f) * fit;
-        float tabFont = font(14f);
-        float textOffset = (tabHeight - tabFont) / 2f;
-        Rect selectedRect = null;
-
-        for (int i = 0; i < categories.length; i++) {
-            ModuleCategory category = categories[i];
-            Rect rect = new Rect(x, y + u(5f) + i * (tabHeight + gap), width, tabHeight);
-            tabBounds.add(new TabBounds(category, null, null, rect));
-
-            boolean selected = isModuleView() && searchQuery.isBlank() && selectedCategory == category;
-            if (selected)
-                selectedRect = rect;
-
-            NVGFont categoryFont = selected ? NVGFonts.INTER_SEMIBOLD : NVGFonts.INTER;
-            categoryFont.drawText(category.name(), rect.x + u(12f), rect.y + textOffset, tabFont, selected ? NanoVGTheme.TEXT : NanoVGTheme.MUTED, Alignment.LEFT_TOP, true);
-        }
-
-        float dividerY = y + u(5f) + categories.length * (tabHeight + gap) + u(2f) * fit;
-        vg.rectangle(x + u(8f), dividerY, width - u(16f), u(1f), alpha(255, 255, 255, 48));
-
-        float configStartY = dividerY + u(9f) * fit;
-        for (int i = 0; i < configTabs.length; i++) {
-            ConfigTab tab = configTabs[i];
-            Rect rect = new Rect(x, configStartY + i * (tabHeight + gap), width, tabHeight);
-            tabBounds.add(new TabBounds(null, tab, null, rect));
-
-            boolean selected = configView && searchQuery.isBlank() && selectedConfigTab == tab;
-            if (selected)
-                selectedRect = rect;
-
-            NVGFont tabLabelFont = selected ? NVGFonts.INTER_SEMIBOLD : NVGFonts.INTER;
-            tabLabelFont.drawText(tab.sidebarLabel, rect.x + u(12f), rect.y + textOffset, tabFont, selected ? NanoVGTheme.TEXT : NanoVGTheme.MUTED, Alignment.LEFT_TOP, true);
-        }
-
-        float commandDividerY = configStartY + configTabs.length * (tabHeight + gap) + u(2f) * fit;
-        vg.rectangle(x + u(8f), commandDividerY, width - u(16f), u(1f), alpha(255, 255, 255, 48));
-
-        float commandStartY = commandDividerY + u(9f) * fit;
-        for (int i = 0; i < commandTabs.length; i++) {
-            CommandTab tab = commandTabs[i];
-            Rect rect = new Rect(x, commandStartY + i * (tabHeight + gap), width, tabHeight);
-            tabBounds.add(new TabBounds(null, null, tab, rect));
-
-            boolean selected = commandView && searchQuery.isBlank() && selectedCommandTab == tab;
-            if (selected)
-                selectedRect = rect;
-
-            NVGFont tabLabelFont = selected ? NVGFonts.INTER_SEMIBOLD : NVGFonts.INTER;
-            tabLabelFont.drawText(tab.sidebarLabel, rect.x + u(12f), rect.y + textOffset, tabFont, selected ? NanoVGTheme.TEXT : NanoVGTheme.MUTED, Alignment.LEFT_TOP, true);
-        }
-
-        if (selectedRect == null)
-            return;
-
-        tabMarkY = Float.isNaN(tabMarkY)
-                ? selectedRect.y
-                : approach(tabMarkY, selectedRect.y, Math.clamp(0.16f * frameDelta * 0.9f, 0.08f, 1f));
-        renderListRowMark(vg, new Rect(selectedRect.x, tabMarkY, selectedRect.width, selectedRect.height));
-    }
-
-    private int renderModuleList(NVGU vg, float x, float y, float width, float height) {
-        NanoVGTheme.renderCompact(vg, x, y, width, height, u(NanoVGTheme.RADIUS_HUD), 1f, COMPACT_BACKGROUND_ALPHA_OFFSET);
-
-        List<Module> modules = visibleModules();
-        listViewport = new Rect(x + u(5f), y + u(5f), width - u(10f), height - u(10f));
-        float contentHeight = contentHeight(modules, listViewport.width);
-        maxListScroll = Math.max(0f, contentHeight - listViewport.height);
-        targetListScroll = Math.clamp(targetListScroll, 0f, maxListScroll);
-        listScroll = Math.clamp(listScroll, 0f, maxListScroll);
-        if (maxListScroll <= 0f)
-            scrollVelocity = 0f;
-
-        withInputClip(listViewport, () -> withControlChrome(vg, listViewport, () -> {
-            float rowY = listViewport.y - listScroll;
-
-            if (modules.isEmpty()) {
-                renderEmptyState(
-                        vg,
-                        listViewport,
-                        searchQuery.isBlank() ? MaterialIcon.INFO : MaterialIcon.SEARCH,
-                        searchQuery.isBlank() ? "No modules in this category" : "No matching modules",
-                        searchQuery.isBlank() ? "Choose another category." : "Try another keyword or clear the search."
-                );
-                return;
-            }
-
-            for (int i = 0; i < modules.size(); i++) {
-                Module module = modules.get(i);
-                float blockHeight = moduleBlockHeight(module, listViewport.width);
-                if (rowY + blockHeight > listViewport.y && rowY < listViewport.y + listViewport.height)
-                    renderModuleBlock(vg, module, i, modules.size(), listViewport.x, rowY, listViewport.width);
-                rowY += blockHeight;
-            }
-        }));
-
-        renderScrollbar(vg, listViewport, contentHeight, listScroll);
-        return modules.size();
-    }
-
-    private int renderConfigList(NVGU vg, float x, float y, float width, float height) {
-        NanoVGTheme.renderCompact(vg, x, y, width, height, u(NanoVGTheme.RADIUS_HUD), 1f, COMPACT_BACKGROUND_ALPHA_OFFSET);
-
-        float innerX = x + u(8f);
-        float innerWidth = width - u(16f);
-        float rowTop = y + u(8f);
-
-        if (selectedConfigTab != ConfigTab.ONLINE) {
-            renderConfigCreateRow(vg, innerX, rowTop, innerWidth);
-            rowTop += u(36f);
-        }
-
-        List<ConfigEntry> configs = visibleConfigEntries();
-        listViewport = new Rect(x + u(5f), rowTop, width - u(10f), Math.max(u(42f), y + height - rowTop - u(6f)));
-        float contentHeight = u(2f);
-        for (ConfigEntry config : configs)
-            contentHeight += configRowHeight(config, listViewport.width);
-        contentHeight = Math.max(ROW_HEIGHT, contentHeight);
-        maxListScroll = Math.max(0f, contentHeight - listViewport.height);
-        targetListScroll = Math.clamp(targetListScroll, 0f, maxListScroll);
-        listScroll = Math.clamp(listScroll, 0f, maxListScroll);
-        if (maxListScroll <= 0f)
-            scrollVelocity = 0f;
-
-        withInputClip(listViewport, () -> vg.scissor(listViewport.x, listViewport.y, listViewport.width, listViewport.height, () -> {
-            float rowY = listViewport.y - listScroll;
-
-            if (configs.isEmpty()) {
-                renderEmptyState(
-                        vg,
-                        listViewport,
-                        searchQuery.isBlank() ? MaterialIcon.INFO : MaterialIcon.SEARCH,
-                        searchQuery.isBlank() ? "No " + selectedConfigTab.emptyName + " configs" : "No matching configs",
-                        searchQuery.isBlank() ? "Create one above or choose another category." : "Try another keyword or clear the search."
-                );
-                return;
-            }
-
-            for (int i = 0; i < configs.size(); i++) {
-                ConfigEntry config = configs.get(i);
-                float configHeight = configRowHeight(config, listViewport.width);
-                if (rowY + configHeight > listViewport.y && rowY < listViewport.y + listViewport.height)
-                    renderConfigRow(vg, config, i, configs.size(), listViewport.x, rowY, listViewport.width);
-                rowY += configHeight;
-            }
-        }));
-
-        renderScrollbar(vg, listViewport, contentHeight, listScroll);
-        return configs.size();
-    }
-
-    private int renderCommandList(NVGU vg, float x, float y, float width, float height) {
-        NanoVGTheme.renderCompact(vg, x, y, width, height, u(NanoVGTheme.RADIUS_HUD), 1f, COMPACT_BACKGROUND_ALPHA_OFFSET);
-
-        return selectedCommandTab == CommandTab.MULTIPLAY
-                ? renderMultiplayList(vg, x, y, width, height)
-                : renderCommandConsole(vg, x, y, width, height);
-    }
-
-    private int renderCommandConsole(NVGU vg, float x, float y, float width, float height) {
-        float rowTop = y + u(8f);
-        renderCommandInputRow(vg, x + u(8f), rowTop, width - u(16f));
-        rowTop += u(36f);
-
-        List<String> logs = visibleCommandLogs();
-        listViewport = new Rect(x + u(5f), rowTop, width - u(10f), Math.max(u(42f), y + height - rowTop - u(6f)));
-        float textWidth = Math.max(u(20f), listViewport.width - u(24f));
-        if (Math.abs(commandLogWrapWidth - textWidth) > 0.5f || commandLogLineCache.size() > ModuleRenderable.commandLogs.size() * 2 + 8) {
-            commandLogLineCache.clear();
-            commandLogWrapWidth = textWidth;
-        }
-
-        float contentHeight = u(2f);
-        for (String log : logs)
-            contentHeight += commandLogBlockHeight(log, textWidth);
-        contentHeight = Math.max(ROW_HEIGHT, contentHeight);
-        maxListScroll = Math.max(0f, contentHeight - listViewport.height);
-        if (followNewCommandLogs()) {
-            targetListScroll = maxListScroll;
-            scrollVelocity = 0f;
-        }
-        targetListScroll = Math.clamp(targetListScroll, 0f, maxListScroll);
-        listScroll = Math.clamp(listScroll, 0f, maxListScroll);
-        if (maxListScroll <= 0f)
-            scrollVelocity = 0f;
-
-        withInputClip(listViewport, () -> vg.scissor(listViewport.x, listViewport.y, listViewport.width, listViewport.height, () -> {
-            if (logs.isEmpty()) {
-                renderEmptyState(
-                        vg,
-                        listViewport,
-                        searchQuery.isBlank() ? MaterialIcon.READER : MaterialIcon.SEARCH,
-                        searchQuery.isBlank() ? "Type commands here" : "No matching logs",
-                        searchQuery.isBlank() ? "Run \"help\" to show every command." : "Try another keyword or clear the search."
-                );
-                return;
-            }
-
-            float rowY = listViewport.y - listScroll;
-            float lineHeight = u(15f);
-            float logFont = font(12f);
-            for (String log : logs) {
-                float blockHeight = commandLogBlockHeight(log, textWidth);
-                if (rowY + blockHeight > listViewport.y && rowY < listViewport.y + listViewport.height) {
-                    vg.roundedRectangle(listViewport.x + u(6f), rowY + u(1f), listViewport.width - u(12f), blockHeight - u(3f), u(4f), alpha(255, 255, 255, 12));
-                    List<String> lines = commandLogLines(log, textWidth);
-                    for (int i = 0; i < lines.size(); i++)
-                        NVGFonts.INTER.drawText(lines.get(i), listViewport.x + u(14f), rowY + u(5f) + i * lineHeight, logFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
-                }
-                rowY += blockHeight;
-            }
-        }));
-
-        renderScrollbar(vg, listViewport, contentHeight, listScroll);
-        renderCommandSuggestions(vg, y + height - u(6f));
-        return logs.size();
-    }
-
-    private void renderCommandInputRow(NVGU vg, float x, float y, float width) {
-        boolean active = textFocus == TextFocus.COMMAND;
-        Rect input = new Rect(x, y, width - u(91f), u(24f));
-        Rect button = new Rect(x + width - u(83f), y, u(83f), u(24f));
-        commandInputRect = input;
-        updateCommandSuggestions();
-        addControl(ControlType.COMMAND_INPUT, input, null, null, 0);
-        addControl(ControlType.COMMAND_RUN, button, null, null, 0);
-
-        vg.roundedRectangle(input.x, input.y, input.width, input.height, u(5f), alpha(255, 255, 255, active ? 29 : 16));
-        vg.roundedRectangleBorder(input.x, input.y, input.width, input.height, u(5f), u(1f), active ? NanoVGTheme.inputFocus(110) : alpha(255, 255, 255, 28), Border.INSIDE);
-
-        String text = inputText(commandInput, active, "Enter a command");
-        float inputFont = font(11f);
-        Color textColor = commandInput.isBlank() && !active ? NanoVGTheme.muted(180) : NanoVGTheme.TEXT;
-        NVGFonts.ICON.drawText(MaterialIcon.FORWARD_IOS, input.x + u(8f), input.y + u(5f), font(12f), active ? NanoVGTheme.INPUT_FOCUS : NanoVGTheme.iconIdle(220), Alignment.LEFT_TOP, true);
-        renderInputText(vg, TextFocus.COMMAND, null, active, text, inputFont, input.x + u(26f), input.y + u(6f), input.y + u(6f), input.width - u(32f), input, textColor);
-        renderCommandSuggestionGhost(vg, input, text, inputFont);
-
-        renderCommandButton(vg, button, "command-run", "Run", !commandInput.isBlank(), false);
-    }
-
-    private int renderMultiplayList(NVGU vg, float x, float y, float width, float height) {
-        float rowTop = y + u(8f);
-        Rect disconnect = new Rect(x + u(8f), rowTop, width - u(16f), u(24f));
-        boolean connected = minecraft != null && minecraft.level != null;
-        addControl(ControlType.MULTIPLAY_DISCONNECT, disconnect, null, null, 0);
-        renderCommandButton(vg, disconnect, "multiplay-disconnect", "Force disconnect from server", connected, true);
-        rowTop += u(36f);
-
-        List<PlayerEntry> players = visibleMultiplayPlayers();
-        listViewport = new Rect(x + u(5f), rowTop, width - u(10f), Math.max(u(42f), y + height - rowTop - u(6f)));
-        float contentHeight = u(2f);
-        for (PlayerEntry player : players)
-            contentHeight += playerRowHeight(player, listViewport.width);
-        contentHeight = Math.max(ROW_HEIGHT, contentHeight);
-        maxListScroll = Math.max(0f, contentHeight - listViewport.height);
-        targetListScroll = Math.clamp(targetListScroll, 0f, maxListScroll);
-        listScroll = Math.clamp(listScroll, 0f, maxListScroll);
-        if (maxListScroll <= 0f)
-            scrollVelocity = 0f;
-
-        withInputClip(listViewport, () -> vg.scissor(listViewport.x, listViewport.y, listViewport.width, listViewport.height, () -> {
-            if (players.isEmpty()) {
-                boolean inWorld = minecraft != null && minecraft.level != null && minecraft.getConnection() != null;
-                renderEmptyState(
-                        vg,
-                        listViewport,
-                        !searchQuery.isBlank() ? MaterialIcon.SEARCH : MaterialIcon.PERSON,
-                        !searchQuery.isBlank() ? "No matching players" : inWorld ? "No players" : "Not connected",
-                        !searchQuery.isBlank() ? "Try another keyword or clear the search." : inWorld ? "No players are loaded nearby." : "Join a world or server to see players."
-                );
-                return;
-            }
-
-            float rowY = listViewport.y - listScroll;
-            for (PlayerEntry player : players) {
-                float playerHeight = playerRowHeight(player, listViewport.width);
-                if (rowY + playerHeight > listViewport.y && rowY < listViewport.y + listViewport.height)
-                    renderPlayerRow(vg, player, listViewport.x, rowY, listViewport.width);
-                rowY += playerHeight;
-            }
-        }));
-
-        renderScrollbar(vg, listViewport, contentHeight, listScroll);
-        return players.size();
-    }
-
-    private float playerRowHeight(PlayerEntry player, float width) {
-        int lines = wrappedLineCount(playerDisplayName(player), playerNameFont(player), font(14f), playerNameWidth(player, width));
-        return SETTING_ROW_STEP + (lines - 1) * NAME_LINE_HEIGHT;
-    }
-
-    private static String playerDisplayName(PlayerEntry player) {
-        return player.self() ? player.name() + " (You)" : player.name();
-    }
-
-    private static NVGFont playerNameFont(PlayerEntry player) {
-        return player.self() ? NVGFonts.INTER_SEMIBOLD : NVGFonts.INTER_MEDIUM;
-    }
-
-    private static String playerPingLabel(PlayerEntry player) {
-        return player.ping() >= 0 ? player.ping() + "ms" : "-";
-    }
-
-    private static float playerNameWidth(PlayerEntry player, float width) {
-        float buttonsWidth = u(8f) + u(50f) * 3f + u(5f) * 2f;
-        float pingWidth = NVGFonts.INTER.getWidth(playerPingLabel(player), font(10f));
-        return Math.max(u(28f), width - buttonsWidth - u(10f) - pingWidth - u(8f) - u(14f));
-    }
-
-    private void renderPlayerRow(NVGU vg, PlayerEntry player, float x, float y, float width) {
-        Rect row = new Rect(x, y, width, playerRowHeight(player, width) - u(4f));
-        if (player.self())
-            renderListRowMark(vg, row, 1f);
-
-        float buttonWidth = u(50f);
-        float buttonGap = u(5f);
-        float buttonHeight = u(20f);
-        float buttonY = row.y + (SETTING_ROW_STEP - u(4f) - buttonHeight) / 2f;
-        Rect crash = new Rect(row.x + row.width - u(8f) - buttonWidth, buttonY, buttonWidth, buttonHeight);
-        Rect teleport = new Rect(crash.x - buttonGap - buttonWidth, buttonY, buttonWidth, buttonHeight);
-        Rect kill = new Rect(teleport.x - buttonGap - buttonWidth, buttonY, buttonWidth, buttonHeight);
-        addControl(ControlType.PLAYER_KILL, kill, player.name(), null, 0);
-        addControl(ControlType.PLAYER_TELEPORT, teleport, player.name(), null, 0);
-        addControl(ControlType.PLAYER_CRASH, crash, player.name(), null, 0);
-
-        float nameX = row.x + u(14f);
-        NVGFonts.INTER.drawText(playerPingLabel(player), kill.x - u(10f), row.y + u(8f), font(10f), NanoVGTheme.MUTED, Alignment.RIGHT_TOP, true);
-        drawWrappedText(playerNameFont(player), playerDisplayName(player), nameX, row.y + u(7f), font(14f),
-                playerNameWidth(player, width), NAME_LINE_HEIGHT, NanoVGTheme.TEXT, Alignment.LEFT_TOP);
-
-        String key = "player:" + player.name() + ":";
-        renderCommandButton(vg, kill, key + "kill", "Kill", true, false);
-        renderCommandButton(vg, teleport, key + "tp", "Teleport", true, false);
-        renderCommandButton(vg, crash, key + "crash", "Crash", true, true);
-    }
-
-    private void renderCommandButton(NVGU vg, Rect button, String animationKey, String label, boolean enabled, boolean danger) {
-        boolean hovered = enabled && isHovered(button);
-        float progress = animate("command-button:" + animationKey, hovered, 0.18f);
-        Color fill = !enabled
-                ? alpha(255, 255, 255, 14)
-                : danger
-                ? mix(alpha(255, 255, 255, 18), alpha(255, 74, 74, 52), progress)
-                : alpha(255, 255, 255, 22);
-        Color border = !enabled
-                ? alpha(255, 255, 255, 24)
-                : danger
-                ? mix(alpha(255, 255, 255, 28), alpha(255, 96, 96, 110), progress)
-                : NanoVGTheme.inputFocus(88);
-        Color text = !enabled
-                ? NanoVGTheme.muted(180)
-                : danger && progress > 0.01f
-                ? mix(NanoVGTheme.TEXT, alpha(255, 195, 195, 245), progress)
-                : NanoVGTheme.TEXT;
-        float labelFont = font(11f);
-        vg.roundedRectangle(button.x, button.y, button.width, button.height, u(5f), fill);
-        vg.roundedRectangleBorder(button.x, button.y, button.width, button.height, u(5f), u(1f), border, Border.INSIDE);
-        float lineHeight = u(13f);
-        int lines = wrappedLineCount(label, NVGFonts.INTER_MEDIUM, labelFont, button.width - u(8f));
-        float labelY = button.centerY() - labelFont / 2f - (lines - 1) * lineHeight / 2f;
-        drawWrappedText(NVGFonts.INTER_MEDIUM, label, button.centerX(), labelY, labelFont, button.width - u(8f), lineHeight, text, Alignment.CENTER_TOP);
-    }
-
-    private List<String> visibleCommandLogs() {
-        String query = normalize(searchQuery);
-        List<String> logs = new ArrayList<>();
-        for (String log : ModuleRenderable.commandLogs) {
-            if (log != null && (query.isBlank() || normalize(log).contains(query)))
-                logs.add(log);
-        }
-        return logs;
-    }
-
-    private List<String> commandLogLines(String log, float textWidth) {
-        return commandLogLineCache.computeIfAbsent(log, ignored -> wrapTextToWidth(log, NVGFonts.INTER, font(12f), textWidth));
-    }
-
-    private float commandLogBlockHeight(String log, float textWidth) {
-        return commandLogLines(log, textWidth).size() * u(15f) + u(12f);
-    }
-
-    private boolean followNewCommandLogs() {
-        List<String> logs = ModuleRenderable.commandLogs;
-        int count = logs.size();
-        String last = count > 0 ? logs.get(count - 1) : null;
-        boolean changed = count != lastSeenCommandLogCount || last != lastSeenCommandLog;
-        lastSeenCommandLogCount = count;
-        lastSeenCommandLog = last;
-        return changed;
-    }
-
-    private List<PlayerEntry> visibleMultiplayPlayers() {
-        List<PlayerEntry> players = new ArrayList<>();
-        if (minecraft == null || minecraft.level == null || minecraft.getConnection() == null)
-            return players;
-
-        String query = normalize(searchQuery);
-        for (AbstractClientPlayer player : minecraft.level.players()) {
-            String name = player.getName().getString();
-            if (!query.isBlank() && !normalize(name).contains(query))
-                continue;
-
-            PlayerInfo info = minecraft.getConnection().getPlayerInfo(player.getUUID());
-            players.add(new PlayerEntry(name, info != null ? info.getLatency() : -1, player instanceof LocalPlayer));
-        }
-
-        players.sort(Comparator.comparing(PlayerEntry::name, String.CASE_INSENSITIVE_ORDER));
-        return players;
-    }
-
-    private void updateCommandSuggestions() {
-        if (textFocus != TextFocus.COMMAND) {
-            commandSuggestionsVisible = false;
-            commandSuggestionInput = null;
-            commandSuggestionAppliedInput = null;
-            return;
-        }
-
-        int caret = Math.clamp(textCaret, 0, commandInput.length());
-        if (commandInput.equals(commandSuggestionInput) && caret == commandSuggestionCaret)
-            return;
-
-        commandSuggestionInput = commandInput;
-        commandSuggestionCaret = caret;
-        if (commandInput.equals(commandSuggestionAppliedInput))
-            return;
-
-        commandSuggestionAppliedInput = null;
-        commandSuggestionTabCycles = false;
-        refreshCommandSuggestions(caret);
-        commandSuggestionsVisible = !commandInput.isEmpty()
-                && !commandSuggestionList.isEmpty()
-                && minecraft != null
-                && minecraft.options.autoSuggestions().get();
-    }
-
-    private void refreshCommandSuggestions(int caret) {
-        CommandDispatcher<ClientSuggestionProvider> commands = ChatCommandTree.dispatcher();
-        ClientSuggestionProvider source = minecraft != null && minecraft.player != null
-                ? minecraft.player.connection.getSuggestionsProvider()
-                : null;
-        ParseResults<ClientSuggestionProvider> parse = commands.parse(new StringReader(commandInput), source);
-        Suggestions suggestions = commands.getCompletionSuggestions(parse, caret).getNow(null);
-
-        commandSuggestionOriginal = commandInput;
-        commandSuggestionIndex = 0;
-        commandSuggestionOffset = 0;
-        commandSuggestionList = suggestions == null ? List.of() : sortCommandSuggestions(suggestions.getList(), caret);
-        commandUsageLines = commandSuggestionList.isEmpty() ? commandUsage(commands, parse, caret, source) : List.of();
-    }
-
-    private List<Suggestion> sortCommandSuggestions(List<Suggestion> suggestions, int caret) {
-        String partial = commandInput.substring(0, Math.min(caret, commandInput.length()));
-        String lastWord = partial.substring(partial.lastIndexOf(' ') + 1).toLowerCase(Locale.ROOT);
-        List<Suggestion> matching = new ArrayList<>();
-        List<Suggestion> others = new ArrayList<>();
-        for (Suggestion suggestion : suggestions) {
-            if (suggestion.getText().toLowerCase(Locale.ROOT).startsWith(lastWord))
-                matching.add(suggestion);
-            else
-                others.add(suggestion);
-        }
-        matching.addAll(others);
-        return matching;
-    }
-
-    private static List<String> commandUsage(
-            CommandDispatcher<ClientSuggestionProvider> commands,
-            ParseResults<ClientSuggestionProvider> parse,
-            int caret,
-            ClientSuggestionProvider source
-    ) {
-        try {
-            SuggestionContext<ClientSuggestionProvider> context = parse.getContext().findSuggestionContext(caret);
-            List<String> lines = new ArrayList<>();
-            for (Map.Entry<CommandNode<ClientSuggestionProvider>, String> entry : commands.getSmartUsage(context.parent, source).entrySet()) {
-                if (!(entry.getKey() instanceof LiteralCommandNode))
-                    lines.add(entry.getValue());
-            }
-            return lines;
-        } catch (RuntimeException ignored) {
-            return List.of();
-        }
-    }
-
-    private boolean handleCommandSuggestionKey(int key, boolean shift) {
-        updateCommandSuggestions();
-        if (key == Keys.KEY_TAB) {
-            if (commandSuggestionList.isEmpty())
-                return true;
-            if (!commandSuggestionsVisible) {
-                commandSuggestionsVisible = true;
-                return true;
-            }
-
-            if (commandSuggestionTabCycles)
-                cycleCommandSuggestion(shift ? -1 : 1);
-            applyCommandSuggestion();
-            commandSuggestionTabCycles = true;
-            return true;
-        }
-
-        if (!commandSuggestionsVisible || commandSuggestionList.isEmpty())
-            return false;
-
-        if (key == Keys.KEY_UP || key == Keys.KEY_DOWN) {
-            cycleCommandSuggestion(key == Keys.KEY_UP ? -1 : 1);
-            commandSuggestionTabCycles = false;
-            return true;
-        }
-
-        if (key == Keys.KEY_ESCAPE) {
-            commandSuggestionsVisible = false;
-            return true;
-        }
-
-        return false;
-    }
-
-    private void cycleCommandSuggestion(int direction) {
-        int size = commandSuggestionList.size();
-        if (size == 0)
-            return;
-
-        commandSuggestionIndex = Math.floorMod(commandSuggestionIndex + direction, size);
-        int rows = Math.max(1, commandSuggestionVisibleRows);
-        if (commandSuggestionIndex < commandSuggestionOffset)
-            commandSuggestionOffset = commandSuggestionIndex;
-        else if (commandSuggestionIndex >= commandSuggestionOffset + rows)
-            commandSuggestionOffset = commandSuggestionIndex - rows + 1;
-    }
-
-    private void scrollCommandSuggestions(int direction) {
-        int rows = Math.max(1, commandSuggestionVisibleRows);
-        int maxOffset = Math.max(0, commandSuggestionList.size() - rows);
-        commandSuggestionOffset = Math.clamp(commandSuggestionOffset + direction, 0, maxOffset);
-    }
-
-    private void applyCommandSuggestion() {
-        if (commandSuggestionList.isEmpty())
-            return;
-
-        Suggestion suggestion = commandSuggestionList.get(Math.clamp(commandSuggestionIndex, 0, commandSuggestionList.size() - 1));
-        String applied = suggestion.apply(commandSuggestionOriginal);
-        if (applied.length() > MAX_COMMAND_INPUT_LENGTH)
-            applied = applied.substring(0, MAX_COMMAND_INPUT_LENGTH);
-
-        commandInput = applied;
-        commandHistoryIndex = -1;
-        textCaret = Math.min(applied.length(), suggestion.getRange().getStart() + suggestion.getText().length());
-        textAnchor = textCaret;
-        commandSuggestionAppliedInput = applied;
-    }
-
-    private void renderCommandSuggestionGhost(NVGU vg, Rect input, String shownText, float fontSize) {
-        if (!commandSuggestionsVisible || commandSuggestionList.isEmpty() || !commandInput.equals(commandSuggestionOriginal)
-                || textCaret != commandInput.length())
-            return;
-
-        Suggestion suggestion = commandSuggestionList.get(commandSuggestionIndex);
-        int start = suggestion.getRange().getStart();
-        if (start > commandInput.length() || suggestion.getRange().getEnd() != commandInput.length())
-            return;
-
-        String typed = commandInput.substring(start);
-        if (!suggestion.getText().startsWith(typed) || suggestion.getText().length() <= typed.length())
-            return;
-
-        float textX = input.x + u(26f);
-        float maxWidth = input.width - u(32f);
-        float scroll = inputScroll(shownText, true, fontSize, maxWidth);
-        float ghostX = textX - scroll + NVGFonts.INTER.getWidth(commandInput, fontSize);
-        String ghost = suggestion.getText().substring(typed.length());
-        vg.scissor(textX - u(2f), input.y, maxWidth + u(4f), input.height, () ->
-                NVGFonts.INTER.drawText(ghost, ghostX, input.y + u(6f), fontSize, NanoVGTheme.muted(150), Alignment.LEFT_TOP, true));
-    }
-
-    private void renderCommandSuggestions(NVGU vg, float bottomLimit) {
-        commandSuggestionRect = new Rect(0f, 0f, 0f, 0f);
-        if (textFocus != TextFocus.COMMAND)
-            return;
-
-        boolean showList = commandSuggestionsVisible && !commandSuggestionList.isEmpty();
-        boolean showUsage = !showList && !commandUsageLines.isEmpty() && textCaret == commandInput.length();
-        if (!showList && !showUsage)
-            return;
-
-        float fontSize = font(11f);
-        float rowHeight = u(15f);
-        float paddingX = u(8f);
-        Rect input = commandInputRect;
-        float top = input.y + input.height + u(3f);
-        int available = Math.max(1, (int) ((bottomLimit - top - u(6f)) / rowHeight));
-        List<String> lines = new ArrayList<>();
-        int rows;
-        int rangeStart;
-        if (showList) {
-            rows = Math.min(Math.min(commandSuggestionList.size(), MAX_COMMAND_SUGGESTION_ROWS), available);
-            commandSuggestionVisibleRows = rows;
-            commandSuggestionOffset = Math.clamp(commandSuggestionOffset, 0, Math.max(0, commandSuggestionList.size() - rows));
-            for (Suggestion suggestion : commandSuggestionList)
-                lines.add(suggestion.getText());
-            rangeStart = commandSuggestionList.getFirst().getRange().getStart();
-        } else {
-            rows = Math.min(commandUsageLines.size(), available);
-            lines.addAll(commandUsageLines);
-            rangeStart = commandInput.length();
-        }
-
-        float textWidth = 0f;
-        for (String line : lines)
-            textWidth = Math.max(textWidth, NVGFonts.INTER.getWidth(line, fontSize));
-        float width = textWidth + paddingX * 2f;
-        float height = rows * rowHeight + u(6f);
-        float textX = input.x + u(26f);
-        float maxWidth = input.width - u(32f);
-        float scroll = inputScroll(inputText(commandInput, true, ""), true, fontSize, maxWidth);
-        String before = commandInput.substring(0, Math.clamp(rangeStart, 0, commandInput.length()));
-        float anchorX = textX - scroll + NVGFonts.INTER.getWidth(before, fontSize) - paddingX;
-        float x = Math.clamp(anchorX, input.x, Math.max(input.x, input.x + input.width - width));
-        Rect popup = new Rect(x, top, width, height);
-        commandSuggestionRect = popup;
-
-        vg.roundedRectangle(popup.x, popup.y, popup.width, popup.height, u(NanoVGTheme.RADIUS_HUD), NanoVGTheme.BASE);
-        vg.roundedRectangleBorder(popup.x, popup.y, popup.width, popup.height, u(NanoVGTheme.RADIUS_HUD), u(1f), alpha(255, 255, 255, 30), Border.INSIDE);
-        float rowY = popup.y + u(3f);
-        if (!showList) {
-            for (int i = 0; i < rows; i++)
-                NVGFonts.INTER.drawText(lines.get(i), popup.x + paddingX, rowY + i * rowHeight + u(2f), fontSize, NanoVGTheme.MUTED, Alignment.LEFT_TOP, true);
-            return;
-        }
-
-        for (int i = 0; i < rows; i++) {
-            int index = commandSuggestionOffset + i;
-            if (index >= commandSuggestionList.size())
-                break;
-
-            Rect row = new Rect(popup.x + u(2f), rowY + i * rowHeight, popup.width - u(4f), rowHeight);
-            boolean selected = index == commandSuggestionIndex;
-            if (selected)
-                vg.roundedRectangle(row.x, row.y, row.width, row.height, u(3f), alpha(255, 255, 255, 34));
-            addControl(ControlType.COMMAND_SUGGESTION, row, null, null, index);
-            NVGFont rowFont = selected ? NVGFonts.INTER_MEDIUM : NVGFonts.INTER;
-            rowFont.drawText(lines.get(index), popup.x + paddingX, row.y + u(2f), fontSize, selected ? NanoVGTheme.TEXT : NanoVGTheme.MUTED, Alignment.LEFT_TOP, true);
-        }
-
-    }
-
-    private void runCommandInput() {
-        String command = commandInput.trim();
-        if (command.isEmpty())
-            return;
-
-        if (commandHistory.isEmpty() || !commandHistory.get(commandHistory.size() - 1).equals(command)) {
-            commandHistory.add(command);
-            while (commandHistory.size() > MAX_COMMAND_HISTORY)
-                commandHistory.remove(0);
-        }
-        commandHistoryIndex = -1;
-        commandInput = "";
-        textCaret = 0;
-        textAnchor = 0;
-        ModuleRenderable.executeCommand(command, false);
-    }
-
-    private void browseCommandHistory(int direction) {
-        if (commandHistory.isEmpty())
-            return;
-
-        int index = commandHistoryIndex < 0 ? commandHistory.size() : commandHistoryIndex;
-        index += direction;
-        if (index >= commandHistory.size()) {
-            commandHistoryIndex = -1;
-            commandInput = "";
-        } else {
-            commandHistoryIndex = Math.max(0, index);
-            commandInput = commandHistory.get(commandHistoryIndex);
-        }
-        textCaret = commandInput.length();
-        textAnchor = textCaret;
-    }
-
-    private void sendPlayerCommand(String command) {
-        if (minecraft != null && minecraft.getConnection() != null)
-            minecraft.getConnection().sendCommand(command);
-    }
-
-    private void resetCommandScroll() {
-        resetListScroll();
-        lastSeenCommandLogCount = -1;
-        lastSeenCommandLog = null;
-    }
-
-    private static void renderEmptyState(NVGU vg, Rect viewport, String icon, String title, String detail) {
-        float centerX = viewport.centerX();
-        float centerY = viewport.centerY() - u(7f);
-        NVGFonts.ICON.drawText(icon, centerX, centerY - u(20f), font(16f), NanoVGTheme.muted(200), Alignment.CENTER_MIDDLE, true);
-        float textWidth = Math.max(u(40f), viewport.width - u(32f));
-        float titleHeight = drawWrappedText(NVGFonts.INTER_SEMIBOLD, title, centerX, centerY + u(4f), font(14f), textWidth, u(17f), NanoVGTheme.TEXT, Alignment.CENTER_TOP);
-        drawWrappedText(NVGFonts.INTER, detail, centerX, centerY + u(6f) + titleHeight, font(11f), textWidth, u(14f), NanoVGTheme.MUTED, Alignment.CENTER_TOP);
-    }
-
-    private void renderConfigCreateRow(NVGU vg, float x, float y, float width) {
-        boolean active = textFocus == TextFocus.CONFIG_NAME;
-        Rect input = new Rect(x, y, width - u(91f), u(24f));
-        Rect button = new Rect(x + width - u(83f), y, u(83f), u(24f));
-        addControl(ControlType.CONFIG_NAME, input, null, null, 0);
-        addControl(ControlType.CONFIG_CREATE, button, null, null, 0);
-
-        vg.roundedRectangle(input.x, input.y, input.width, input.height, u(5f), alpha(255, 255, 255, active ? 29 : 16));
-        vg.roundedRectangleBorder(input.x, input.y, input.width, input.height, u(5f), u(1f), active ? NanoVGTheme.inputFocus(110) : alpha(255, 255, 255, 28), Border.INSIDE);
-
-        String placeholder = selectedConfigTab == ConfigTab.MODULE ? "New module config" : "New bind config";
-        String text = inputText(newConfigName, active, placeholder);
-        float createFont = font(11f);
-        Color nameColor = newConfigName.isBlank() && !active ? NanoVGTheme.muted(180) : NanoVGTheme.TEXT;
-        NVGFonts.ICON.drawText(MaterialIcon.ADD, input.x + u(8f), input.y + u(5f), font(12f), active ? NanoVGTheme.INPUT_FOCUS : NanoVGTheme.iconIdle(220), Alignment.LEFT_TOP, true);
-        renderInputText(vg, TextFocus.CONFIG_NAME, null, active, text, createFont, input.x + u(26f), input.y + u(6f), input.y + u(6f), input.width - u(32f), input, nameColor);
-
-        boolean canCreate = !cleanConfigName(newConfigName).isBlank();
-        boolean hovered = button.contains(scaledMouseX, scaledMouseY);
-        float progress = animate("config-create", canCreate && hovered, 0.18f);
-        vg.roundedRectangle(button.x, button.y, button.width, button.height, u(5f), alpha(255, 255, 255, canCreate ? 22 : 14));
-        vg.roundedRectangleBorder(button.x, button.y, button.width, button.height, u(5f), u(1f), canCreate ? NanoVGTheme.inputFocus(88) : alpha(255, 255, 255, 24), Border.INSIDE);
-        NVGFonts.INTER_MEDIUM.drawText("Create", button.centerX(), button.y + u(6f), font(11f), canCreate ? NanoVGTheme.TEXT : NanoVGTheme.muted(180), Alignment.CENTER_TOP, true);
-    }
-
     private boolean isRenamingConfig(ConfigEntry config) {
         return textFocus == TextFocus.CONFIG_RENAME && isSameConfig(renamingConfig, config);
-    }
-
-    private float configNameWidth(ConfigEntry config, float width, boolean renaming) {
-        float nameRight = width - (config.type != ConfigTab.ONLINE ? u(36f) : u(8f));
-        String updatedLabel = renaming ? "" : configListUpdatedLabel(config);
-        if (!updatedLabel.isBlank())
-            nameRight -= NVGFonts.INTER.getWidth(updatedLabel, font(10f)) + u(8f);
-        return Math.max(u(28f), nameRight - u(12f));
-    }
-
-    private float configRowHeight(ConfigEntry config, float width) {
-        if (isRenamingConfig(config))
-            return SETTING_ROW_STEP;
-
-        NVGFont nameFont = config.current ? NVGFonts.INTER_SEMIBOLD : NVGFonts.INTER_MEDIUM;
-        int lines = wrappedLineCount(config.name, nameFont, font(14f), configNameWidth(config, width, false));
-        return SETTING_ROW_STEP + (lines - 1) * NAME_LINE_HEIGHT;
-    }
-
-    private void renderConfigRow(NVGU vg, ConfigEntry config, int index, int visibleCount, float x, float y, float width) {
-        Rect row = new Rect(x, y, width, configRowHeight(config, width) - u(4f));
-        boolean showDelete = config.type != ConfigTab.ONLINE;
-        boolean renaming = isRenamingConfig(config);
-        boolean deletable = showDelete && !config.current && !renaming;
-        Rect delete = showDelete ? new Rect(row.x + row.width - u(28f), row.y + u(5f), u(20f), u(20f)) : null;
-        Rect load = showDelete ? new Rect(row.x, row.y, Math.max(u(1f), row.width - SETTING_ROW_STEP), row.height) : row;
-        addControl(renaming ? ControlType.CONFIG_RENAME : ControlType.CONFIG_LOAD, load, config, null, 0);
-        if (deletable)
-            addControl(ControlType.CONFIG_DELETE, delete, config, null, 0);
-
-        float currentProgress = easeOut(animate("config-current:" + config.type.name() + ":" + config.name, config.current, 0.12f));
-        if (currentProgress > 0.01f)
-            renderListRowWash(vg, row, currentProgress);
-        float mark = animate("config-mark:" + config.type.name() + ":" + config.name, isSameConfig(settingsPanelConfig, config), 0.18f);
-        if (mark > 0.01f)
-            renderListRowMark(vg, row, mark);
-
-        float nameX = row.x + u(12f);
-        float nameRight = row.x + row.width - (showDelete ? u(36f) : u(8f));
-        String updatedLabel = renaming ? "" : configListUpdatedLabel(config);
-        if (!updatedLabel.isBlank()) {
-            float updatedFont = font(10f);
-            float updatedWidth = NVGFonts.INTER.getWidth(updatedLabel, updatedFont);
-            NVGFonts.INTER.drawText(updatedLabel, nameRight, row.y + u(8f), updatedFont, NanoVGTheme.MUTED, Alignment.RIGHT_TOP, true);
-            nameRight -= updatedWidth + u(8f);
-        }
-        float nameWidth = configNameWidth(config, width, renaming);
-        if (renaming)
-            renderConfigRenameField(vg, config, nameX, row.y, nameWidth, row.height);
-        else {
-            NVGFont nameFont = config.current ? NVGFonts.INTER_SEMIBOLD : NVGFonts.INTER_MEDIUM;
-            drawWrappedText(nameFont, config.name, nameX, row.y + u(7f), font(14f), nameWidth, NAME_LINE_HEIGHT, NanoVGTheme.TEXT, Alignment.LEFT_TOP);
-        }
-
-        if (delete != null) {
-            boolean deleteHovered = deletable && isHovered(delete);
-            float deleteProgress = animate("config-delete:" + config.type.name() + ":" + config.name, deleteHovered, 0.18f);
-            vg.roundedRectangle(delete.x, delete.y, delete.width, delete.height, u(5f), deletable ? mix(alpha(255, 255, 255, 12), alpha(255, 74, 74, 52), deleteProgress) : alpha(255, 255, 255, 8));
-            vg.roundedRectangleBorder(delete.x, delete.y, delete.width, delete.height, u(5f), u(1f), deletable ? mix(alpha(255, 255, 255, 24), alpha(255, 96, 96, 110), deleteProgress) : alpha(255, 255, 255, 16), Border.INSIDE);
-            Color deleteColor = !deletable ? NanoVGTheme.muted(135) : deleteHovered ? alpha(255, 195, 195, 245) : NanoVGTheme.iconIdle(220);
-            NVGFonts.ICON.drawText(MaterialIcon.DELETE, delete.centerX(), delete.centerY() - u(1f), font(12f), deleteColor, Alignment.CENTER_MIDDLE, true);
-        }
-    }
-
-    private void renderConfigRenameField(NVGU vg, ConfigEntry config, float nameX, float rowY, float nameWidth, float rowHeight) {
-        Rect input = new Rect(nameX - u(4f), rowY + u(3f), nameWidth + u(4f), rowHeight - u(6f));
-        vg.roundedRectangle(input.x, input.y, input.width, input.height, u(5f), alpha(255, 255, 255, 29));
-        vg.roundedRectangleBorder(input.x, input.y, input.width, input.height, u(5f), u(1f), NanoVGTheme.inputFocus(110), Border.INSIDE);
-
-        float renameFont = font(14f);
-        float textX = input.x + u(6f);
-        float textY = rowY + u(7f);
-        float textMaxWidth = Math.max(u(12f), input.width - u(10f));
-        String text = inputText(renameConfigName, true, "");
-        rememberTextField(TextFocus.CONFIG_RENAME, config, textX, renameFont, textMaxWidth);
-        vg.scissor(input.x, input.y, input.width, input.height, () -> {
-            renderSelectionHighlight(vg, true, NVGFonts.INTER, renameFont, textX, textY, textMaxWidth);
-            NVGFonts.INTER.drawText(text, textX, textY, renameFont, NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
-            renderInlineCaret(vg, true, NVGFonts.INTER, renameFont, textX, textY, NanoVGTheme.TEXT);
-        });
-    }
-
-    private static float moduleNameWidth(Module module, float width) {
-        float nameRight = width - u(8f);
-        if (module.key != Keys.KEY_UNKNOWN)
-            nameRight -= NVGFonts.INTER.getWidth(keyName(module.key), font(10f)) + u(8f);
-        return Math.max(u(36f), nameRight - u(14f) - SWITCH_WIDTH - u(8f));
-    }
-
-    private void renderModuleBlock(NVGU vg, Module module, int index, int visibleCount, float x, float y, float width) {
-        Rect row = new Rect(x, y, width, moduleBlockHeight(module, width) - u(3f));
-        addModuleRow(module, row);
-
-        boolean hovered = isHovered(row);
-        if (hovered)
-            rememberHoveredModule(module);
-        float enabled = animateIdentity(enabledAnimations, enabledAnimationFrames, module, module.tempEnabled, 0.12f);
-        boolean selected = settingsPanelModule == module;
-        float wash = washProgress("module", module, module.tempEnabled);
-        if (wash > 0.01f)
-            renderListRowWash(vg, row, wash);
-        float mark = animate("module-mark:" + System.identityHashCode(module), selected, 0.18f);
-        if (mark > 0.01f)
-            renderListRowMark(vg, row, mark);
-
-        Rect switchRect = new Rect(row.x + u(14f), row.y + u(7f), SWITCH_WIDTH, SWITCH_HEIGHT);
-        float nameX = switchRect.x + switchRect.width + u(8f);
-
-        if (module.key != Keys.KEY_UNKNOWN)
-            NVGFonts.INTER.drawText(keyName(module.key), row.x + row.width - u(8f), row.y + u(8f), font(10f), NanoVGTheme.MUTED, Alignment.RIGHT_TOP, true);
-
-        NVGFont nameFont = selected ? NVGFonts.INTER_SEMIBOLD : NVGFonts.INTER_MEDIUM;
-        drawWrappedText(nameFont, module.moduleName, nameX, row.y + u(7f), font(14f), moduleNameWidth(module, width), NAME_LINE_HEIGHT, NanoVGTheme.TEXT, Alignment.LEFT_TOP);
-
-        drawSwitch(vg, switchRect.x, switchRect.y, switchRect.width, switchRect.height, enabled, "module-list:" + System.identityHashCode(module), pressedModule == module);
     }
 
     private void renderExpandedSettings(NVGU vg, Module module, float x, float y, float width) {
@@ -2931,50 +1450,6 @@ public class NanoVGClickGuiScreen extends Screen {
         }
     }
 
-    private void renderConfigInfo(NVGU vg, ConfigEntry config, float x, float y, float width) {
-        if (config == null)
-            return;
-
-        float rowX = x + u(6f);
-        float rowWidth = Math.max(u(40f), width - u(12f));
-        String updated = formatConfigUpdatedAt(config);
-        Rect row = new Rect(rowX, y + u(2f), rowWidth, configUpdatedCardHeight(rowWidth, updated));
-        vg.roundedRectangle(row.x, row.y + u(1f), row.width, row.height - u(2f), u(4f), alpha(255, 255, 255, 14));
-        NVGFonts.INTER_MEDIUM.drawText("Last Updated", row.x + u(12f), row.y + u(6f), font(12f), NanoVGTheme.TEXT, Alignment.LEFT_TOP, true);
-
-        List<String> lines = wrapConfigUpdatedLines(updated, rowWidth);
-        float textY = row.y + u(24f);
-        float lineHeight = u(15f);
-        float valueFont = font(11f);
-        for (int i = 0; i < lines.size(); i++) {
-            NVGFonts.INTER.drawText(lines.get(i), row.x + u(12f), textY + i * lineHeight, valueFont, NanoVGTheme.MUTED, Alignment.LEFT_TOP, true);
-        }
-    }
-
-    private float configInfoHeight() {
-        String updated = formatConfigUpdatedAt(settingsPanelRenderConfig);
-        float rowWidth = Math.max(u(40f), settingsPanelViewport.width - u(12f));
-        return u(2f) + configUpdatedCardHeight(rowWidth, updated) + u(7f);
-    }
-
-    private static float configUpdatedCardHeight(float rowWidth, String updated) {
-        int lines = Math.max(1, wrapConfigUpdatedLines(updated, rowWidth).size());
-        return Math.max(u(42f), u(24f) + lines * u(15f) + u(6f));
-    }
-
-    private static List<String> wrapConfigUpdatedLines(String updated, float rowWidth) {
-        String text = updated == null || updated.isBlank() ? "Unknown" : updated;
-        return wrapTextToWidth(text, NVGFonts.INTER, font(11f), Math.max(u(20f), rowWidth - u(24f)));
-    }
-
-    private String formatConfigUpdatedAt(ConfigEntry config) {
-        Long updated = configUpdatedMillis(config);
-        if (updated == null || updated <= 0L)
-            return "Unknown";
-
-        return CONFIG_UPDATED_FORMAT.format(Instant.ofEpochMilli(updated));
-    }
-
     private String configListUpdatedLabel(ConfigEntry config) {
         Long updated = configUpdatedMillis(config);
         if (updated == null || updated <= 0L)
@@ -2993,23 +1468,6 @@ public class NanoVGClickGuiScreen extends Screen {
 
         return Client.configManager.configUpdatedAt(config.type() == ConfigTab.BIND, config.name());
     }
-
-    private static ConfigEntry restoreRememberedConfig(ConfigEntry remembered) {
-        if (remembered == null || remembered.type() == null || remembered.name() == null || remembered.name().isBlank())
-            return null;
-        if (remembered.type() == ConfigTab.ONLINE)
-            return remembered;
-        if (Client.configManager == null)
-            return remembered;
-
-        File base = new File(
-                Client.configManager.BASE_DIR,
-                remembered.type() == ConfigTab.BIND ? "bind_configs" : "module_configs"
-        );
-        File file = new File(base, remembered.name() + ".json");
-        return file.isFile() ? remembered : null;
-    }
-
 
     private float renderBaseSettingRows(NVGU vg, Module module, float x, float y, float width) {
         float rowY = renderModuleNote(vg, module, x, y, width);
@@ -3356,8 +1814,6 @@ public class NanoVGClickGuiScreen extends Screen {
                     && textFocus == TextFocus.CONFIG_RENAME
                     && isSameConfig(renamingConfig, entry)) {
                 cancelConfigRename();
-                if (!isModuleView())
-                    toggleConfigPanel(entry);
                 return true;
             }
         }
@@ -3370,11 +1826,8 @@ public class NanoVGClickGuiScreen extends Screen {
         if (control.type != ControlType.KEY_VALUE) bindingValue = null;
 
         if (button == Keys.MOUSE_BUTTON_RIGHT) {
-            if (control.type == ControlType.CONFIG_LOAD || control.type == ControlType.CONFIG_RENAME) {
-                if (!isModuleView())
-                    toggleConfigPanel((ConfigEntry) control.target);
+            if (control.type == ControlType.CONFIG_LOAD || control.type == ControlType.CONFIG_RENAME)
                 return true;
-            }
 
             if (control.type == ControlType.LIST_VALUE) {
                 toggleListDropdown((Module) control.owner, (ListValue) control.target);
@@ -3408,25 +1861,6 @@ public class NanoVGClickGuiScreen extends Screen {
                 textFocus = TextFocus.CONFIG_NAME;
                 beginTextSelectionOrSelectAll(mouseX, doubleClick);
             }
-            case CONFIG_CREATE -> createConfigFromInput();
-            case COMMAND_INPUT -> {
-                textFocus = TextFocus.COMMAND;
-                beginTextSelectionOrSelectAll(mouseX, doubleClick);
-            }
-            case COMMAND_RUN -> runCommandInput();
-            case COMMAND_SUGGESTION -> {
-                textFocus = TextFocus.COMMAND;
-                commandSuggestionIndex = control.index;
-                commandSuggestionTabCycles = false;
-                applyCommandSuggestion();
-            }
-            case MULTIPLAY_DISCONNECT -> {
-                if (minecraft != null && minecraft.level != null)
-                    minecraft.level.disconnect(Component.literal("Disconnected"));
-            }
-            case PLAYER_KILL -> sendPlayerCommand("kill " + control.target);
-            case PLAYER_TELEPORT -> sendPlayerCommand("tp " + control.target);
-            case PLAYER_CRASH -> sendPlayerCommand("execute at " + control.target + " run particle minecraft:explosion ~ ~ ~ 0.1 0.1 0.1 0.01 100000000 force");
             case CONFIG_LOAD -> loadConfigEntry((ConfigEntry) control.target);
             case CONFIG_RENAME -> {
             }
@@ -3515,10 +1949,6 @@ public class NanoVGClickGuiScreen extends Screen {
         }
     }
 
-    private static void renderListRowWash(NVGU vg, Rect row, float alphaScale) {
-        vg.roundedRectangle(row.x + u(6f), row.y + u(1f), row.width - u(12f), row.height - u(2f), u(4f), alpha(255, 255, 255, (int) (18 * alphaScale)));
-    }
-
     private static void renderListRowMark(NVGU vg, Rect row) {
         renderListRowMark(vg, row, 1f);
     }
@@ -3528,20 +1958,6 @@ public class NanoVGClickGuiScreen extends Screen {
         if (markAlpha <= 0)
             return;
         vg.roundedRectangle(row.x + u(6f), row.y + u(7f), u(2f), Math.max(u(8f), row.height - u(14f)), u(1f), alpha(255, 255, 255, markAlpha));
-    }
-
-    private void withControlChrome(NVGU vg, Rect clip, Runnable content) {
-        deferControlChrome = true;
-        try {
-            vg.scissor(clip.x, clip.y, clip.width, clip.height, content);
-            flushPendingControlGlass(vg);
-            if (!pendingControlForegrounds.isEmpty())
-                vg.scissor(clip.x, clip.y, clip.width, clip.height, () -> drawPendingControlForegrounds(vg));
-        } finally {
-            deferControlChrome = false;
-            pendingControlGlass.clear();
-            pendingControlForegrounds.clear();
-        }
     }
 
     private void flushPendingControlGlass(NVGU vg) {
@@ -3710,26 +2126,6 @@ public class NanoVGClickGuiScreen extends Screen {
         return animate("knob-grab:" + id, grabbed, grabbed ? 0.38f : 0.11f);
     }
 
-    private void renderScrollbar(NVGU vg, Rect viewport, float contentHeight, float scroll) {
-        if (contentHeight <= viewport.height + 1f) {
-            scrollbarTrackRect = new Rect(0f, 0f, 0f, 0f);
-            scrollbarThumbRect = new Rect(0f, 0f, 0f, 0f);
-            return;
-        }
-
-        float thumbHeight = Math.max(u(22f), viewport.height * viewport.height / contentHeight);
-        float travel = viewport.height - thumbHeight;
-        float thumbY = viewport.y + travel * (scroll / Math.max(1f, contentHeight - viewport.height));
-        float trackX = viewport.x + viewport.width + u(1f);
-        scrollbarTrackRect = new Rect(trackX - u(5f), viewport.y, u(12f), viewport.height);
-        scrollbarThumbRect = new Rect(trackX - u(1f), thumbY, u(5f), thumbHeight);
-
-        boolean hovered = scrollbarTrackRect.contains(scaledMouseX, scaledMouseY) || activeScrollbar != null;
-        float progress = animate("scrollbar", hovered, 0.18f);
-        vg.roundedRectangle(trackX + u(1f), viewport.y + u(4f), u(2f), viewport.height - u(8f), u(1f), alpha(255, 255, 255, (int) (18 + 18 * progress)));
-        vg.roundedRectangle(scrollbarThumbRect.x, scrollbarThumbRect.y, scrollbarThumbRect.width, scrollbarThumbRect.height, u(2.5f), NanoVGTheme.scrollbarThumb((int) (112 + 86 * progress)));
-    }
-
     private void renderSettingsPanelScrollbar(NVGU vg, float contentHeight) {
         if (contentHeight <= settingsPanelViewport.height + 1f) {
             settingsPanelScrollbarTrackRect = new Rect(0f, 0f, 0f, 0f);
@@ -3774,18 +2170,6 @@ public class NanoVGClickGuiScreen extends Screen {
         );
     }
 
-    private void updateScrollbarDrag(float mouseY) {
-        if (activeScrollbar == null || maxListScroll <= 0f || scrollbarTrackRect.height <= 0f || scrollbarThumbRect.height <= 0f)
-            return;
-
-        float travel = Math.max(1f, scrollbarTrackRect.height - scrollbarThumbRect.height);
-        float thumbY = Math.clamp(mouseY - activeScrollbar.offsetY, scrollbarTrackRect.y, scrollbarTrackRect.y + travel);
-        float progress = (thumbY - scrollbarTrackRect.y) / travel;
-        targetListScroll = Math.clamp(progress * maxListScroll, 0f, maxListScroll);
-        listScroll = targetListScroll;
-        scrollVelocity = 0f;
-    }
-
     private void updateSettingsPanelScrollbarDrag(float mouseY) {
         if (activeSettingsPanelScrollbar == null || maxSettingsPanelScroll <= 0f
                 || settingsPanelScrollbarTrackRect.height <= 0f
@@ -3807,35 +2191,11 @@ public class NanoVGClickGuiScreen extends Screen {
         settingsPanelScrollVelocity = 0f;
     }
 
-    private List<Module> visibleModules() {
-        String query = normalize(searchQuery);
-        List<Module> modules = new ArrayList<>();
-
-        for (Module module : ModuleManager.allModules) {
-            if (module.moduleCategory == null) continue;
-            if (!query.isBlank() && module.moduleCategory == ModuleCategory.Dev) continue;
-
-            boolean matches = query.isBlank()
-                    ? module.moduleCategory == selectedCategory
-                    : matchesModuleSearch(module, query);
-
-            if (matches)
-                modules.add(module);
-        }
-
-        modules.sort(Comparator.comparing(module -> module.moduleName, String.CASE_INSENSITIVE_ORDER));
-        return modules;
-    }
-
     private static boolean matchesModuleSearch(Module module, String query) {
         return normalize(module.moduleName).contains(query)
                 || normalize(module.moduleCategory.name()).contains(query)
                 || (module.tag() != null && normalize(module.tag()).contains(query))
                 || (module.description() != null && normalize(module.description()).contains(query));
-    }
-
-    private List<ConfigEntry> visibleConfigEntries() {
-        return configEntries(normalize(searchQuery));
     }
 
     private List<ConfigEntry> configEntries(String query) {
@@ -3901,9 +2261,6 @@ public class NanoVGClickGuiScreen extends Screen {
         }
 
         newConfigName = "";
-        targetListScroll = 0f;
-        listScroll = 0f;
-        scrollVelocity = 0f;
         clearTextFocus();
     }
 
@@ -3932,7 +2289,6 @@ public class NanoVGClickGuiScreen extends Screen {
             Interface.reloadSortedModules();
         }
 
-        targetListScroll = Math.clamp(targetListScroll, 0f, maxListScroll);
         closeListDropdown();
     }
 
@@ -3957,11 +2313,6 @@ public class NanoVGClickGuiScreen extends Screen {
 
         FileUtil.INSTANCE.invalidateLocalConfigCache();
         Client.configManager.forgetConfigUpdated(entry.type == ConfigTab.BIND, configName);
-        if (isSameConfig(settingsPanelConfig, entry))
-            closeSettingsPanel();
-        targetListScroll = Math.clamp(targetListScroll, 0f, maxListScroll);
-        listScroll = Math.clamp(listScroll, 0f, maxListScroll);
-        scrollVelocity = 0f;
         clearTextFocus();
         closeListDropdown();
     }
@@ -4045,29 +2396,6 @@ public class NanoVGClickGuiScreen extends Screen {
         File bindFile = new File(base, configName + ".json");
         if (base.exists() && bindFile.exists())
             Client.configManager.saveBindFile(configName, true);
-    }
-
-    private float contentHeight(List<Module> modules, float width) {
-        float height = 0f;
-        for (Module module : modules)
-            height += moduleBlockHeight(module, width);
-        return Math.max(height, u(30f));
-    }
-
-    private float moduleBlockHeight(Module module, float width) {
-        NVGFont nameFont = settingsPanelModule == module ? NVGFonts.INTER_SEMIBOLD : NVGFonts.INTER_MEDIUM;
-        int lines = wrappedLineCount(module.moduleName, nameFont, font(14f), moduleNameWidth(module, width));
-        return ROW_HEIGHT + (lines - 1) * NAME_LINE_HEIGHT;
-    }
-
-    private float expansionProgress(Module module) {
-        return animateIdentity(
-                expansionAnimations,
-                expansionAnimationFrames,
-                module,
-                settingsPanelModule == module,
-                0.08f
-        );
     }
 
     private float expandedSettingsHeight(Module module) {
@@ -4199,15 +2527,6 @@ public class NanoVGClickGuiScreen extends Screen {
             openSettingsPanel(module);
     }
 
-    private void toggleConfigPanel(ConfigEntry config) {
-        if (config == null)
-            return;
-        if (isSameConfig(settingsPanelConfig, config))
-            closeSettingsPanel();
-        else
-            openConfigPanel(config);
-    }
-
     private void openSettingsPanel(Module module) {
         boolean alreadyOpen = isSettingsDockOpen();
         if (pendingSettingsPanelModule != null
@@ -4215,7 +2534,6 @@ public class NanoVGClickGuiScreen extends Screen {
             clearInteractionState();
             pendingSettingsPanelModule = module;
             settingsPanelModule = null;
-            settingsPanelConfig = null;
             activeSettingsPanelScrollbar = null;
             return;
         }
@@ -4223,23 +2541,6 @@ public class NanoVGClickGuiScreen extends Screen {
         clearInteractionState();
         settingsPanelModule = module;
         settingsPanelRenderModule = module;
-        settingsPanelConfig = null;
-        settingsPanelRenderConfig = null;
-        settingsPanelScroll = 0f;
-        targetSettingsPanelScroll = 0f;
-        settingsPanelScrollVelocity = 0f;
-        activeSettingsPanelScrollbar = null;
-        if (!alreadyOpen)
-            animations.remove("settings-panel-open");
-    }
-
-    private void openConfigPanel(ConfigEntry config) {
-        boolean alreadyOpen = isSettingsDockOpen();
-        clearInteractionState();
-        settingsPanelModule = null;
-        settingsPanelRenderModule = null;
-        settingsPanelConfig = config;
-        settingsPanelRenderConfig = config;
         settingsPanelScroll = 0f;
         targetSettingsPanelScroll = 0f;
         settingsPanelScrollVelocity = 0f;
@@ -4252,7 +2553,6 @@ public class NanoVGClickGuiScreen extends Screen {
         clearInteractionState();
         pendingSettingsPanelModule = null;
         settingsPanelModule = null;
-        settingsPanelConfig = null;
         settingsPanelScroll = 0f;
         targetSettingsPanelScroll = 0f;
         settingsPanelScrollVelocity = 0f;
@@ -4260,12 +2560,8 @@ public class NanoVGClickGuiScreen extends Screen {
         activeSettingsPanelScrollbar = null;
     }
 
-    private boolean isModuleView() {
-        return !configView && !commandView;
-    }
-
     private boolean isSettingsDockOpen() {
-        return settingsPanelModule != null || settingsPanelConfig != null;
+        return settingsPanelModule != null;
     }
 
     private static boolean isSameConfig(ConfigEntry first, ConfigEntry second) {
@@ -4273,7 +2569,6 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private void focusSearch() {
-        storeCurrentCategoryScroll();
         clearInteractionState();
         textFocus = TextFocus.SEARCH;
     }
@@ -4336,30 +2631,13 @@ public class NanoVGClickGuiScreen extends Screen {
 
         boolean bind = renamingConfig.type == ConfigTab.BIND;
         String renamed = Client.configManager.renameConfig(bind, renamingConfig.name, cleaned);
-        if (renamed == null)
-            return false;
-
-        if (settingsPanelConfig != null
-                && settingsPanelConfig.type == renamingConfig.type
-                && settingsPanelConfig.name.equalsIgnoreCase(renamingConfig.name)) {
-            boolean current = bind
-                    ? renamed.equalsIgnoreCase(Client.configManager.bindCurrent)
-                    : renamed.equalsIgnoreCase(Client.configManager.configCurrent);
-            settingsPanelConfig = new ConfigEntry(renamed, renamingConfig.type, current);
-            settingsPanelRenderConfig = settingsPanelConfig;
-        }
-
-        return true;
+        return renamed != null;
     }
 
     private void clearSearch() {
         searchQuery = "";
         textCaret = 0;
         textAnchor = 0;
-        if (isModuleView() && selectedCategory != null)
-            restoreCategoryScroll(selectedCategory);
-        else
-            resetListScroll();
         closeListDropdown();
     }
 
@@ -4370,7 +2648,6 @@ public class NanoVGClickGuiScreen extends Screen {
         activeSlider = null;
         pressedControl = null;
         pressedModule = null;
-        activeScrollbar = null;
         activeSettingsPanelScrollbar = null;
         closeListDropdown();
     }
@@ -4507,67 +2784,6 @@ public class NanoVGClickGuiScreen extends Screen {
         appendFocusedText(sanitized);
     }
 
-    private void cycleCategory(int delta) {
-        storeCurrentCategoryScroll();
-        ModuleCategory[] categories = ModuleCategory.values();
-        ConfigTab[] configTabs = ConfigTab.values();
-        CommandTab[] commandTabs = CommandTab.values();
-        int categoryCount = categories.length;
-        int configEnd = categoryCount + configTabs.length;
-        int total = configEnd + commandTabs.length;
-        int current = configView
-                ? categoryCount + selectedConfigTab.ordinal()
-                : commandView
-                ? configEnd + selectedCommandTab.ordinal()
-                : selectedCategory.ordinal();
-        int next = Math.floorMod(current + delta, total);
-        searchQuery = "";
-        if (next < categoryCount) {
-            configView = false;
-            commandView = false;
-            selectedCategory = categories[next];
-            restoreCategoryScroll(selectedCategory);
-        } else if (next < configEnd) {
-            configView = true;
-            commandView = false;
-            selectedConfigTab = configTabs[next - categoryCount];
-            resetListScroll();
-        } else {
-            configView = false;
-            commandView = true;
-            selectedCommandTab = commandTabs[next - configEnd];
-            resetCommandScroll();
-        }
-        clearInteractionState();
-    }
-
-    private void scrollWithKeyboard(int key) {
-        boolean settingsFocused = isSettingsDockOpen()
-                && settingsPanelRect.contains(scaledMouseX, scaledMouseY);
-        if (settingsFocused) {
-            float page = Math.max(u(48f), settingsPanelViewport.height * 0.85f);
-            if (key == Keys.KEY_HOME)
-                targetSettingsPanelScroll = 0f;
-            else if (key == Keys.KEY_END)
-                targetSettingsPanelScroll = maxSettingsPanelScroll;
-            else if (key == Keys.KEY_PAGE_UP)
-                targetSettingsPanelScroll = Math.max(0f, targetSettingsPanelScroll - page);
-            else
-                targetSettingsPanelScroll = Math.min(maxSettingsPanelScroll, targetSettingsPanelScroll + page);
-            return;
-        }
-
-        float page = Math.max(u(48f), listViewport.height * 0.85f);
-        if (key == Keys.KEY_HOME)
-            targetListScroll = 0f;
-        else if (key == Keys.KEY_END)
-            targetListScroll = maxListScroll;
-        else if (key == Keys.KEY_PAGE_UP)
-            targetListScroll = Math.max(0f, targetListScroll - page);
-        else
-            targetListScroll = Math.min(maxListScroll, targetListScroll + page);
-    }
-
     private void clearTextFocus() {
         if (textFocus == TextFocus.NUMBER)
             commitNumberInput();
@@ -4657,7 +2873,6 @@ public class NanoVGClickGuiScreen extends Screen {
     private String getFocusedText() {
         if (textFocus == TextFocus.SEARCH) return searchQuery;
         if (textFocus == TextFocus.CONFIG_NAME) return newConfigName;
-        if (textFocus == TextFocus.COMMAND) return commandInput;
         if (textFocus == TextFocus.CONFIG_RENAME) return renameConfigName;
         if (textFocus == TextFocus.SETTING && focusedTextValue != null) return focusedTextValue.get();
         if (textFocus == TextFocus.NUMBER) return numberInput;
@@ -4667,24 +2882,11 @@ public class NanoVGClickGuiScreen extends Screen {
     private void setFocusedText(String text) {
         if (textFocus == TextFocus.SEARCH) {
             searchQuery = text == null ? "" : text;
-            if (searchQuery.isBlank() && isModuleView() && selectedCategory != null)
-                restoreCategoryScroll(selectedCategory);
-            else
-                resetListScroll();
             return;
         }
 
         if (textFocus == TextFocus.CONFIG_NAME) {
             newConfigName = text == null ? "" : text;
-            return;
-        }
-
-        if (textFocus == TextFocus.COMMAND) {
-            String next = text == null ? "" : text;
-            if (next.length() > MAX_COMMAND_INPUT_LENGTH)
-                next = next.substring(0, MAX_COMMAND_INPUT_LENGTH);
-            commandInput = next;
-            commandHistoryIndex = -1;
             return;
         }
 
@@ -4881,14 +3083,6 @@ public class NanoVGClickGuiScreen extends Screen {
         if (closing)
             return CursorType.DEFAULT;
 
-        if (hitRect(searchClearRect))
-            return CursorTypes.POINTING_HAND;
-        if (hitRect(closeRect))
-            return CursorTypes.POINTING_HAND;
-        if (isSettingsDockOpen() && hitRect(settingsPanelCloseRect))
-            return CursorTypes.POINTING_HAND;
-        if (hitRect(scrollbarThumbRect) || hitRect(scrollbarTrackRect))
-            return CursorTypes.POINTING_HAND;
         if (hitRect(settingsPanelScrollbarThumbRect) || hitRect(settingsPanelScrollbarTrackRect))
             return CursorTypes.POINTING_HAND;
         if (hitRect(configScrollbarThumbRect) || hitRect(configScrollbarTrackRect))
@@ -4910,10 +3104,6 @@ public class NanoVGClickGuiScreen extends Screen {
             if (moduleRows.get(i).rect.contains(scaledMouseX, scaledMouseY))
                 return CursorTypes.POINTING_HAND;
         }
-        for (int i = 0, n = tabBounds.size(); i < n; i++) {
-            if (tabBounds.get(i).rect.contains(scaledMouseX, scaledMouseY))
-                return CursorTypes.POINTING_HAND;
-        }
         return CursorType.DEFAULT;
     }
 
@@ -4929,7 +3119,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private CursorType cursorForControl(ControlBounds control) {
         return switch (control.type) {
-            case TEXT_VALUE, CONFIG_NAME, CONFIG_RENAME, COMMAND_INPUT -> CursorTypes.IBEAM;
+            case TEXT_VALUE, CONFIG_NAME, CONFIG_RENAME -> CursorTypes.IBEAM;
             case FLOAT_SLIDER, INT_SLIDER, COLOR_SLIDER -> CursorTypes.POINTING_HAND;
             case FLOAT_INPUT, INT_INPUT ->
                     textFocus == TextFocus.NUMBER && focusedNumberValue == control.target
@@ -4949,14 +3139,6 @@ public class NanoVGClickGuiScreen extends Screen {
             case COLOR_SLIDER -> control.rect.contract(u(3f), u(5f));
             default -> control.rect;
         };
-    }
-
-    private float washProgress(String scope, Object key, boolean active) {
-        return animations.compute(scope + ":" + System.identityHashCode(key), (ignored, current) -> {
-            if (current == null)
-                return active ? 1f : 0f;
-            return approach(current, active ? 1f : 0f, 0.18f * frameDelta);
-        });
     }
 
     private float animate(String key, boolean active, float speed) {
@@ -5376,28 +3558,9 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private enum ConfigTab {
-        MODULE("Module Configs", "module"),
-        BIND("Bind Configs", "bind"),
-        ONLINE("Online Configs", "online");
-
-        private final String sidebarLabel;
-        private final String emptyName;
-
-        ConfigTab(String sidebarLabel, String emptyName) {
-            this.sidebarLabel = sidebarLabel;
-            this.emptyName = emptyName;
-        }
-    }
-
-    private enum CommandTab {
-        COMMAND("Command"),
-        MULTIPLAY("Multiplay");
-
-        private final String sidebarLabel;
-
-        CommandTab(String sidebarLabel) {
-            this.sidebarLabel = sidebarLabel;
-        }
+        MODULE,
+        BIND,
+        ONLINE
     }
 
     private enum TextFocus {
@@ -5406,24 +3569,15 @@ public class NanoVGClickGuiScreen extends Screen {
         SETTING,
         NUMBER,
         CONFIG_NAME,
-        CONFIG_RENAME,
-        COMMAND
+        CONFIG_RENAME
     }
 
     private enum ControlType {
         CONFIG_TAB,
         CONFIG_NAME,
-        CONFIG_CREATE,
         CONFIG_LOAD,
         CONFIG_RENAME,
         CONFIG_DELETE,
-        COMMAND_INPUT,
-        COMMAND_RUN,
-        COMMAND_SUGGESTION,
-        MULTIPLAY_DISCONNECT,
-        PLAYER_KILL,
-        PLAYER_TELEPORT,
-        PLAYER_CRASH,
         SHOW_ON_ARRAY,
         MODULE_ENABLED,
         MODULE_KEY,
@@ -5439,24 +3593,10 @@ public class NanoVGClickGuiScreen extends Screen {
         KEY_VALUE
     }
 
-    private record TabBounds(ModuleCategory category, ConfigTab configTab, CommandTab commandTab, Rect rect) {
-        private boolean isConfig() {
-            return configTab != null;
-        }
-
-        private boolean isCommand() {
-            return commandTab != null;
-        }
-    }
-
-    private record PlayerEntry(String name, int ping, boolean self) {
-    }
-
-    private record ColumnRow(Module module, ConfigTab configTab, CommandTab commandTab, String label, float width) {
+    private record ColumnRow(Module module, String label, float width) {
     }
 
     private static final class GuiColumn {
-        private final Object key;
         private final String title;
         private final List<ColumnRow> rows = new ArrayList<>();
         private float x;
@@ -5466,8 +3606,7 @@ public class NanoVGClickGuiScreen extends Screen {
         private float rise;
         private Rect bounds;
 
-        private GuiColumn(Object key, String title) {
-            this.key = key;
+        private GuiColumn(String title) {
             this.title = title;
         }
     }
@@ -5476,9 +3615,6 @@ public class NanoVGClickGuiScreen extends Screen {
     }
 
     private record ConfigEntry(String name, ConfigTab type, boolean current) {
-    }
-
-    private record ScrollState(float listScroll, float targetListScroll) {
     }
 
     private record ControlBounds(ControlType type, Rect rect, Object target, Object owner, int index) {
