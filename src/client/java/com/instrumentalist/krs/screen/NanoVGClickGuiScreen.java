@@ -252,6 +252,7 @@ public class NanoVGClickGuiScreen extends Screen {
     private long hoveredModuleStartNanos;
     private String tooltipText = "";
     private float settingsDockReveal;
+    private Module pendingSettingsPanelModule;
     private float tabMarkY = Float.NaN;
     private final List<GuiColumn> columns = new ArrayList<>();
     private boolean typeSearchOpen;
@@ -873,7 +874,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private void rememberUiState() {
         storeCurrentCategoryScroll();
-        rememberedSettingsPanelModule = settingsPanelModule;
+        rememberedSettingsPanelModule = pendingSettingsPanelModule != null ? pendingSettingsPanelModule : settingsPanelModule;
         rememberedSettingsPanelConfig = settingsPanelConfig;
         rememberedSelectedCategory = selectedCategory;
         rememberedConfigView = configView;
@@ -926,6 +927,12 @@ public class NanoVGClickGuiScreen extends Screen {
         deferControlChrome = false;
         hoveredModule = null;
         tooltipText = "";
+        if (pendingSettingsPanelModule != null && !isSettingsDockOpen()
+                && animations.getOrDefault("settings-panel-open", 0f) <= 0f) {
+            Module pending = pendingSettingsPanelModule;
+            pendingSettingsPanelModule = null;
+            openSettingsPanel(pending);
+        }
         if (settingsPanelModule != null) {
             settingsPanelRenderModule = settingsPanelModule;
             settingsPanelRenderConfig = null;
@@ -1361,6 +1368,7 @@ public class NanoVGClickGuiScreen extends Screen {
                 rememberHoveredModule(module);
 
             boolean selected = settingsPanelModule == module;
+            boolean marked = selected || pendingSettingsPanelModule == module;
             if (selected) {
                 panelAnchorY = strip.y - column.rise;
                 panelAnchorRise = column.rise;
@@ -1368,7 +1376,7 @@ public class NanoVGClickGuiScreen extends Screen {
                 panelAnchorRight = column.x + column.width;
             }
 
-            float mark = animate("module-mark:" + System.identityHashCode(module), selected, 0.18f);
+            float mark = animate("module-mark:" + System.identityHashCode(module), marked, 0.18f);
             if (mark > 0.01f)
                 vg.roundedRectangle(strip.x + u(1f), strip.y + u(4.5f), u(2f), Math.max(u(4f), strip.height - u(9f)), u(1f), alpha(255, 255, 255, (int) (230 * mark)));
 
@@ -4185,7 +4193,7 @@ public class NanoVGClickGuiScreen extends Screen {
     private void toggleSettingsPanel(Module module) {
         if (module == null)
             return;
-        if (settingsPanelModule == module)
+        if (settingsPanelModule == module || pendingSettingsPanelModule == module)
             closeSettingsPanel();
         else
             openSettingsPanel(module);
@@ -4202,6 +4210,16 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private void openSettingsPanel(Module module) {
         boolean alreadyOpen = isSettingsDockOpen();
+        if (pendingSettingsPanelModule != null
+                || alreadyOpen && settingsPanelModule != module && settingsPanelRenderModule != null) {
+            clearInteractionState();
+            pendingSettingsPanelModule = module;
+            settingsPanelModule = null;
+            settingsPanelConfig = null;
+            activeSettingsPanelScrollbar = null;
+            return;
+        }
+
         clearInteractionState();
         settingsPanelModule = module;
         settingsPanelRenderModule = module;
@@ -4232,6 +4250,7 @@ public class NanoVGClickGuiScreen extends Screen {
 
     private void closeSettingsPanel() {
         clearInteractionState();
+        pendingSettingsPanelModule = null;
         settingsPanelModule = null;
         settingsPanelConfig = null;
         settingsPanelScroll = 0f;
