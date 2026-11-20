@@ -3085,6 +3085,11 @@ public class Interface extends Module {
     public void onRenderHud(RenderHudEvent event) {
         if (mc.player == null || mc.level == null || mc.gui.hud.isHidden()) return;
 
+        if (targetHud.get() && !data.isEmpty())
+            Client.nanoVgManager.loadWorldAnchored(this::renderTargetHudLayer);
+        else
+            targetHudEntryBuffer.clear();
+
         VanillaHudStyle.loadHud(vg -> {
             beginHudFrame();
             long now = System.nanoTime();
@@ -3096,30 +3101,12 @@ public class Interface extends Module {
             deltaSpeed = Math.min(deltaSpeed, 1.0f);
             float interfaceAlpha = NanoVGManager.shouldRenderBelowDebugOverlay() && !styleDebugScreen() ? 0.2f : 1f;
             float finalDeltaSpeed = deltaSpeed;
-            boolean renderWorldHudOverlays = RenderUtil.shouldRenderWorldHudOverlays();
 
             vg.globalAlpha(interfaceAlpha, () -> {
                 if (playerList.get())
                     updatePlayerListHeightAnimation(finalDeltaSpeed);
                 else
                     playerListDisplayHeight = Float.NaN;
-
-                List<TargetHudRenderEntry> visibleTargetHudEntries = Collections.emptyList();
-                if (targetHud.get() && renderWorldHudOverlays) {
-                    targetHudEntryBuffer.clear();
-                    for (int i = 0, n = data.size(); i < n; i++) {
-                        TargetHudData hudData = data.get(i);
-                        TargetHudRenderEntry entry = prepareTargetHud(hudData.id, hudData.entity, finalDeltaSpeed, hudData.hudX, hudData.hudY, hudData.depthSquared);
-                        if (entry != null)
-                            targetHudEntryBuffer.add(entry);
-                    }
-
-                    if (!targetHudEntryBuffer.isEmpty()) {
-                        visibleTargetHudEntries = buildVisibleTargetHudEntries(targetHudEntryBuffer);
-                    }
-                } else {
-                    targetHudEntryBuffer.clear();
-                }
 
                 List<ModuleListEntry> moduleListEntries = moduleList.get() ? prepareModuleListEntries(deltaTime) : Collections.emptyList();
                 if (!moduleList.get())
@@ -3148,9 +3135,6 @@ public class Interface extends Module {
                     Client.notificationManager.prepareNotifications();
 
                 vg.beginEffectBatch();
-                for (TargetHudRenderEntry entry : visibleTargetHudEntries) {
-                    drawTargetHudEffects(vg, entry);
-                }
                 if (waterMark.get())
                     renderWatermarkEffects(vg);
                 if (moduleList.get())
@@ -3167,9 +3151,6 @@ public class Interface extends Module {
                     renderTabGuiEffects(vg, tabGuiCategories, tabGuiModules);
                 vg.flushEffectBatch();
 
-                for (TargetHudRenderEntry entry : visibleTargetHudEntries) {
-                    renderTargetHudVisibleRegions(vg, entry, () -> drawTargetHudBody(vg, entry));
-                }
 
                 if (waterMark.get())
                     renderWatermark(vg);
@@ -3201,6 +3182,33 @@ public class Interface extends Module {
             });
         });
     }
+
+    private void renderTargetHudLayer(NVGU vg) {
+        long now = System.nanoTime();
+        long deltaNanos = lastTargetHudRenderNanos == 0L ? 16_666_667L : now - lastTargetHudRenderNanos;
+        lastTargetHudRenderNanos = now;
+        float deltaSpeed = Math.min(0.16f * (Math.clamp(deltaNanos / 1_000_000L, 1L, 100L) / 16f), 1f);
+
+        targetHudEntryBuffer.clear();
+        for (int i = 0, n = data.size(); i < n; i++) {
+            TargetHudData hudData = data.get(i);
+            TargetHudRenderEntry entry = prepareTargetHud(hudData.id, hudData.entity, deltaSpeed, hudData.hudX, hudData.hudY, hudData.depthSquared);
+            if (entry != null)
+                targetHudEntryBuffer.add(entry);
+        }
+        if (targetHudEntryBuffer.isEmpty())
+            return;
+
+        List<TargetHudRenderEntry> visibleEntries = buildVisibleTargetHudEntries(targetHudEntryBuffer);
+        vg.beginEffectBatch();
+        for (TargetHudRenderEntry entry : visibleEntries)
+            drawTargetHudEffects(vg, entry);
+        vg.flushEffectBatch();
+        for (TargetHudRenderEntry entry : visibleEntries)
+            renderTargetHudVisibleRegions(vg, entry, () -> drawTargetHudBody(vg, entry));
+    }
+
+    private long lastTargetHudRenderNanos;
 
     @Override
     public void onRender3D(Render3DEvent event) {

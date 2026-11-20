@@ -1,10 +1,8 @@
 package com.instrumentalist.krs.utils.render;
 
-import com.instrumentalist.krs.utils.GuiInputBlocker;
 import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.utils.math.Tuple;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -43,8 +41,7 @@ public final class RenderUtil {
     }
 
     public static boolean shouldRenderWorldHudOverlays() {
-        Minecraft client = Minecraft.getInstance();
-        return client.gui.screen() == null || client.gui.screen() instanceof ChatScreen || GuiInputBlocker.shouldAllowWorldHudOverlays();
+        return true;
     }
 
     public void reloadWorldWithoutFlickers() {
