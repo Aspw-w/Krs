@@ -3,6 +3,7 @@ package com.instrumentalist.krs.hacks.features.movement.speed;
 import com.instrumentalist.krs.events.features.*;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
+import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.movement.speed.features.*;
 import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.utils.move.MovementUtil;
@@ -24,6 +25,13 @@ public class SpeedModule extends Module {
             new String[]{"Vanilla", "Smooth Vanilla", "Hypixel NCP Hop", "Modern MMC", "5b5t", "Boost", "Flag Boost", "NCP", "Watchdog Legacy","Verus", "Vulcan", "Vulcan Old", "Miniblox"},
             "Vanilla"
     );
+
+    @Setting
+    public static final BooleanValue noBobbing = new BooleanValue("No Bobbing", true);
+
+    public static boolean shouldDisableBobbing() {
+        return noBobbing.get() && ModuleManager.getModuleState(SpeedModule.class);
+    }
 
     private static final SpeedModeManager speedModeManager = new SpeedModeManager(speedMode);
 

@@ -8,6 +8,7 @@ import com.instrumentalist.krs.events.features.FrameBufferEvent;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
+import com.instrumentalist.krs.hacks.features.movement.speed.SpeedModule;
 import com.instrumentalist.krs.hacks.features.render.*;
 import com.instrumentalist.krs.utils.render.DebugOverlayRenderer;
 import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
@@ -211,6 +212,12 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
 
     @Inject(at = @At("HEAD"), method = "bobView(Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V", cancellable = true)
     private void onViewBobbing(CameraRenderState cameraRenderState, PoseStack matrices, CallbackInfo ci) {
+        if (SpeedModule.shouldDisableBobbing()) {
+            cancelNextBobView = false;
+            ci.cancel();
+            return;
+        }
+
         if (ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly()) {
             cancelNextBobView = false;
             ci.cancel();
