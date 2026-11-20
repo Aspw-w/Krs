@@ -92,6 +92,11 @@ public class WatchdogLegacyFly implements FlyEvent {
         }
     }
 
+    private static boolean waitingForSelfDamage(LocalPlayer player) {
+        return player != null && state == State.HYPIXEL && !started && !inPearlWindow()
+                && player.onGround() && player.hurtTime > 0;
+    }
+
     private static boolean start(LocalPlayer player) {
         if (player.onGround()) {
             if (player.hurtTime > 0)
@@ -183,7 +188,7 @@ public class WatchdogLegacyFly implements FlyEvent {
             }
         }
 
-        if (awaitingDamage) {
+        if (awaitingDamage || waitingForSelfDamage(mc.player)) {
             LocalPlayer player = mc.player;
             InputUtil.stop(player.input);
             MovementUtil.setVelocityY(0.0);
@@ -244,6 +249,8 @@ public class WatchdogLegacyFly implements FlyEvent {
         event.callInPost = true;
 
         if (!started) {
+            if (waitingForSelfDamage(player))
+                MovementUtil.stopMoving();
             if (event.post)
                 started = start(player);
             return;
@@ -286,7 +293,7 @@ public class WatchdogLegacyFly implements FlyEvent {
             return;
         }
 
-        if (moveSpeed > 0 || awaitingDamage)
+        if (moveSpeed > 0 || awaitingDamage || waitingForSelfDamage(mc.player))
             mc.options.keyJump.setDown(false);
     }
 
