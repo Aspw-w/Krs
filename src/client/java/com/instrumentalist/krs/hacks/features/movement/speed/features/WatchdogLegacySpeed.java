@@ -46,11 +46,11 @@ public class WatchdogLegacySpeed implements SpeedEvent {
 
                 int speedLevel = MovementUtil.getSpeedEffect();
                 if (speedLevel >= 2) {
-                    MovementUtil.strafe(0.65f);
+                    MovementUtil.strafe(0.7f);
                 } else if (speedLevel == 1) {
-                    MovementUtil.strafe(0.6f);
+                    MovementUtil.strafe(0.61f);
                 } else {
-                    MovementUtil.strafe(0.51f);
+                    MovementUtil.strafe(0.52f);
                 }
 
                 boost = true;
@@ -87,12 +87,14 @@ public class WatchdogLegacySpeed implements SpeedEvent {
                 TimerUtil.timerSpeed = 1.1f;
             }
 
-            if (mc.player.hurtTime >= 8) {
+            int speedLevel = MovementUtil.getSpeedEffect();
+
+            if (speedLevel >= 2) {
                 MovementUtil.strafe(Math.max(0.4f, MovementUtil.getSpeed()));
-            } else if (mc.player.fallDistance > 0.1) {
-                MovementUtil.strafe(Math.max(0.3f, MovementUtil.getSpeed()));
+            } else if (speedLevel == 1) {
+                MovementUtil.strafe(Math.max(0.34f, MovementUtil.getSpeed()));
             } else {
-                MovementUtil.strafe(Math.max(0.24f, MovementUtil.getSpeed()));
+                MovementUtil.strafe(Math.max(0.27f, MovementUtil.getSpeed()));
             }
         }
     }

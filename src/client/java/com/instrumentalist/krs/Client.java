@@ -26,7 +26,7 @@ public class Client implements IMinecraft {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    public static String clientVersion = "1.4-Release";
+    public static String clientVersion = "1.4.1-Dev";
 
     public static volatile EventManager eventManager = null;
     public static ConfigManager configManager = null;
