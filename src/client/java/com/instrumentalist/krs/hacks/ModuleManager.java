@@ -92,7 +92,7 @@ public class ModuleManager implements EventListener {
                 new Reach(), new NoCombatDelay(), new AutoBypass(), new PingDisabler(), new QuickMacro(),
                 new FPSBobbing(), new CrossbowExploit(), new WTap(), new PianoProGamer(),
                 new SafeWalk(), new Parkour(), new AutoWalk(), new AutoRespawn(),
-                new AutoLeave(), new AutoSneak(), new MiddleClick(), new AntiAFK(),
+                new AutoLeave(), new AutoSneak(), new MiddleClick(), new AntiAFK(), new SpeedEffectFix(),
                 new NoWeb(), new NoBlockEffects(), new AntiLevitation(), new FastFall(),
                 new Spider(), new AutoRocket(), new AutoTotem(), new VisualSpoofer(),
                 new XCarry(), new PortalGodMode(), new ChestTP(), new SurroundTP(),
