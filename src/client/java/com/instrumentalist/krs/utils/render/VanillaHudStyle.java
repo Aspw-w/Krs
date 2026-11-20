@@ -65,8 +65,6 @@ public final class VanillaHudStyle implements IMinecraft {
     private static final float BOSS_PAD = 9f;
     private static final Color BOSS_TRACK = new Color(255, 255, 255, 36);
     private static final Color BOSS_NOTCH = new Color(0x11, 0x11, 0x13, 150);
-    private static final Color HOTBAR_SELECTION = new Color(255, 255, 255, 40);
-    private static final Color HOTBAR_SELECTION_BORDER = new Color(255, 255, 255, 150);
     private static final Color HOTBAR_ATTACK = new Color(255, 255, 255, 120);
     private static final float[] hotbarRect = new float[4];
     private static final float[] hotbarSelectionRect = new float[4];
@@ -1245,8 +1243,11 @@ public final class VanillaHudStyle implements IMinecraft {
                 NanoVGTheme.renderPanel(vg, offhand[0], offhand[1], offhand[2] - offhand[0], offhand[3] - offhand[1], NanoVGTheme.RADIUS_HUD, 1f);
 
             if (selection) {
-                vg.roundedRectangle(selectionX, selectionY, selectionWidth, selectionHeight, NanoVGTheme.RADIUS_LABEL, HOTBAR_SELECTION);
-                vg.roundedRectangleBorder(selectionX, selectionY, selectionWidth, selectionHeight, NanoVGTheme.RADIUS_LABEL, 1.5f, HOTBAR_SELECTION_BORDER, Border.INSIDE);
+                vg.beginEffectBatch();
+                NanoVGTheme.renderPanelEffects(vg, selectionX, selectionY, selectionWidth, selectionHeight, NanoVGTheme.RADIUS_LABEL, 1f);
+                vg.flushEffectBatch();
+                NanoVGTheme.renderPanel(vg, selectionX, selectionY, selectionWidth, selectionHeight, NanoVGTheme.RADIUS_LABEL, 1f, 70);
+                vg.roundedRectangleBorder(selectionX, selectionY, selectionWidth, selectionHeight, NanoVGTheme.RADIUS_LABEL, 1f, TAB_INSET_EDGE, Border.INSIDE);
             }
 
             if (attack != null) {
