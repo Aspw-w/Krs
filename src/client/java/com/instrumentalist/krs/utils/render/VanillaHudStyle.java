@@ -2,6 +2,7 @@ package com.instrumentalist.krs.utils.render;
 
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.utils.IMinecraft;
+import com.instrumentalist.krs.utils.ServerAddressSpoof;
 import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.mixin.injector.ChatComponentAccessor;
@@ -1274,7 +1275,7 @@ public final class VanillaHudStyle implements IMinecraft {
         float entryHeight = BOSS_TITLE + 4f + BOSS_BAR + BOSS_GAP;
         float cursorY = 0f;
         for (BossEvent event : events) {
-            Line title = layout(event.getName(), TEXT_SIZE, 0xFFFFFF, false);
+            Line title = layout(ServerAddressSpoof.bossBar(event.getName()), TEXT_SIZE, 0xFFFFFF, false);
             titles.add(title);
             shown.add(event);
             contentWidth = Math.max(contentWidth, title.width);

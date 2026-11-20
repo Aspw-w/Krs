@@ -52,6 +52,12 @@ public final class ServerAddressSpoof {
         return replace(replace(component, "play.rewound.cc", "mc.hypixel.net"), "www.rewound.cc", "store.hypixel.net");
     }
 
+    public static Component bossBar(Component component) {
+        if (!enabled())
+            return component;
+        return replace(component, "play.rewound.cc", "mc.hypixel.net");
+    }
+
     public static Component chat(Component component) {
         if (!enabled())
             return component;

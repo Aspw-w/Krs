@@ -1,15 +1,18 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.features.render.Interface;
+import com.instrumentalist.krs.utils.ServerAddressSpoof;
 import com.instrumentalist.krs.utils.render.VanillaHudStyle;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.BossHealthOverlay;
 import net.minecraft.client.gui.components.LerpingBossEvent;
+import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Map;
@@ -28,5 +31,10 @@ public class BossHealthOverlayMixin {
             return;
         if (VanillaHudStyle.bossBars(graphics, events.values()))
             ci.cancel();
+    }
+
+    @ModifyVariable(method = "extractRenderState", at = @At("STORE"), ordinal = 0)
+    private Component krs$spoofBossBarName(Component name) {
+        return ServerAddressSpoof.bossBar(name);
     }
 }
