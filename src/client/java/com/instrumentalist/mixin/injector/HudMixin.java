@@ -253,4 +253,9 @@ public class HudMixin implements IMinecraft {
         original.call(graphics);
         VanillaHudStyle.markHudSplit(graphics.guiRenderState);
     }
+
+    @Inject(method = "extractRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/Hud;extractHotbarAndDecorations(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/DeltaTracker;)V", shift = At.Shift.AFTER))
+    private void krs$markHudTextLayer(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+        VanillaHudStyle.markHudTextSplit(graphics);
+    }
 }

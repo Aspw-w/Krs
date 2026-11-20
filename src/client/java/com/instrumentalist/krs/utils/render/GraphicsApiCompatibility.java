@@ -95,6 +95,7 @@ public final class GraphicsApiCompatibility {
         NANO_VG_SCREEN(true, -1, false, true),
         NANO_VG_OVERLAY(true, -1, false, true),
         NANO_VG_TOAST(true, -1, false, true),
+        NANO_VG_HUD_TEXT(true, -1, false, true),
         NANO_VG_WORLD(true, 0, true, true),
         NANO_VG_IMMEDIATE(true, -1, false, true),
         // World-anchored: a frame that arrives late is drawn against a newer camera.

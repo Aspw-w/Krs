@@ -127,6 +127,10 @@ public final class VanillaHudStyle implements IMinecraft {
     private static boolean toastLayerRendered;
     private static boolean toastActive;
     private static final List<Consumer<NVGU>> toastQueue = new ArrayList<>();
+    private static int hudTextSplitStratum = -1;
+    private static int hudTextSplitDraw = -1;
+    private static boolean hudTextLayerRendered;
+    private static final List<Consumer<NVGU>> hudTextQueue = new ArrayList<>();
     private static EditBox chatInputBox;
     private static final Vector2f POINT = new Vector2f();
     private static final float[] RECT = new float[4];
@@ -331,6 +335,7 @@ public final class VanillaHudStyle implements IMinecraft {
         screenSplitDraw = -1;
         overlaySplitDraw = -1;
         toastSplitDraw = -1;
+        hudTextSplitDraw = -1;
     }
 
     public static boolean startsSplit(int drawCount) {
@@ -351,6 +356,10 @@ public final class VanillaHudStyle implements IMinecraft {
             toastSplitDraw = drawCount;
             split = true;
         }
+        if (hudTextSplitStratum >= 0 && hudTextSplitDraw < 0 && traversedStratum >= hudTextSplitStratum) {
+            hudTextSplitDraw = drawCount;
+            split = true;
+        }
         return split;
     }
 
@@ -363,12 +372,16 @@ public final class VanillaHudStyle implements IMinecraft {
             overlaySplitDraw = drawCount;
         if (toastSplitStratum >= 0 && toastSplitDraw < 0)
             toastSplitDraw = drawCount;
+        if (hudTextSplitStratum >= 0 && hudTextSplitDraw < 0)
+            hudTextSplitDraw = drawCount;
     }
 
     public static int nextSplit(int start, int end) {
         int next = Integer.MAX_VALUE;
         if (toastSplitDraw >= start && toastSplitDraw <= end && !toastLayerRendered)
             next = Math.min(next, toastSplitDraw);
+        if (hudTextSplitDraw >= start && hudTextSplitDraw <= end && !hudTextLayerRendered)
+            next = Math.min(next, hudTextSplitDraw);
         if (hudSplitDraw >= start && hudSplitDraw <= end && !hudLayerRendered)
             next = Math.min(next, hudSplitDraw);
         if (screenSplitDraw >= start && screenSplitDraw <= end && !screenLayerRendered)
@@ -391,11 +404,16 @@ public final class VanillaHudStyle implements IMinecraft {
         boolean renderToast = toastSplitDraw == drawIndex && !toastLayerRendered;
         if (renderToast)
             toastLayerRendered = true;
+        boolean renderHudText = hudTextSplitDraw == drawIndex && !hudTextLayerRendered;
+        if (renderHudText)
+            hudTextLayerRendered = true;
         if (Client.nanoVgManager == null)
             return;
         if (renderHud && Client.nanoVgManager.hasQueuedHudLayerRenderers())
             MainTargetFramebuffer.runLayer(GraphicsApiCompatibility.Layer.NANO_VG_HUD,
                     Client.nanoVgManager::renderQueuedHudLayer, Client.nanoVgManager::discardHudLayerRenderQueue);
+        if (renderHudText)
+            renderHudTextLayer();
         if (renderScreen && Client.nanoVgManager.hasQueuedScreenLayerRenderers())
             MainTargetFramebuffer.runLayer(GraphicsApiCompatibility.Layer.NANO_VG_SCREEN,
                     Client.nanoVgManager::renderQueuedScreenLayer, Client.nanoVgManager::discardScreenLayerRenderQueue);
@@ -407,6 +425,7 @@ public final class VanillaHudStyle implements IMinecraft {
     }
 
     public static void renderToastLayerFallback() {
+        renderHudTextLayer();
         renderToastLayer();
     }
 
@@ -435,6 +454,9 @@ public final class VanillaHudStyle implements IMinecraft {
         toastSplitDraw = -1;
         toastLayerRendered = false;
         toastActive = false;
+        hudTextSplitStratum = -1;
+        hudTextSplitDraw = -1;
+        hudTextLayerRendered = false;
         screenSplitPending = false;
         traversedStratum = 0;
     }
@@ -829,6 +851,28 @@ public final class VanillaHudStyle implements IMinecraft {
         return !((ToastManagerAccessor) mc.gui.toastManager()).krs$getVisibleToasts().isEmpty();
     }
 
+    private static void queueHudText(Consumer<NVGU> renderer) {
+        if (screenRouting || overlayRouting)
+            queue(renderer);
+        else
+            hudTextQueue.add(renderer);
+    }
+
+    public static void markHudTextSplit(GuiGraphicsExtractor graphics) {
+        graphics.nextStratum();
+        hudTextSplitStratum = strataCount(graphics.guiRenderState) - 1;
+    }
+
+    public static void renderHudTextLayer() {
+        if (hudTextQueue.isEmpty())
+            return;
+        List<Consumer<NVGU>> consumers = new ArrayList<>(hudTextQueue);
+        hudTextQueue.clear();
+        if (Client.nanoVgManager != null)
+            MainTargetFramebuffer.runLayer(GraphicsApiCompatibility.Layer.NANO_VG_HUD_TEXT,
+                    () -> Client.nanoVgManager.renderConsumers(consumers), null);
+    }
+
     public static void markToastSplit(GuiGraphicsExtractor graphics) {
         if (!Interface.styleToasts() || !nvgReady())
             return;
@@ -931,7 +975,7 @@ public final class VanillaHudStyle implements IMinecraft {
         Line line = layout(text, size, color & 0xFFFFFF, bold);
         List<TextDraw> texts = new ArrayList<>();
         emit(graphics, line, (NanoVGManager.getScaledScreenWidth() - line.width) / 2f, guiCenterY * scale, size, alpha, texts);
-        queue(vg -> drawTexts(texts));
+        queueHudText(vg -> drawTexts(texts));
     }
 
     private static Line layout(@Nullable FormattedCharSequence sequence, float size, int defaultRgb, boolean bold) {
@@ -1212,9 +1256,9 @@ public final class VanillaHudStyle implements IMinecraft {
                 if (fill > 0.5f)
                     vg.roundedRectangle(attack[0], attack[3] - fill, attackWidth, fill, Math.min(NanoVGTheme.RADIUS_LABEL, fill / 2f), HOTBAR_ATTACK);
             }
-
-            drawTexts(texts);
         });
+        if (!texts.isEmpty())
+            queueHudText(vg -> drawTexts(texts));
     }
 
     public static boolean bossBars(GuiGraphicsExtractor graphics, Collection<? extends BossEvent> events) {
