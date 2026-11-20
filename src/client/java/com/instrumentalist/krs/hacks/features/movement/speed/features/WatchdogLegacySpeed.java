@@ -50,7 +50,7 @@ public class WatchdogLegacySpeed implements SpeedEvent {
                 } else if (speedLevel == 1) {
                     MovementUtil.strafe(0.61f);
                 } else {
-                    MovementUtil.strafe(0.52f);
+                    MovementUtil.strafe(0.51f);
                 }
 
                 boost = true;
