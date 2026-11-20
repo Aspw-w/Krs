@@ -1136,6 +1136,10 @@ public class Interface extends Module {
         float previousHealthRatio = 0.5f;
         float previousRegenRatio = 0.5f;
         float previousTargetWidth = 0f;
+        boolean hasLastPosition;
+        float lastHudX;
+        float lastHudY;
+        double lastDepthSquared;
 
         void resetPlayerTexture() {
             playerTextureRequestGeneration++;
@@ -3085,7 +3089,7 @@ public class Interface extends Module {
     public void onRenderHud(RenderHudEvent event) {
         if (mc.player == null || mc.level == null || mc.gui.hud.isHidden()) return;
 
-        if (targetHud.get() && !data.isEmpty())
+        if (targetHud.get() && (!data.isEmpty() || !hudStates.isEmpty()))
             Client.nanoVgManager.loadWorldAnchored(this::renderTargetHudLayer);
         else
             targetHudEntryBuffer.clear();
@@ -3262,9 +3266,23 @@ public class Interface extends Module {
                 float hudY = NanoVGManager.fromFramebufferY(screenPos.y);
                 double depthSquared = targetHudWorldPos.distanceToSqr(cameraPos);
                 data.add(new TargetHudData(targetId, entity, hudX, hudY, depthSquared));
+                TargetHudState positionState = hudStates.get(targetId);
+                if (positionState != null) {
+                    positionState.hasLastPosition = true;
+                    positionState.lastHudX = hudX;
+                    positionState.lastHudY = hudY;
+                    positionState.lastDepthSquared = depthSquared;
+                }
             } else {
                 boolean activeTarget = BehaviorUtils.isTarget(entity);
                 if (activeTarget) {
+                    i++;
+                    continue;
+                }
+
+                TargetHudState fadingState = hudStates.get(targetId);
+                if (fadingState != null && fadingState.hasLastPosition && fadingState.targetHudAlpha >= 0.1f) {
+                    data.add(new TargetHudData(targetId, entity, fadingState.lastHudX, fadingState.lastHudY, fadingState.lastDepthSquared));
                     i++;
                     continue;
                 }
