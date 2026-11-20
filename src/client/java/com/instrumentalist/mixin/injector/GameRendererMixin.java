@@ -11,6 +11,8 @@ import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.hacks.features.render.*;
 import com.instrumentalist.krs.utils.render.DebugOverlayRenderer;
 import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
+import com.instrumentalist.krs.utils.render.MainTargetFramebuffer;
+import com.instrumentalist.krs.utils.render.VanillaHudStyle;
 import com.instrumentalist.krs.utils.render.RenderUtil;
 import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
@@ -135,7 +137,12 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
                 (int) this.minecraft.mouseHandler.getScaledXPos(this.minecraft.getWindow()),
                 (int) this.minecraft.mouseHandler.getScaledYPos(this.minecraft.getWindow())
         );
-        this.minecraft.getDebugOverlay().extractRenderState(extractor);
+        VanillaHudStyle.setDebugOnTop(true);
+        try {
+            this.minecraft.getDebugOverlay().extractRenderState(extractor);
+        } finally {
+            VanillaHudStyle.setDebugOnTop(false);
+        }
         this.guiRenderer.render();
     }
 
@@ -157,9 +164,44 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
                         Client.nanoVgManager::renderQueuedBeforeGui,
                         Client.nanoVgManager::discardBeforeGuiRenderQueue
                 );
-        } else {
-            Client.nanoVgManager.renderQueuedBeforeGui();
+        } else if (Client.nanoVgManager.hasQueuedBeforeGuiRenderers()) {
+            MainTargetFramebuffer.run(Client.nanoVgManager::renderQueuedBeforeGui);
         }
+
+        if (!VanillaHudStyle.hasHudSplit() && !GraphicsApiCompatibility.usesCompatibilityRenderer()
+                && Client.nanoVgManager.hasQueuedHudLayerRenderers())
+            MainTargetFramebuffer.run(Client.nanoVgManager::renderQueuedHudLayer);
+    }
+
+    @Inject(
+            method = "render()V",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/render/GuiRenderer;render()V",
+                    shift = At.Shift.AFTER
+            )
+    )
+    private void krs$renderNanoVgScreenLayerFallback(CallbackInfo ci) {
+        VanillaHudStyle.renderToastLayerFallback();
+        VanillaHudStyle.endGuiFrame();
+        if (Client.nanoVgManager == null)
+            return;
+        krs$renderLayerFallback(Client.nanoVgManager.hasQueuedHudLayerRenderers(),
+                Client.nanoVgManager::renderQueuedHudLayer, Client.nanoVgManager::discardHudLayerRenderQueue);
+        krs$renderLayerFallback(Client.nanoVgManager.hasQueuedScreenLayerRenderers(),
+                Client.nanoVgManager::renderQueuedScreenLayer, Client.nanoVgManager::discardScreenLayerRenderQueue);
+        krs$renderLayerFallback(Client.nanoVgManager.hasQueuedOverlayLayerRenderers(),
+                Client.nanoVgManager::renderQueuedOverlayLayer, Client.nanoVgManager::discardOverlayLayerRenderQueue);
+    }
+
+    @Unique
+    private static void krs$renderLayerFallback(boolean queued, Runnable render, Runnable discard) {
+        if (!queued)
+            return;
+        if (GraphicsApiCompatibility.usesCompatibilityRenderer())
+            GraphicsApiCompatibility.renderOffscreenLayer(GraphicsApiCompatibility.Layer.NANO_VG_BEFORE_GUI, render, discard);
+        else
+            MainTargetFramebuffer.run(render);
     }
 
     @Inject(at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;bobView(Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V", ordinal = 0), method = "renderLevel()V")

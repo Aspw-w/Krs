@@ -18,6 +18,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 import java.util.function.Consumer;
 import java.nio.ByteBuffer;
 import net.minecraft.client.Minecraft;
@@ -36,6 +37,15 @@ public class NanoVGManager implements IMinecraft {
     private Deque<Consumer<NVGU>> beforeGuiFrameRenderQueue = new ArrayDeque<>();
     private final Consumer<NVGU> queuedRenderConsumer = this::renderFrameQueue;
     private final Consumer<NVGU> beforeGuiQueuedRenderConsumer = this::renderBeforeGuiFrameQueue;
+    private Deque<Consumer<NVGU>> screenLayerRenderQueue = new ArrayDeque<>();
+    private Deque<Consumer<NVGU>> screenLayerFrameRenderQueue = new ArrayDeque<>();
+    private final Consumer<NVGU> screenLayerQueuedRenderConsumer = this::renderScreenLayerFrameQueue;
+    private Deque<Consumer<NVGU>> hudLayerRenderQueue = new ArrayDeque<>();
+    private Deque<Consumer<NVGU>> hudLayerFrameRenderQueue = new ArrayDeque<>();
+    private final Consumer<NVGU> hudLayerQueuedRenderConsumer = this::renderHudLayerFrameQueue;
+    private Deque<Consumer<NVGU>> overlayLayerRenderQueue = new ArrayDeque<>();
+    private Deque<Consumer<NVGU>> overlayLayerFrameRenderQueue = new ArrayDeque<>();
+    private final Consumer<NVGU> overlayLayerQueuedRenderConsumer = this::renderOverlayLayerFrameQueue;
     private final Map<Class<?>, Long> rendererFailureLogTimes = new HashMap<>();
     private final ByteBuffer colourWriteMask = BufferUtils.createByteBuffer(4);
     private long lastQueueOverflowLogNanos;
@@ -154,6 +164,183 @@ public class NanoVGManager implements IMinecraft {
         }
     }
 
+    public void renderConsumers(List<Consumer<NVGU>> consumers) {
+        if (consumers.isEmpty())
+            return;
+        NVGU vg = NVGU.INSTANCE;
+        if (vg == null || !vg.isCreated())
+            return;
+        renderNow(instance -> {
+            for (Consumer<NVGU> consumer : consumers)
+                renderQueuedConsumer(instance, consumer);
+        });
+    }
+
+    public void loadScreenLayer(Consumer<NVGU> vg) {
+        if (vg == null)
+            return;
+
+        synchronized (renderQueueLock) {
+            if (screenLayerRenderQueue.size() >= MAX_QUEUED_RENDERERS) {
+                screenLayerRenderQueue.pollFirst();
+                droppedRenderers++;
+                logQueueOverflow();
+            }
+            screenLayerRenderQueue.addLast(vg);
+        }
+    }
+
+    public boolean hasQueuedScreenLayerRenderers() {
+        synchronized (renderQueueLock) {
+            return !screenLayerRenderQueue.isEmpty();
+        }
+    }
+
+    public void renderQueuedScreenLayer() {
+        NVGU vg = NVGU.INSTANCE;
+        if (vg == null || !vg.isCreated()) {
+            discardScreenLayerRenderQueue();
+            return;
+        }
+
+        synchronized (renderQueueLock) {
+            Deque<Consumer<NVGU>> pendingRenderers = screenLayerRenderQueue;
+            screenLayerRenderQueue = screenLayerFrameRenderQueue;
+            screenLayerFrameRenderQueue = pendingRenderers;
+            screenLayerRenderQueue.clear();
+        }
+        if (screenLayerFrameRenderQueue.isEmpty()) return;
+
+        try {
+            renderNow(screenLayerQueuedRenderConsumer);
+        } finally {
+            screenLayerFrameRenderQueue.clear();
+        }
+    }
+
+    public void discardScreenLayerRenderQueue() {
+        synchronized (renderQueueLock) {
+            screenLayerRenderQueue.clear();
+            screenLayerFrameRenderQueue.clear();
+        }
+    }
+
+    private void renderScreenLayerFrameQueue(NVGU vg) {
+        Consumer<NVGU> renderer;
+        while ((renderer = screenLayerFrameRenderQueue.pollFirst()) != null)
+            renderQueuedConsumer(vg, renderer);
+    }
+
+    public void loadOverlayLayer(Consumer<NVGU> vg) {
+        if (vg == null)
+            return;
+
+        synchronized (renderQueueLock) {
+            if (overlayLayerRenderQueue.size() >= MAX_QUEUED_RENDERERS) {
+                overlayLayerRenderQueue.pollFirst();
+                droppedRenderers++;
+                logQueueOverflow();
+            }
+            overlayLayerRenderQueue.addLast(vg);
+        }
+    }
+
+    public boolean hasQueuedOverlayLayerRenderers() {
+        synchronized (renderQueueLock) {
+            return !overlayLayerRenderQueue.isEmpty();
+        }
+    }
+
+    public void renderQueuedOverlayLayer() {
+        NVGU vg = NVGU.INSTANCE;
+        if (vg == null || !vg.isCreated()) {
+            discardOverlayLayerRenderQueue();
+            return;
+        }
+
+        synchronized (renderQueueLock) {
+            Deque<Consumer<NVGU>> pendingRenderers = overlayLayerRenderQueue;
+            overlayLayerRenderQueue = overlayLayerFrameRenderQueue;
+            overlayLayerFrameRenderQueue = pendingRenderers;
+            overlayLayerRenderQueue.clear();
+        }
+        if (overlayLayerFrameRenderQueue.isEmpty()) return;
+
+        try {
+            renderNow(overlayLayerQueuedRenderConsumer);
+        } finally {
+            overlayLayerFrameRenderQueue.clear();
+        }
+    }
+
+    public void discardOverlayLayerRenderQueue() {
+        synchronized (renderQueueLock) {
+            overlayLayerRenderQueue.clear();
+            overlayLayerFrameRenderQueue.clear();
+        }
+    }
+
+    private void renderOverlayLayerFrameQueue(NVGU vg) {
+        Consumer<NVGU> renderer;
+        while ((renderer = overlayLayerFrameRenderQueue.pollFirst()) != null)
+            renderQueuedConsumer(vg, renderer);
+    }
+
+    public void loadHudLayer(Consumer<NVGU> vg) {
+        if (vg == null)
+            return;
+
+        synchronized (renderQueueLock) {
+            if (hudLayerRenderQueue.size() >= MAX_QUEUED_RENDERERS) {
+                hudLayerRenderQueue.pollFirst();
+                droppedRenderers++;
+                logQueueOverflow();
+            }
+            hudLayerRenderQueue.addLast(vg);
+        }
+    }
+
+    public boolean hasQueuedHudLayerRenderers() {
+        synchronized (renderQueueLock) {
+            return !hudLayerRenderQueue.isEmpty();
+        }
+    }
+
+    public void renderQueuedHudLayer() {
+        NVGU vg = NVGU.INSTANCE;
+        if (vg == null || !vg.isCreated()) {
+            discardHudLayerRenderQueue();
+            return;
+        }
+
+        synchronized (renderQueueLock) {
+            Deque<Consumer<NVGU>> pendingRenderers = hudLayerRenderQueue;
+            hudLayerRenderQueue = hudLayerFrameRenderQueue;
+            hudLayerFrameRenderQueue = pendingRenderers;
+            hudLayerRenderQueue.clear();
+        }
+        if (hudLayerFrameRenderQueue.isEmpty()) return;
+
+        try {
+            renderNow(hudLayerQueuedRenderConsumer);
+        } finally {
+            hudLayerFrameRenderQueue.clear();
+        }
+    }
+
+    public void discardHudLayerRenderQueue() {
+        synchronized (renderQueueLock) {
+            hudLayerRenderQueue.clear();
+            hudLayerFrameRenderQueue.clear();
+        }
+    }
+
+    private void renderHudLayerFrameQueue(NVGU vg) {
+        Consumer<NVGU> renderer;
+        while ((renderer = hudLayerFrameRenderQueue.pollFirst()) != null)
+            renderQueuedConsumer(vg, renderer);
+    }
+
     public void renderQueuedBeforeGui() {
         NVGU vg = NVGU.INSTANCE;
         if (vg == null || !vg.isCreated()) {
@@ -270,6 +457,12 @@ public class NanoVGManager implements IMinecraft {
             frameRenderQueue.clear();
             beforeGuiRenderQueue.clear();
             beforeGuiFrameRenderQueue.clear();
+            screenLayerRenderQueue.clear();
+            screenLayerFrameRenderQueue.clear();
+            hudLayerRenderQueue.clear();
+            hudLayerFrameRenderQueue.clear();
+            overlayLayerRenderQueue.clear();
+            overlayLayerFrameRenderQueue.clear();
         }
     }
 

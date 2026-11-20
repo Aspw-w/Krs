@@ -32,6 +32,8 @@ import com.instrumentalist.krs.utils.nanovg.NVGFonts;
 import com.instrumentalist.krs.utils.packet.BlinkUtil;
 import com.instrumentalist.krs.utils.render.NanoVGTheme;
 import com.instrumentalist.krs.utils.render.RenderUtil;
+import com.instrumentalist.krs.utils.render.VanillaHudStyle;
+import com.instrumentalist.krs.utils.ServerAddressSpoof;
 import com.instrumentalist.krs.utils.value.*;
 import com.instrumentalist.krs.utils.math.Tuple;
 import com.instrumentalist.mixin.injector.ChatComponentAccessor;
@@ -213,6 +215,112 @@ public class Interface extends Module {
             "Some Information",
             true
     );
+
+    @Setting
+    private static final BooleanValue styledScoreboard = new BooleanValue(
+            "Scoreboard",
+            true
+    );
+
+    @Setting
+    private static final BooleanValue styledChat = new BooleanValue(
+            "Chat",
+            true
+    );
+
+    @Setting
+    private static final BooleanValue styledTabList = new BooleanValue(
+            "Tab List",
+            true
+    );
+
+    @Setting
+    private static final BooleanValue styledBossBar = new BooleanValue(
+            "Boss Bar",
+            true
+    );
+
+    @Setting
+    private static final BooleanValue styledHotbar = new BooleanValue(
+            "Hotbar",
+            true
+    );
+
+    @Setting
+    private static final BooleanValue styledTitle = new BooleanValue(
+            "Title",
+            true
+    );
+
+    @Setting
+    private static final BooleanValue styledActionBar = new BooleanValue(
+            "Action Bar",
+            true
+    );
+
+    public static boolean styleActionBar() {
+        return styledActionBar.get() && ModuleManager.getModuleState(Interface.class);
+    }
+
+    @Setting
+    private static final BooleanValue styledDebugScreen = new BooleanValue(
+            "Debug Screen",
+            true
+    );
+
+    public static boolean styleDebugScreen() {
+        return styledDebugScreen.get() && ModuleManager.getModuleState(Interface.class);
+    }
+
+    @Setting
+    private static final BooleanValue styledToasts = new BooleanValue(
+            "Toasts",
+            true
+    );
+
+    public static boolean styleToasts() {
+        return styledToasts.get() && ModuleManager.getModuleState(Interface.class);
+    }
+
+    public static boolean styleTitle() {
+        return styledTitle.get() && ModuleManager.getModuleState(Interface.class);
+    }
+
+    public static boolean styleHotbar() {
+        return styledHotbar.get() && ModuleManager.getModuleState(Interface.class);
+    }
+
+    public static boolean styleBossBar() {
+        return styledBossBar.get() && ModuleManager.getModuleState(Interface.class);
+    }
+
+    private static float[] moduleListRows = new float[96];
+    private static int moduleListRowCount;
+
+    public static float moduleListLeftEdge(float top, float bottom) {
+        if (!ModuleManager.getModuleState(Interface.class))
+            return Float.NaN;
+        float left = Float.NaN;
+        for (int i = 0; i < moduleListRowCount; i++) {
+            int o = i * 3;
+            if (moduleListRows[o + 2] <= top || moduleListRows[o + 1] >= bottom)
+                continue;
+            left = Float.isNaN(left) ? moduleListRows[o] : Math.min(left, moduleListRows[o]);
+        }
+        return left;
+    }
+
+    public static boolean styleScoreboard() {
+        return styledScoreboard.get() && ModuleManager.getModuleState(Interface.class);
+    }
+
+    public static boolean styleChat() {
+        return styledChat.get() && ModuleManager.getModuleState(Interface.class);
+    }
+
+    public static boolean styleTabList() {
+        return styledTabList.get() && ModuleManager.getModuleState(Interface.class);
+    }
 
     public static List<Module> sortedModules;
 
@@ -814,6 +922,8 @@ public class Interface extends Module {
         if (!activeEffects.isEmpty()) {
             float screenWidth = NanoVGManager.getScaledScreenWidth();
             float yOffset = NanoVGManager.getScaledScreenHeight() - 20f;
+            if (VanillaHudStyle.chatScreenStyled())
+                yOffset = Math.min(yOffset, VanillaHudStyle.chatInputTop() - 6f);
 
             for (Map.Entry<Holder<MobEffect>, MobEffectInstance> entry : activeEffects.entrySet()) {
                 MobEffect effect = entry.getKey().value();
@@ -852,7 +962,7 @@ public class Interface extends Module {
             connectionType = "Singleplayer";
         } else if (mc.getCurrentServer() != null) {
             connectionType = "Multiplayer";
-            serverIp = mc.getCurrentServer().ip;
+            serverIp = ServerAddressSpoof.interfaceAddress(mc.getCurrentServer().ip);
         } else {
             connectionType = "Integrated Server";
         }
@@ -879,7 +989,14 @@ public class Interface extends Module {
         }
 
         startY = Math.min(startY, getChatSuggestionTop() - CHAT_SUGGESTION_GAP - connectionEntries.getFirst().height);
+        boolean besideChat = VanillaHudStyle.chatScreenStyled() && !Float.isNaN(VanillaHudStyle.chatPanelRight());
+        if (besideChat) {
+            leftX = VanillaHudStyle.chatPanelRight() + 16f;
+            startY = VanillaHudStyle.chatInputTop() - 6f - connectionEntries.getFirst().height;
+        }
         layoutConnectedInfoHudChips(connectionEntries, leftX, startY);
+        if (besideChat && !informationEntries.isEmpty())
+            layoutConnectedInfoHudChips(informationEntries, leftX, connectionEntries.getFirst().y - 8f - informationEntries.getFirst().height);
 
         return someInformationRenderState;
     }
@@ -2513,6 +2630,7 @@ public class Interface extends Module {
     private List<ModuleListRenderEntry> prepareModuleListRenderEntries(List<ModuleListEntry> entries) {
         List<ModuleListRenderEntry> renderEntries = moduleListRenderEntryBuffer;
         renderEntries.clear();
+        moduleListRowCount = 0;
         if (entries.isEmpty())
             return renderEntries;
 
@@ -2559,6 +2677,12 @@ public class Interface extends Module {
                     colorTimeMillis
             );
             renderEntries.add(renderEntry);
+            if (moduleListRows.length < (moduleListRowCount + 1) * 3)
+                moduleListRows = Arrays.copyOf(moduleListRows, moduleListRows.length * 2);
+            moduleListRows[moduleListRowCount * 3] = leftX;
+            moduleListRows[moduleListRowCount * 3 + 1] = listY;
+            moduleListRows[moduleListRowCount * 3 + 2] = listY + effectiveHeight;
+            moduleListRowCount++;
             listY += effectiveHeight;
             visibleIndex++;
         }
@@ -2961,7 +3085,7 @@ public class Interface extends Module {
     public void onRenderHud(RenderHudEvent event) {
         if (mc.player == null || mc.level == null || mc.gui.hud.isHidden()) return;
 
-        Client.nanoVgManager.load(vg -> {
+        VanillaHudStyle.loadHud(vg -> {
             beginHudFrame();
             long now = System.nanoTime();
             long deltaNanos = lastRenderNanos == 0L ? 16_666_667L : now - lastRenderNanos;
@@ -2970,7 +3094,7 @@ public class Interface extends Module {
 
             float deltaSpeed = 0.16f * (deltaTime / 16f);
             deltaSpeed = Math.min(deltaSpeed, 1.0f);
-            float interfaceAlpha = NanoVGManager.shouldRenderBelowDebugOverlay() ? 0.2f : 1f;
+            float interfaceAlpha = NanoVGManager.shouldRenderBelowDebugOverlay() && !styleDebugScreen() ? 0.2f : 1f;
             float finalDeltaSpeed = deltaSpeed;
             boolean renderWorldHudOverlays = RenderUtil.shouldRenderWorldHudOverlays();
 
@@ -2998,6 +3122,8 @@ public class Interface extends Module {
                 }
 
                 List<ModuleListEntry> moduleListEntries = moduleList.get() ? prepareModuleListEntries(deltaTime) : Collections.emptyList();
+                if (!moduleList.get())
+                    moduleListRowCount = 0;
                 List<ModuleListRenderEntry> moduleListRenderEntries = moduleList.get()
                         ? prepareModuleListRenderEntries(moduleListEntries)
                         : Collections.emptyList();
@@ -3037,8 +3163,6 @@ public class Interface extends Module {
                     renderSomeInformationEffects(vg, someInformationState);
                 if (moduleInformation.get())
                     renderStyledTextEffects(vg, moduleInformationEntryBuffer);
-                if (hudNotifications)
-                    Client.notificationManager.renderNotificationEffects(vg);
                 if (tabGui.get())
                     renderTabGuiEffects(vg, tabGuiCategories, tabGuiModules);
                 vg.flushEffectBatch();
@@ -3065,11 +3189,15 @@ public class Interface extends Module {
                 if (moduleInformation.get())
                     renderStyledTextBodies(vg, moduleInformationEntryBuffer);
 
-                if (hudNotifications)
-                    Client.notificationManager.renderNotificationBodies(vg);
-
                 if (tabGui.get())
                     renderTabGuiBody(vg, tabGuiCategories, tabGuiModules);
+
+                if (hudNotifications) {
+                    vg.beginEffectBatch();
+                    Client.notificationManager.renderNotificationEffects(vg);
+                    vg.flushEffectBatch();
+                    Client.notificationManager.renderNotificationBodies(vg);
+                }
             });
         });
     }

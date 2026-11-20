@@ -3,7 +3,16 @@ package com.instrumentalist.mixin.injector;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.renderpearl.api.commands.RenderPass;
+import com.instrumentalist.krs.utils.render.VanillaHudStyle;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.state.gui.GuiElementRenderState;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Shadow;
+import java.util.List;
+import java.util.function.Supplier;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.GuiRenderer;
 import net.minecraft.client.renderer.state.WindowRenderState;
@@ -64,5 +73,43 @@ public abstract class GuiRendererMixin {
         int right = Math.min(rectangle.right() * scale, window.width);
         int bottom = Math.min(rectangle.bottom() * scale, window.height);
         return right > left && bottom > top;
+    }
+
+    @Shadow
+    @Final
+    private List<?> draws;
+
+    @Shadow
+    private RenderPipeline previousPipeline;
+
+    @Inject(method = "prepare", at = @At("HEAD"))
+    private void krs$beginSplitMesh(CallbackInfo ci) {
+        VanillaHudStyle.beginGuiMesh();
+    }
+
+    @Inject(method = "prepare", at = @At("RETURN"))
+    private void krs$endSplitMesh(CallbackInfo ci) {
+        VanillaHudStyle.endGuiMesh(draws.size());
+    }
+
+    @Inject(method = "addElementToMesh", at = @At("HEAD"))
+    private void krs$splitMesh(GuiElementRenderState elementState, CallbackInfo ci) {
+        if (VanillaHudStyle.startsSplit(draws.size()))
+            previousPipeline = null;
+    }
+
+    @WrapOperation(method = "draw", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/render/GuiRenderer;executeDrawRange(Ljava/util/function/Supplier;Lcom/mojang/blaze3d/pipeline/RenderTarget;Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;II)V"))
+    private void krs$renderLayersBetweenDraws(GuiRenderer renderer, Supplier<String> label, RenderTarget target, GpuBufferSlice transforms,
+                                              int start, int end, Operation<Void> original) {
+        int cursor = start;
+        int split;
+        while ((split = VanillaHudStyle.nextSplit(cursor, end)) >= 0) {
+            if (split > cursor)
+                original.call(renderer, label, target, transforms, cursor, split);
+            VanillaHudStyle.renderSplit(split);
+            cursor = split;
+        }
+        if (end > cursor)
+            original.call(renderer, label, target, transforms, cursor, end);
     }
 }

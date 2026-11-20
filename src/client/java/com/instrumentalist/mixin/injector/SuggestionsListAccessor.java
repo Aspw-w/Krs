@@ -8,4 +8,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 public interface SuggestionsListAccessor {
     @Accessor("rect")
     Rect2i krs$getRect();
+
+    @Accessor("offset")
+    void krs$setOffset(int offset);
 }

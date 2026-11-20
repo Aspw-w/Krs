@@ -1,5 +1,6 @@
 package com.instrumentalist.mixin.injector;
 
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.CommandSuggestions;
 import net.minecraft.util.FormattedCharSequence;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,4 +15,10 @@ public interface CommandSuggestionsAccessor {
 
     @Accessor("commandUsage")
     List<FormattedCharSequence> krs$getCommandUsage();
+
+    @Accessor("suggestionLineLimit")
+    int krs$getSuggestionLineLimit();
+
+    @Accessor("font")
+    Font krs$getFont();
 }

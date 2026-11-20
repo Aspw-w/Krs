@@ -13,4 +13,10 @@ public interface ChatComponentAccessor {
 
     @Accessor("chatScrollbarPos")
     int krs$getChatScrollbarPos();
+
+    @Accessor("chatScrollbarPos")
+    void krs$setChatScrollbarPos(int pos);
+
+    @Accessor("newMessageSinceScroll")
+    void krs$setNewMessageSinceScroll(boolean value);
 }

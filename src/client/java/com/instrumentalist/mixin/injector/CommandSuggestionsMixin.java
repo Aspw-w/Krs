@@ -7,6 +7,12 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.suggestion.Suggestions;
+import com.instrumentalist.krs.hacks.features.render.Interface;
+import com.instrumentalist.krs.utils.render.VanillaHudStyle;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.CommandSuggestions;
 import net.minecraft.client.gui.components.EditBox;
@@ -108,5 +114,31 @@ public abstract class CommandSuggestionsMixin {
             if (pendingSuggestions == pending && pending.isDone())
                 updateUsageInfo(parse, result);
         });
+    }
+
+    @Inject(method = "extractUsage", at = @At("HEAD"))
+    private void krs$beginStyledUsage(GuiGraphicsExtractor graphics, CallbackInfo ci) {
+        VanillaHudStyle.beginSuggestions(Interface.styleChat());
+    }
+
+    @Inject(method = "extractUsage", at = @At("RETURN"))
+    private void krs$endStyledUsage(GuiGraphicsExtractor graphics, CallbackInfo ci) {
+        VanillaHudStyle.endSuggestions();
+    }
+
+    @WrapOperation(method = "extractUsage", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V"))
+    private void krs$styledUsageFill(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int color, Operation<Void> original) {
+        if (VanillaHudStyle.suggestionsActive())
+            VanillaHudStyle.suggestionFill(graphics, x0, y0, x1, y1, color);
+        else
+            original.call(graphics, x0, y0, x1, y1, color);
+    }
+
+    @WrapOperation(method = "extractUsage", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;text(Lnet/minecraft/client/gui/Font;Lnet/minecraft/util/FormattedCharSequence;III)V"))
+    private void krs$styledUsageText(GuiGraphicsExtractor graphics, Font font, FormattedCharSequence text, int x, int y, int color, Operation<Void> original) {
+        if (VanillaHudStyle.suggestionsActive())
+            VanillaHudStyle.suggestionUsageText(graphics, text, x, y);
+        else
+            original.call(graphics, font, text, x, y, color);
     }
 }
