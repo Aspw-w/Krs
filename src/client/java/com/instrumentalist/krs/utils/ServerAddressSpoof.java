@@ -1,5 +1,7 @@
 package com.instrumentalist.krs.utils;
 
+import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.hacks.features.world.RewoundHider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
@@ -19,9 +21,13 @@ public final class ServerAddressSpoof {
     private ServerAddressSpoof() {
     }
 
+    private static boolean enabled() {
+        return ModuleManager.getModuleState(RewoundHider.class);
+    }
+
     public static String interfaceAddress(String address) {
-        if (address == null)
-            return null;
+        if (address == null || !enabled())
+            return address;
         String trimmed = address.trim();
         int portIndex = trimmed.lastIndexOf(':');
         String host = portIndex >= 0 ? trimmed.substring(0, portIndex) : trimmed;
@@ -35,14 +41,20 @@ public final class ServerAddressSpoof {
     }
 
     public static Component scoreboard(Component component) {
-        return replace(component, SCOREBOARD_FROM, SCOREBOARD_TO);
+        if (!enabled())
+            return component;
+        return replace(replace(component, SCOREBOARD_FROM, SCOREBOARD_TO), "rewound", "Hypixel");
     }
 
     public static Component tabList(Component component) {
+        if (!enabled())
+            return component;
         return replace(replace(component, "play.rewound.cc", "mc.hypixel.net"), "www.rewound.cc", "store.hypixel.net");
     }
 
     public static Component chat(Component component) {
+        if (!enabled())
+            return component;
         return replaceDeep(replaceDeep(component, "rewound level", "Hypixel Level", 0),
                 "rewound experience", "Hypixel Experience", 0);
     }

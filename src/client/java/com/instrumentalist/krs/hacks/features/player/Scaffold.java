@@ -169,6 +169,11 @@ public class Scaffold extends Module {
     @Setting
     private static final BooleanValue down = new BooleanValue("Down", true);
 
+    @Setting
+    private static final FloatValue expand = new FloatValue("Expand", 0f, 0f, 6f).step(0.1f);
+
+    private static boolean expandActive;
+
     private static int hotbarStackSize = 0;
     private static final long PENDING_PLACEMENT_TIMEOUT_MILLIS = 3_000L;
     private static final int OFFHAND_SLOT = -1;
@@ -854,6 +859,36 @@ public class Scaffold extends Module {
         return target != null && isRotationReadyForPlacement(target);
     }
 
+    private BlockPos expandedTargetBlock(BlockPos playerBlockPos, int y) {
+        expandActive = false;
+        BlockPos base = new BlockPos(playerBlockPos.getX(), y, playerBlockPos.getZ());
+        var player = mc.player;
+        float distance = expand.get();
+        if (player == null || distance <= 0.001f || wasTowering || isScaffoldReplaceable(base))
+            return base;
+        if (down.get() && isPhysicalKeyDown(mc.options.keyShift.saveString()))
+            return base;
+
+        Vec3 motion = player.getDeltaMovement();
+        Vec3 direction = new Vec3(motion.x, 0.0D, motion.z);
+        if (direction.lengthSqr() <= 1.0E-4)
+            return base;
+
+        Vec3 step = direction.normalize();
+        BlockPos previous = base;
+        for (double travelled = 0.1D; travelled <= distance + 0.001D; travelled += 0.1D) {
+            BlockPos candidate = BlockPos.containing(player.getX() + step.x * travelled, y, player.getZ() + step.z * travelled);
+            if (candidate.equals(previous))
+                continue;
+            previous = candidate;
+            if (isScaffoldReplaceable(candidate)) {
+                expandActive = true;
+                return candidate;
+            }
+        }
+        return base;
+    }
+
     private BlockPos scaffoldTargetBlockAt(Vec3 position) {
         var player = mc.player;
         double targetY = launchY != null ? launchY : player != null ? player.blockPosition().getY() : position.y;
@@ -1248,7 +1283,7 @@ public class Scaffold extends Module {
             launchY = player.blockPosition().getY() - 1;
 
         BlockPos playerBlockPos = player.blockPosition();
-        BlockPos targetBlock = new BlockPos.MutableBlockPos(playerBlockPos.getX(), scaffoldTargetBlockY(launchY), playerBlockPos.getZ());
+        BlockPos targetBlock = expandedTargetBlock(playerBlockPos, scaffoldTargetBlockY(launchY));
 
         BehaviorUtils.noKillAura = true;
 
@@ -1900,7 +1935,7 @@ public class Scaffold extends Module {
 
             Vec3 neighbourCenter = Vec3.atCenterOf(neighbour);
 
-            if (!isDownwardsPlacementSupport(side) && eyesPos.distanceToSqr(targetCenter) >= eyesPos.distanceToSqr(neighbourCenter))
+            if (!expandActive && !isDownwardsPlacementSupport(side) && eyesPos.distanceToSqr(targetCenter) >= eyesPos.distanceToSqr(neighbourCenter))
                 continue;
 
             Vec3 hitPos = neighbourCenter.add(
@@ -1949,6 +1984,12 @@ public class Scaffold extends Module {
             if (!isScaffoldSupport(neighbourState)) continue;
 
             Vec3 neighbourCenter = Vec3.atCenterOf(neighbour);
+            if (expandActive) {
+                Vec3 faceCenter = neighbourCenter.add(sideToClick.getStepX() * 0.5, sideToClick.getStepY() * 0.5, sideToClick.getStepZ() * 0.5);
+                if (eyesPos.distanceToSqr(faceCenter) <= placementReachSqr())
+                    return new PlacementTarget(pos, neighbour, faceCenter, sideToClick, searchDistance);
+                continue;
+            }
             PlacementHit rayTraceHit = findRayTraceablePlacementHit(neighbour, sideToClick);
             if (rayTraceHit == null)
                 continue;
@@ -2585,7 +2626,7 @@ public class Scaffold extends Module {
     }
 
     private boolean isNoHitCheckActive(PlacementTarget target) {
-        return isNoHitCheckActive() || isBackwardsMathNoHitCheckTarget(target);
+        return expandActive || isNoHitCheckActive() || isBackwardsMathNoHitCheckTarget(target);
     }
 
     private boolean consumeSnapRotationReset() {
@@ -2661,7 +2702,7 @@ public class Scaffold extends Module {
     }
 
     private boolean shouldSkipBackwardsPlacementTarget(PlacementTarget target) {
-        return isBackwardsPlacementBehindRotation(target);
+        return !expandActive && isBackwardsPlacementBehindRotation(target);
     }
 
     private static boolean isBackwardsSearchMathPlacementTarget(PlacementTarget target) {

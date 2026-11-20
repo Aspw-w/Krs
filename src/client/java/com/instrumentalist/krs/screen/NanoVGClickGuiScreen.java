@@ -1651,7 +1651,7 @@ public class NanoVGClickGuiScreen extends Screen {
     private void renderFloatSetting(NVGU vg, Rect row, FloatValue value) {
         boolean active = textFocus == TextFocus.NUMBER && focusedNumberValue == value;
         addControl(ControlType.FLOAT_INPUT, row, value, null, 0);
-        renderSettingRow(vg, row, value, active ? null : String.format(Locale.ROOT, "%.2f%s", value.get(), value.suffix == null ? "" : value.suffix), 0f);
+        renderSettingRow(vg, row, value, active ? null : value.format() + (value.suffix == null ? "" : value.suffix), 0f);
         if (active)
             renderNumberInput(vg, row, value, value.suffix);
 

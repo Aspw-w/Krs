@@ -13,6 +13,7 @@ import com.instrumentalist.krs.utils.NotificationManager;
 import com.instrumentalist.krs.utils.nanovg.NanoVGManager;
 import com.instrumentalist.krs.utils.render.GraphicsApiCompatibility;
 import com.instrumentalist.krs.utils.render.OpenGlHudLayer;
+import com.instrumentalist.krs.utils.render.MainTargetFramebuffer;
 import com.instrumentalist.krs.utils.rotation.RotationManager;
 import com.mojang.logging.LogUtils;
 import org.nvgu.NVGU;
@@ -94,6 +95,7 @@ public class Client implements IMinecraft {
         shutdownStep("cached HUD layer", () -> {
             if (!GraphicsApiCompatibility.usesCompatibilityRenderer())
                 OpenGlHudLayer.destroy();
+                MainTargetFramebuffer.destroyLayers();
         });
         shutdownStep("ImGui", ImguiLoader::shutdown);
         shutdownStep("NanoVG", () -> GraphicsApiCompatibility.runWithOpenGlContext(() -> {

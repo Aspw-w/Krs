@@ -56,31 +56,6 @@ public class WatchdogLegacySpeed implements SpeedEvent {
                 boost = true;
             }
         } else {
-            if (boost) {
-                switch (MovementUtil.fallTicks) {
-                    case 3:
-                        MovementUtil.setVelocityY(0.145);
-                        break;
-
-                    case 4:
-                        MovementUtil.setVelocityY(0.063);
-                        break;
-
-                    case 5:
-                        MovementUtil.setVelocityY(-0.19);
-                        break;
-
-                    case 6:
-                        MovementUtil.setVelocityY(-0.26);
-                        break;
-
-                    case 7:
-                        MovementUtil.setVelocityY(-0.6);
-                        boost = false;
-                        break;
-                }
-            }
-
             if (mc.player.tickCount % 2 == 0)  {
                 TimerUtil.timerSpeed = 1.2f;
             } else {
@@ -96,6 +71,8 @@ public class WatchdogLegacySpeed implements SpeedEvent {
             } else {
                 MovementUtil.strafe(Math.max(0.27f, MovementUtil.getSpeed()));
             }
+
+            boost = false;
         }
     }
 

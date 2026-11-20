@@ -14,10 +14,13 @@ import org.lwjgl.opengl.GL21;
 import org.lwjgl.opengl.GL30;
 
 import java.nio.ByteBuffer;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 public final class MainTargetFramebuffer implements IMinecraft {
     private static final int[] VIEWPORT = new int[4];
+    private static final Map<GraphicsApiCompatibility.Layer, OpenGlCachedLayer> CACHED_LAYERS = new EnumMap<>(GraphicsApiCompatibility.Layer.class);
     private static final ByteBuffer COLOR_MASK = BufferUtils.createByteBuffer(4);
     private static final float[] CLEAR_COLOR = new float[4];
     private static int ownFramebuffer;
@@ -29,6 +32,25 @@ public final class MainTargetFramebuffer implements IMinecraft {
     private static boolean ownFailed;
 
     private MainTargetFramebuffer() {
+    }
+
+    public static void runLayer(GraphicsApiCompatibility.Layer layer, Runnable render, Runnable discard) {
+        if (GraphicsApiCompatibility.usesCompatibilityRenderer()) {
+            GraphicsApiCompatibility.renderOffscreenLayer(layer, render, discard);
+            return;
+        }
+        if (layer == GraphicsApiCompatibility.Layer.NANO_VG_WORLD) {
+            run(render);
+            return;
+        }
+        OpenGlCachedLayer cache = CACHED_LAYERS.computeIfAbsent(layer, ignored -> new OpenGlCachedLayer());
+        run(() -> cache.render(render, discard));
+    }
+
+    public static void destroyLayers() {
+        for (OpenGlCachedLayer cache : CACHED_LAYERS.values())
+            cache.destroy();
+        CACHED_LAYERS.clear();
     }
 
     public static void run(Runnable action) {

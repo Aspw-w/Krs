@@ -91,6 +91,11 @@ public final class GraphicsApiCompatibility {
     public enum Layer {
         NANO_VG(true, -1, false, true),
         NANO_VG_BEFORE_GUI(true, -1, false, true),
+        NANO_VG_HUD(true, -1, false, true),
+        NANO_VG_SCREEN(true, -1, false, true),
+        NANO_VG_OVERLAY(true, -1, false, true),
+        NANO_VG_TOAST(true, -1, false, true),
+        NANO_VG_WORLD(true, 0, true, true),
         NANO_VG_IMMEDIATE(true, -1, false, true),
         // World-anchored: a frame that arrives late is drawn against a newer camera.
         ESP(true, 0, true, true),

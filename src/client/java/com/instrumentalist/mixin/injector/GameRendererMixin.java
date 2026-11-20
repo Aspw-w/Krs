@@ -157,6 +157,10 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
         if (Client.nanoVgManager == null)
             return;
 
+        if (Client.nanoVgManager.hasQueuedWorldRenderers())
+            MainTargetFramebuffer.runLayer(GraphicsApiCompatibility.Layer.NANO_VG_WORLD,
+                    Client.nanoVgManager::renderQueuedWorld, Client.nanoVgManager::discardWorldRenderQueue);
+
         if (GraphicsApiCompatibility.usesCompatibilityRenderer()) {
             if (Client.nanoVgManager.hasQueuedBeforeGuiRenderers())
                 GraphicsApiCompatibility.renderOffscreenLayer(
@@ -168,9 +172,9 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
             MainTargetFramebuffer.run(Client.nanoVgManager::renderQueuedBeforeGui);
         }
 
-        if (!VanillaHudStyle.hasHudSplit() && !GraphicsApiCompatibility.usesCompatibilityRenderer()
-                && Client.nanoVgManager.hasQueuedHudLayerRenderers())
-            MainTargetFramebuffer.run(Client.nanoVgManager::renderQueuedHudLayer);
+        if (!VanillaHudStyle.hasHudSplit() && Client.nanoVgManager.hasQueuedHudLayerRenderers())
+            MainTargetFramebuffer.runLayer(GraphicsApiCompatibility.Layer.NANO_VG_HUD,
+                    Client.nanoVgManager::renderQueuedHudLayer, Client.nanoVgManager::discardHudLayerRenderQueue);
     }
 
     @Inject(
@@ -186,22 +190,18 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
         VanillaHudStyle.endGuiFrame();
         if (Client.nanoVgManager == null)
             return;
-        krs$renderLayerFallback(Client.nanoVgManager.hasQueuedHudLayerRenderers(),
+        krs$renderLayerFallback(Client.nanoVgManager.hasQueuedHudLayerRenderers(), GraphicsApiCompatibility.Layer.NANO_VG_HUD,
                 Client.nanoVgManager::renderQueuedHudLayer, Client.nanoVgManager::discardHudLayerRenderQueue);
-        krs$renderLayerFallback(Client.nanoVgManager.hasQueuedScreenLayerRenderers(),
+        krs$renderLayerFallback(Client.nanoVgManager.hasQueuedScreenLayerRenderers(), GraphicsApiCompatibility.Layer.NANO_VG_SCREEN,
                 Client.nanoVgManager::renderQueuedScreenLayer, Client.nanoVgManager::discardScreenLayerRenderQueue);
-        krs$renderLayerFallback(Client.nanoVgManager.hasQueuedOverlayLayerRenderers(),
+        krs$renderLayerFallback(Client.nanoVgManager.hasQueuedOverlayLayerRenderers(), GraphicsApiCompatibility.Layer.NANO_VG_OVERLAY,
                 Client.nanoVgManager::renderQueuedOverlayLayer, Client.nanoVgManager::discardOverlayLayerRenderQueue);
     }
 
     @Unique
-    private static void krs$renderLayerFallback(boolean queued, Runnable render, Runnable discard) {
-        if (!queued)
-            return;
-        if (GraphicsApiCompatibility.usesCompatibilityRenderer())
-            GraphicsApiCompatibility.renderOffscreenLayer(GraphicsApiCompatibility.Layer.NANO_VG_BEFORE_GUI, render, discard);
-        else
-            MainTargetFramebuffer.run(render);
+    private static void krs$renderLayerFallback(boolean queued, GraphicsApiCompatibility.Layer layer, Runnable render, Runnable discard) {
+        if (queued)
+            MainTargetFramebuffer.runLayer(layer, render, discard);
     }
 
     @Inject(at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;bobView(Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V", ordinal = 0), method = "renderLevel()V")

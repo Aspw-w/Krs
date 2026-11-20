@@ -24,6 +24,31 @@ public class FloatValue extends SettingValue<Float> {
         this(name, value, minimum, maximum, "", () -> true);
     }
 
+    private float step;
+
+    public FloatValue step(float step) {
+        this.step = Math.max(0f, step);
+        if (this.step > 0f)
+            this.value = snap(this.value);
+        return this;
+    }
+
+    public String format() {
+        return step >= 0.1f - 1.0E-6f
+                ? String.format(java.util.Locale.ROOT, "%.1f", get())
+                : String.format(java.util.Locale.ROOT, "%.2f", get());
+    }
+
+    @Override
+    protected void changeValue(Float value) {
+        super.changeValue(step > 0f && value != null ? snap(value) : value);
+    }
+
+    private float snap(float value) {
+        float snapped = Math.round(value / step) * step;
+        return Math.round(Math.clamp(snapped, minimum, maximum) * 10000f) / 10000f;
+    }
+
     public void set(Number newValue) {
         set(newValue.floatValue());
     }

@@ -391,23 +391,23 @@ public final class VanillaHudStyle implements IMinecraft {
         boolean renderToast = toastSplitDraw == drawIndex && !toastLayerRendered;
         if (renderToast)
             toastLayerRendered = true;
-        if (Client.nanoVgManager == null || GraphicsApiCompatibility.usesCompatibilityRenderer())
+        if (Client.nanoVgManager == null)
             return;
         if (renderHud && Client.nanoVgManager.hasQueuedHudLayerRenderers())
-            MainTargetFramebuffer.run(Client.nanoVgManager::renderQueuedHudLayer);
+            MainTargetFramebuffer.runLayer(GraphicsApiCompatibility.Layer.NANO_VG_HUD,
+                    Client.nanoVgManager::renderQueuedHudLayer, Client.nanoVgManager::discardHudLayerRenderQueue);
         if (renderScreen && Client.nanoVgManager.hasQueuedScreenLayerRenderers())
-            MainTargetFramebuffer.run(Client.nanoVgManager::renderQueuedScreenLayer);
+            MainTargetFramebuffer.runLayer(GraphicsApiCompatibility.Layer.NANO_VG_SCREEN,
+                    Client.nanoVgManager::renderQueuedScreenLayer, Client.nanoVgManager::discardScreenLayerRenderQueue);
         if (renderOverlay && Client.nanoVgManager.hasQueuedOverlayLayerRenderers())
-            MainTargetFramebuffer.run(Client.nanoVgManager::renderQueuedOverlayLayer);
+            MainTargetFramebuffer.runLayer(GraphicsApiCompatibility.Layer.NANO_VG_OVERLAY,
+                    Client.nanoVgManager::renderQueuedOverlayLayer, Client.nanoVgManager::discardOverlayLayerRenderQueue);
         if (renderToast)
             renderToastLayer();
     }
 
     public static void renderToastLayerFallback() {
-        if (GraphicsApiCompatibility.usesCompatibilityRenderer())
-            toastQueue.clear();
-        else
-            renderToastLayer();
+        renderToastLayer();
     }
 
     public static void renderToastLayer() {
@@ -416,7 +416,8 @@ public final class VanillaHudStyle implements IMinecraft {
         List<Consumer<NVGU>> consumers = new ArrayList<>(toastQueue);
         toastQueue.clear();
         if (Client.nanoVgManager != null)
-            MainTargetFramebuffer.run(() -> Client.nanoVgManager.renderConsumers(consumers));
+            MainTargetFramebuffer.runLayer(GraphicsApiCompatibility.Layer.NANO_VG_TOAST,
+                    () -> Client.nanoVgManager.renderConsumers(consumers), null);
     }
 
     public static void endGuiFrame() {

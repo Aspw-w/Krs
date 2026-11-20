@@ -40,6 +40,7 @@ public class NanoVGManager implements IMinecraft {
     private Deque<Consumer<NVGU>> screenLayerRenderQueue = new ArrayDeque<>();
     private Deque<Consumer<NVGU>> screenLayerFrameRenderQueue = new ArrayDeque<>();
     private final Consumer<NVGU> screenLayerQueuedRenderConsumer = this::renderScreenLayerFrameQueue;
+    private final Deque<Consumer<NVGU>> worldRenderQueue = new ArrayDeque<>();
     private Deque<Consumer<NVGU>> hudLayerRenderQueue = new ArrayDeque<>();
     private Deque<Consumer<NVGU>> hudLayerFrameRenderQueue = new ArrayDeque<>();
     private final Consumer<NVGU> hudLayerQueuedRenderConsumer = this::renderHudLayerFrameQueue;
@@ -114,9 +115,13 @@ public class NanoVGManager implements IMinecraft {
             return;
 
         synchronized (renderQueueLock) {
-            worldAnchoredQueued = true;
+            if (worldRenderQueue.size() >= MAX_QUEUED_RENDERERS) {
+                worldRenderQueue.pollFirst();
+                droppedRenderers++;
+                logQueueOverflow();
+            }
+            worldRenderQueue.addLast(vg);
         }
-        load(vg);
     }
 
     public boolean hasWorldAnchoredRenderers() {
@@ -162,6 +167,27 @@ public class NanoVGManager implements IMinecraft {
             // Never replay stale renderers after a native or GL failure.
             frameRenderQueue.clear();
         }
+    }
+
+    public boolean hasQueuedWorldRenderers() {
+        synchronized (renderQueueLock) {
+            return !worldRenderQueue.isEmpty();
+        }
+    }
+
+    public void discardWorldRenderQueue() {
+        synchronized (renderQueueLock) {
+            worldRenderQueue.clear();
+        }
+    }
+
+    public void renderQueuedWorld() {
+        List<Consumer<NVGU>> consumers;
+        synchronized (renderQueueLock) {
+            consumers = List.copyOf(worldRenderQueue);
+            worldRenderQueue.clear();
+        }
+        renderConsumers(consumers);
     }
 
     public void renderConsumers(List<Consumer<NVGU>> consumers) {
@@ -442,6 +468,7 @@ public class NanoVGManager implements IMinecraft {
         synchronized (renderQueueLock) {
             renderQueue.clear();
             frameRenderQueue.clear();
+            worldRenderQueue.clear();
             worldAnchoredQueued = false;
         }
     }
@@ -455,6 +482,7 @@ public class NanoVGManager implements IMinecraft {
             worldAnchoredQueued = false;
             renderQueue.clear();
             frameRenderQueue.clear();
+            worldRenderQueue.clear();
             beforeGuiRenderQueue.clear();
             beforeGuiFrameRenderQueue.clear();
             screenLayerRenderQueue.clear();
