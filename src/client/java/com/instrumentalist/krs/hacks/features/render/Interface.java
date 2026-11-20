@@ -3089,10 +3089,12 @@ public class Interface extends Module {
     public void onRenderHud(RenderHudEvent event) {
         if (mc.player == null || mc.level == null || mc.gui.hud.isHidden()) return;
 
-        if (targetHud.get() && (!data.isEmpty() || !hudStates.isEmpty()))
+        if (targetHud.get() && (!data.isEmpty() || !hudStates.isEmpty())) {
             Client.nanoVgManager.loadWorldAnchored(this::renderTargetHudLayer);
-        else
+        } else {
             targetHudEntryBuffer.clear();
+            lastTargetHudRenderNanos = 0L;
+        }
 
         VanillaHudStyle.loadHud(vg -> {
             beginHudFrame();
@@ -3189,7 +3191,8 @@ public class Interface extends Module {
 
     private void renderTargetHudLayer(NVGU vg) {
         long now = System.nanoTime();
-        long deltaNanos = lastTargetHudRenderNanos == 0L ? 16_666_667L : now - lastTargetHudRenderNanos;
+        long deltaNanos = lastTargetHudRenderNanos == 0L || now - lastTargetHudRenderNanos > 100_000_000L
+                ? 16_666_667L : now - lastTargetHudRenderNanos;
         lastTargetHudRenderNanos = now;
         float deltaSpeed = Math.min(0.16f * (Math.clamp(deltaNanos / 1_000_000L, 1L, 100L) / 16f), 1f);
 
