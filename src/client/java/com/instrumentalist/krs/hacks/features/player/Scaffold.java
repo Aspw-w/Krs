@@ -101,6 +101,9 @@ public class Scaffold extends Module {
     private static final BooleanValue towerCenter = new BooleanValue("Tower Center", false, tower::get);
 
     @Setting
+    private static final BooleanValue towerOnceAfter = new BooleanValue("Tower Once After", false, tower::get);
+
+    @Setting
     private static final ListValue towerWhen = new ListValue("Tower When", new String[]{"Always", "Moving", "Standing"}, "Always", tower::get);
 
     @Setting
@@ -1175,7 +1178,7 @@ public class Scaffold extends Module {
                 && (!towerMode.get().equalsIgnoreCase("hypixel") || !player.hasEffect(MobEffects.JUMP_BOOST) && !ModuleManager.getModuleState(SpeedModule.class) || player.hasEffect(MobEffects.SPEED))
                 && (towerWhen.get().equalsIgnoreCase("always") || towerWhen.get().equalsIgnoreCase("standing") && !MovementUtil.isMoving() || towerWhen.get().equalsIgnoreCase("moving") && MovementUtil.isMoving())) {
             if (isTowerJumpInputActive(player)) {
-                if (player.onGround())
+                if (player.onGround() || !towerOnceAfter.get() && !towerMode.get().equalsIgnoreCase("hypixel"))
                     wasTowering = true;
                 if (hasAroundBlock() && wasTowering) {
                     if (towerWhen.get().equalsIgnoreCase("always") && !MovementUtil.isMoving() || towerWhen.get().equalsIgnoreCase("standing"))
