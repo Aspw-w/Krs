@@ -67,9 +67,10 @@ public class WatchdogLegacySpeed implements SpeedEvent {
 
             jumped = true;
             airTicks = 0;
-            TimerUtil.timerSpeed = 1.5f;
-        } else if (!player.onGround())
-            TimerUtil.timerSpeed = player.tickCount % 2 == 0 ? 1.2f : 1.1f;
+            TimerUtil.timerSpeed = 1.3f;
+        } else if (!player.onGround()) {
+            TimerUtil.timerSpeed = 1.1f;
+        }
     }
 
     @Override
