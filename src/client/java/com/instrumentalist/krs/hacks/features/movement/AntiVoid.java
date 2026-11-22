@@ -115,8 +115,7 @@ public class AntiVoid extends Module {
         if (player == null || player.tickCount <= 50) return;
 
         if (event.packet instanceof ClientboundPlayerPositionPacket && BlinkUtil.INSTANCE.getBlinking() && unSafeY != null) {
-            canTick = 80;
-            Client.notificationManager.addNotification("Temporary disabled", "AntiVoid flagged (reactivating...)");
+            canTick = 30;
             BlinkUtil.INSTANCE.sync(true);
             BlinkUtil.INSTANCE.stopBlink();
             if (stopXZ.get())

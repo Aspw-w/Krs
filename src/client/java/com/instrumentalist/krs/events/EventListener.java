@@ -28,6 +28,9 @@ public interface EventListener extends IMinecraft {
     default void onMotion(MotionEvent event) {
     }
 
+    default void onMove(MoveEvent event) {
+    }
+
     default void onWorld(WorldEvent event) {
     }
 

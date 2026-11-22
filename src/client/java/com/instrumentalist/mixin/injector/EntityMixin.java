@@ -10,6 +10,9 @@ import com.instrumentalist.krs.hacks.features.world.NoBlockEffects;
 import com.instrumentalist.krs.hacks.features.movement.NoPush;
 import com.instrumentalist.krs.hacks.features.world.AlwaysRiptide;
 import com.instrumentalist.krs.hacks.features.movement.Step;
+import com.instrumentalist.krs.Client;
+import com.instrumentalist.krs.events.features.MoveEvent;
+import net.minecraft.world.entity.MoverType;
 import com.instrumentalist.krs.hacks.features.player.Phase;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
@@ -117,7 +120,13 @@ public abstract class EntityMixin implements IMinecraft {
     }
 
     @ModifyVariable(method = "move", at = @At("HEAD"), argsOnly = true)
-    private Vec3 targetStrafeCollisionGuard(Vec3 movement) {
+    private Vec3 moveHook(Vec3 movement, @Local(argsOnly = true) MoverType type) {
+        if ((Object) this instanceof LocalPlayer && type == MoverType.SELF && Client.eventManager != null && Client.eventManager.hasListeners(MoveEvent.class)) {
+            MoveEvent event = new MoveEvent(movement.x, movement.y, movement.z);
+            Client.eventManager.call(event);
+            movement = event.isCancelled() ? Vec3.ZERO : new Vec3(event.x, event.y, event.z);
+        }
+
         if ((Object) this instanceof LocalPlayer && TargetStrafe.targetStrafeHook())
             return TargetStrafe.preventHorizontalCollision(movement);
 

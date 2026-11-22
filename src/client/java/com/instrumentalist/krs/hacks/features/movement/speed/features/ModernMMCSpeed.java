@@ -41,6 +41,10 @@ public class ModernMMCSpeed implements SpeedEvent {
     }
 
     @Override
+    public void onMove(MoveEvent event) {
+    }
+
+    @Override
     public void onSendPacket(SendPacketEvent event) {
     }
 

@@ -101,6 +101,12 @@ public class SpeedModeManager {
             mode.onSendPacket(event);
     }
 
+    public void onMove(MoveEvent event) {
+        SpeedEvent mode = currentMode;
+        if (!ModuleManager.getModuleState(FlyModule.class) && mode != null)
+            mode.onMove(event);
+    }
+
     public void onReceivedPacket(ReceivedPacketEvent event) {
         SpeedEvent mode = currentMode;
         if (!ModuleManager.getModuleState(FlyModule.class) && mode != null)

@@ -129,6 +129,7 @@ public class EventManager {
         RENDER_HUD(RenderHudEvent.class, "onRenderHud"),
         HANDLE_INPUT(HandleInputEvent.class, "onHandleInput"),
         MOTION(MotionEvent.class, "onMotion"),
+        MOVE(MoveEvent.class, "onMove"),
         WORLD(WorldEvent.class, "onWorld"),
         WORLD_LEAVE(WorldLeaveEvent.class, "onWorldLeave"),
         BLOCK_EDGE(BlockEdgeEvent.class, "onBlockEdge"),

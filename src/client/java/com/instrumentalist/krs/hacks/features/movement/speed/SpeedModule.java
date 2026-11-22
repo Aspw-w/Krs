@@ -50,6 +50,8 @@ public class SpeedModule extends Module {
     public static void onEnableFunctions() {
         if (speedModeManager.currentMode instanceof VulcanOldSpeed)
             VulcanOldSpeed.reset();
+        else if (speedModeManager.currentMode instanceof WatchdogLegacySpeed)
+            WatchdogLegacySpeed.enable();
     }
 
     public static void onDisableFunctions() {
@@ -126,6 +128,11 @@ public class SpeedModule extends Module {
     @Override
     public void onTick(TickEvent event) {
         speedModeManager.onTick(event);
+    }
+
+    @Override
+    public void onMove(MoveEvent event) {
+        speedModeManager.onMove(event);
     }
 
     @Override
