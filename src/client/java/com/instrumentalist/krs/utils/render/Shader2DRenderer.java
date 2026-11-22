@@ -522,6 +522,11 @@ public final class Shader2DRenderer {
                 } else {
                     refrPx = -localPx * glass0.z * depth * 0.35;
                 }
+                float refrLength = length(refrPx);
+                float maxShift = max(zRadius * 0.8, 1.0);
+                if (refrLength > maxShift) {
+                    refrPx *= maxShift / refrLength;
+                }
                 vec2 refraction = refrPx * pxToUv;
 
                 vec2 noiseSample = localPx * 0.08;
@@ -851,6 +856,11 @@ public final class Shader2DRenderer {
                     refrPx += centerDir * uGlass0.z * 4.0 * depth;
                 } else {
                     refrPx = -localPx * uGlass0.z * depth * 0.35;
+                }
+                float refrLength = length(refrPx);
+                float maxShift = max(zRadius * 0.8, 1.0);
+                if (refrLength > maxShift) {
+                    refrPx *= maxShift / refrLength;
                 }
                 vec2 refraction = refrPx * pxToUv;
 
@@ -2250,7 +2260,7 @@ public final class Shader2DRenderer {
         return true;
     }
 
-    private static final float SHADOW_STRENGTH = 1.5f;
+    private static final float SHADOW_STRENGTH = 1.9f;
 
     private static float glassShadowOpacity(GlassRequest request) {
         return clamp(request.shadowOpacity * SHADOW_STRENGTH, 0f, 1f);
@@ -2890,7 +2900,7 @@ public final class Shader2DRenderer {
         public float height;
         public float radius;
         public float zRadius;
-        public float refraction = 0.69f;
+        public float refraction = 0.65f;
         public float chromAberration = 0.05f;
         public float edgeHighlight = 0.08f;
         public float specular = 0.42f;
@@ -2949,7 +2959,7 @@ public final class Shader2DRenderer {
 
         public static GlassRequest panel() {
             GlassRequest request = new GlassRequest();
-            request.refraction = 1.45f;
+            request.refraction = 1.3f;
             request.chromAberration = 0.02f;
             request.edgeHighlight = 0.2f;
             request.specular = 0f;
@@ -2966,7 +2976,7 @@ public final class Shader2DRenderer {
 
         public static GlassRequest compact() {
             GlassRequest request = new GlassRequest();
-            request.refraction = 1.25f;
+            request.refraction = 1.12f;
             request.chromAberration = 0.015f;
             request.edgeHighlight = 0.18f;
             request.specular = 0f;
@@ -2983,7 +2993,7 @@ public final class Shader2DRenderer {
 
         public static GlassRequest control() {
             GlassRequest request = new GlassRequest();
-            request.refraction = 1.35f;
+            request.refraction = 1.24f;
             request.chromAberration = 0.05f;
             request.edgeHighlight = 0.15f;
             request.specular = 0f;

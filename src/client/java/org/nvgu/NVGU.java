@@ -751,6 +751,8 @@ public class NVGU {
         Shader2DRenderer.GlassRequest request = reusableGlassRequest.copyFrom(style == null ? PANEL_GLASS_STYLE : style);
         request.applyGeometry(rect.x, rect.y, rect.width, rect.height, rect.radius, effectiveAlpha);
         request.zRadius *= rect.scale;
+        request.refraction *= rect.scale;
+        request.chromAberration *= rect.scale;
         request.shadowSpread *= rect.scale;
         request.shadowOffsetY *= rect.scaleY;
 
@@ -812,6 +814,8 @@ public class NVGU {
         Shader2DRenderer.GlassRequest request = reusableGlassRequest.copyFrom(style == null ? PANEL_GLASS_STYLE : style);
         request.alpha = effectiveAlpha;
         request.zRadius *= scale;
+        request.refraction *= scale;
+        request.chromAberration *= scale;
         request.shadowSpread *= scale;
         request.shadowOffsetY *= scaleY;
 

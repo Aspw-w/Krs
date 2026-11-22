@@ -318,6 +318,7 @@ public class ESP extends Module {
     }
 
     private static void drawCapturedShadow(int targetFramebuffer, int targetWidth, int targetHeight, int sourceDepthTexture) {
+        float resolutionScale = Math.clamp(captureHeight / 2160f, 0.2f, 2f);
         Shader2DRenderer.INSTANCE.drawSilhouetteShadow(
                 captureWidth,
                 captureHeight,
@@ -325,8 +326,8 @@ public class ESP extends Module {
                 TRIANGLES.vertexCount(),
                 ARMOR_TRIANGLES.vertexCount() >= 3 ? ARMOR_TRIANGLES.toBuffer() : null,
                 ARMOR_TRIANGLES.vertexCount(),
-                80f,
-                3f,
+                80f * resolutionScale,
+                Math.max(1f, 3f * resolutionScale),
                 80f / 255f,
                 80f / 255f,
                 130f / 255f,
