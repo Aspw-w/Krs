@@ -185,7 +185,6 @@ public class Scaffold extends Module {
     private boolean once = false;
     private double jumpGround = 0.0;
     private boolean checkGround = false;
-    private int towerStartTicks = 0;
     private Integer launchY = null;
     private static boolean autoSneaking = false;
     private boolean placedScaffoldBlock = false;
@@ -280,7 +279,6 @@ public class Scaffold extends Module {
         wasTowering = false;
         checkGround = false;
         wasTowering = false;
-        towerStartTicks = 0;
         launchY = null;
         startedScaffold = false;
         placedScaffoldBlock = false;
@@ -1173,16 +1171,11 @@ public class Scaffold extends Module {
             wasTowering = false;
         }
 
-        if (wasTowering || !isTowerJumpInputActive(player))
-            towerStartTicks = 0;
-
         if (tower.get()
                 && (!towerMode.get().equalsIgnoreCase("hypixel") || !player.hasEffect(MobEffects.JUMP_BOOST) && !ModuleManager.getModuleState(SpeedModule.class) || player.hasEffect(MobEffects.SPEED))
                 && (towerWhen.get().equalsIgnoreCase("always") || towerWhen.get().equalsIgnoreCase("standing") && !MovementUtil.isMoving() || towerWhen.get().equalsIgnoreCase("moving") && MovementUtil.isMoving())) {
             if (isTowerJumpInputActive(player)) {
-                if (!wasTowering && towerStartTicks < 5)
-                    towerStartTicks++;
-                if (!wasTowering && towerStartTicks >= 5 && player.onGround())
+                if (player.onGround())
                     wasTowering = true;
                 if (hasAroundBlock() && wasTowering) {
                     if (towerWhen.get().equalsIgnoreCase("always") && !MovementUtil.isMoving() || towerWhen.get().equalsIgnoreCase("standing"))
