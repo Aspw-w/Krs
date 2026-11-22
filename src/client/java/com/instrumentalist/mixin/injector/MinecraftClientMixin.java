@@ -182,7 +182,7 @@ public abstract class MinecraftClientMixin implements IMinecraft {
 
     @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
     private void airPlaceBeforeItemUse(CallbackInfo ci) {
-        if (FastEat.shouldBlockUse() || AutoPot.shouldBlockUse()) {
+        if (FastEat.shouldBlockUse() || AutoPot.shouldBlockUse() || com.instrumentalist.krs.hacks.features.movement.NoSlow.shouldBlockStartUseItem()) {
             ci.cancel();
             return;
         }

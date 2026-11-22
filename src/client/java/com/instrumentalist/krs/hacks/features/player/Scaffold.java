@@ -116,7 +116,7 @@ public class Scaffold extends Module {
     private static final ListValue tellyMode = new ListValue("Telly Mode", new String[]{"Normal", "Non Upwards"}, "Normal", Scaffold::canDisplayTellyMode);
 
     @Setting
-    public static final ListValue rotationMode = new ListValue("Rotation Mode", new String[]{"Math", "Simple", "Backwards", "None"}, "Math");
+    public static final ListValue rotationMode = new ListValue("Rotation Mode", new String[]{"Math", "Accure", "Simple", "Backwards", "None"}, "Math");
 
     @Setting
     private static final FloatValue maxRotationSpeed = new FloatValue("Max Rotation Speed", 60f, 0f, 180f, Scaffold::usesRotationSpeed);
@@ -213,6 +213,8 @@ public class Scaffold extends Module {
     private float humanizedMathYawSpeed = Float.NaN;
     private float humanizedMathPitchSpeed = Float.NaN;
     private float humanizedMathSpeedBias = 0.0F;
+    private float accureYaw = 0.0F;
+    private float accurePitch = 81.5F;
     private final RotationSpeedJitterState rotationSpeedJitter = new RotationSpeedJitterState();
     private final RotationSpeedJitterState mathPitchSpeedJitter = new RotationSpeedJitterState();
 
@@ -334,6 +336,8 @@ public class Scaffold extends Module {
         tellyJumpDownOnLastGround = isTellyMode() && player.onGround() && isPhysicalJumpDown();
         tellyClutchMode = false;
         resetRotationHumanization();
+        accureYaw = getScaffoldMovementDirection() - 180.0F;
+        accurePitch = 81.5F;
         countBlockItems(player.getInventory());
     }
 
@@ -2644,7 +2648,12 @@ public class Scaffold extends Module {
     private static boolean usesRotationSpeed() {
         return rotationMode.get().equalsIgnoreCase("math")
                 || rotationMode.get().equalsIgnoreCase("simple")
-                || rotationMode.get().equalsIgnoreCase("backwards");
+                || rotationMode.get().equalsIgnoreCase("backwards")
+                || isAccureMode();
+    }
+
+    private static boolean isAccureMode() {
+        return rotationMode.get().equalsIgnoreCase("accure");
     }
 
     private static boolean usesMathPreRotation() {
@@ -2799,6 +2808,11 @@ public class Scaffold extends Module {
             return;
         }
 
+        if (isAccureMode()) {
+            faceAccureRotation(targetBlockReplaceable ? placementTarget : null);
+            return;
+        }
+
         if (rotationMode.get().equalsIgnoreCase("backwards")) {
             if (targetBlockReplaceable && placementTarget != null && shouldBackwardsUseMathPlacement(placementTarget))
                 facePlacementTarget(placementTarget);
@@ -2816,6 +2830,124 @@ public class Scaffold extends Module {
             facePlacementTarget(placementTarget);
         else if (preRotationTarget != null)
             facePlacementTarget(preRotationTarget);
+    }
+
+    private void faceAccureRotation(PlacementTarget target) {
+        var player = mc.player;
+        if (player == null) return;
+
+        float backwardsYaw = getScaffoldMovementDirection() - 180.0F;
+        if (target == null) {
+            accureYaw = backwardsYaw;
+            Client.rotationManager.startRotation(accureYaw, accurePitch, getRotationSpeed());
+            return;
+        }
+
+        BlockPos neighbour = target.neighbour();
+        Direction side = target.side();
+        if (!accureHits(neighbour, side, true, accureYaw, accurePitch)) {
+            accurePitch = accureScanPitch(neighbour, side, accureYaw, accurePitch);
+            if ((!isAccureMovingDiagonally(player) || MovementUtil.fallTicks < 5)
+                    && !accureHits(neighbour, side, true, accureYaw, accurePitch)) {
+                accureYaw = backwardsYaw;
+                if (!accureHits(neighbour, side, false, accureYaw, accurePitch))
+                    accurePitch = accureScanPitch(neighbour, side, accureYaw, accurePitch);
+            }
+        }
+
+        float[] closest = accureClosestRotation(neighbour, side, accureYaw, accurePitch);
+        if (closest != null) {
+            accureYaw = closest[0];
+            accurePitch = closest[1];
+            Client.rotationManager.startRotation(accureYaw, accurePitch, 180.0F, 180.0F);
+            return;
+        }
+
+        Client.rotationManager.startRotation(accureYaw, accurePitch, getRotationSpeed());
+    }
+
+    private static boolean isAccureMovingDiagonally(net.minecraft.client.player.LocalPlayer player) {
+        Vec3 motion = player.getDeltaMovement();
+        return Math.abs(motion.x) > 0.05D && Math.abs(motion.z) > 0.05D;
+    }
+
+    private static boolean accureHits(BlockPos neighbour, Direction side, boolean requireFace, float yaw, float pitch) {
+        BlockHitResult hit = Client.rotationManager.rayTraceBlocks(yaw, pitch, 4.5D);
+        if (hit == null || hit.getType() != HitResult.Type.BLOCK || !hit.getBlockPos().equals(neighbour))
+            return false;
+
+        return !requireFace || hit.getDirection() == side;
+    }
+
+    private static float accureScanPitch(BlockPos neighbour, Direction side, float yaw, float fallbackPitch) {
+        float step = 0.1F + (float) (Math.random() / 10.0D - 0.02D);
+        for (float pitch = 50.0F; pitch <= 90.0F; pitch += step) {
+            if (accureHits(neighbour, side, true, yaw, pitch))
+                return pitch;
+        }
+
+        return fallbackPitch;
+    }
+
+    private static float[] accureClosestRotation(BlockPos neighbour, Direction side, float currentYaw, float currentPitch) {
+        var player = mc.player;
+        if (player == null)
+            return null;
+
+        if (accureHits(neighbour, side, true, currentYaw, currentPitch))
+            return new float[]{currentYaw, currentPitch};
+
+        float[] closest = null;
+        float closestDistance = Float.POSITIVE_INFINITY;
+        double eyeY = player.getY() + player.getEyeHeight(player.getPose());
+        double faceOffset = side.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1.0D : 0.0D;
+
+        for (int index = 0; index < 256; index++) {
+            double row = ((index / 16) + 0.5D) / 16.0D;
+            double column = ((index % 16) + 0.5D) / 16.0D;
+            Vec3 point = switch (side.getAxis()) {
+                case X -> new Vec3(neighbour.getX() + faceOffset, neighbour.getY() + row, neighbour.getZ() + column);
+                case Y -> new Vec3(neighbour.getX() + row, neighbour.getY() + faceOffset, neighbour.getZ() + column);
+                case Z -> new Vec3(neighbour.getX() + row, neighbour.getY() + column, neighbour.getZ() + faceOffset);
+            };
+
+            float[] rotations = accureRotationsFrom(
+                    point.x - player.getX(),
+                    point.y - eyeY,
+                    point.z - player.getZ(),
+                    currentYaw,
+                    currentPitch
+            );
+            if (!accureHits(neighbour, side, true, rotations[0], rotations[1]))
+                continue;
+
+            float distance = Math.abs(Mth.wrapDegrees(rotations[0] - currentYaw)) + Math.abs(rotations[1] - currentPitch);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closest = rotations;
+            }
+        }
+
+        return closest;
+    }
+
+    private static float[] accureRotationsFrom(double deltaX, double deltaY, double deltaZ, float currentYaw, float currentPitch) {
+        double horizontal = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+        float yawDelta = Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(deltaZ, deltaX)) - 90.0F - currentYaw);
+        float pitchDelta = Mth.wrapDegrees((float) -Math.toDegrees(Math.atan2(deltaY, horizontal)) - currentPitch);
+        return new float[]{
+                currentYaw + accureDampedDelta(yawDelta),
+                currentPitch + accureDampedDelta(pitchDelta)
+        };
+    }
+
+    private static float accureDampedDelta(float delta) {
+        if (Math.abs(delta) <= 1.0F)
+            return 0.0F;
+
+        float clamped = Mth.clamp(delta, -180.0F, 180.0F);
+        float damping = Mth.clamp(RandomUtil.nextFloat(-0.1F, 0.1F), 0.0F, 1.0F);
+        return clamped * (1.0F - damping * 0.5F);
     }
 
     private PlacementTarget findPreRotationTarget(BlockPos currentTargetBlock) {
