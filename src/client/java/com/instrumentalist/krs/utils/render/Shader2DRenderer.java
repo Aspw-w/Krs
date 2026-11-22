@@ -409,6 +409,8 @@ public final class Shader2DRenderer {
             uniform vec4 uGlass1[%d];
             uniform vec4 uGlass2[%d];
             uniform vec4 uGlass3[%d];
+            uniform sampler2D uOccluderTex;
+            uniform int uMaskPass;
 
             in vec2 vPosition;
             in vec2 vScreenUv;
@@ -458,6 +460,14 @@ public final class Shader2DRenderer {
                 float sdf = rrSdf(localPx, halfSize, radius);
                 float mask = 1.0 - smoothstep(-1.5, 0.5, sdf);
 
+                if (uMaskPass == 1) {
+                    if (mask <= 0.001) {
+                        discard;
+                    }
+                    fragColor = vec4(mask);
+                    return;
+                }
+
                 float shadowAlpha = max(glass3.x, 0.0);
                 float shadow = 0.0;
                 if (mask < 0.999 && shadowAlpha > 0.001) {
@@ -470,6 +480,9 @@ public final class Shader2DRenderer {
                 }
 
                 if (mask <= 0.001) {
+                    if (shadow > 0.001) {
+                        shadow *= 1.0 - texture(uOccluderTex, vec2(vScreenUv.x, 1.0 - vScreenUv.y)).r;
+                    }
                     if (shadow <= 0.001) {
                         discard;
                     }
@@ -601,6 +614,8 @@ public final class Shader2DRenderer {
             uniform vec4 uGlass1;
             uniform vec4 uGlass2;
             uniform vec4 uGlass3;
+            uniform sampler2D uOccluderTex;
+            uniform int uMaskPass;
 
             in vec2 vPosition;
             in vec2 vScreenUv;
@@ -780,6 +795,14 @@ public final class Shader2DRenderer {
                 float sdf = unionSdf(vPosition);
                 float mask = 1.0 - smoothstep(-1.5, 0.5, sdf);
 
+                if (uMaskPass == 1) {
+                    if (mask <= 0.001) {
+                        discard;
+                    }
+                    fragColor = vec4(mask);
+                    return;
+                }
+
                 float shadowAlpha = max(uGlass3.x, 0.0);
                 float shadow = 0.0;
                 if (mask < 0.999 && shadowAlpha > 0.001) {
@@ -791,6 +814,9 @@ public final class Shader2DRenderer {
                 }
 
                 if (mask <= 0.001) {
+                    if (shadow > 0.001) {
+                        shadow *= 1.0 - texture(uOccluderTex, vec2(vScreenUv.x, 1.0 - vScreenUv.y)).r;
+                    }
                     if (shadow <= 0.001) {
                         discard;
                     }
@@ -1097,6 +1123,10 @@ public final class Shader2DRenderer {
     private int liquidGlass1Uniform = -1;
     private int liquidGlass2Uniform = -1;
     private int liquidGlass3Uniform = -1;
+    private int liquidGlassOccluderTexUniform = -1;
+    private int liquidGlassMaskPassUniform = -1;
+    private int connectedGlassOccluderTexUniform = -1;
+    private int connectedGlassMaskPassUniform = -1;
     private int connectedGlassDrawRectsUniform = -1;
     private int connectedGlassScreenSizeUniform = -1;
     private int connectedGlassBgTexUniform = -1;
@@ -1144,6 +1174,9 @@ public final class Shader2DRenderer {
 
     private final RenderTexture sourceTexture = new RenderTexture(true);
     private final RenderTexture layerCopyTexture = new RenderTexture(false);
+    private final RenderTexture glassOccluderTexture = new RenderTexture(true);
+    private final float[] occluderClearColor = new float[4];
+    private boolean glassOccluderCleared = false;
     private final RenderTexture blurPingTexture = new RenderTexture(true);
     private final RenderTexture blurPongTexture = new RenderTexture(true);
     private final RenderTexture silhouetteMaskTexture = new RenderTexture(true);
@@ -1200,11 +1233,13 @@ public final class Shader2DRenderer {
     public void beginFrame() {
         sourceCaptured = false;
         blurCacheValid = false;
+        glassOccluderCleared = false;
     }
 
     public void invalidateBackdrop() {
         sourceCaptured = false;
         blurCacheValid = false;
+        glassOccluderCleared = false;
         cachedBlurWidth = 0;
         cachedBlurHeight = 0;
         cachedBlurRadius = -1f;
@@ -2002,6 +2037,7 @@ public final class Shader2DRenderer {
         }
 
         ensureBackgroundTextures(state, viewportWidth, viewportHeight, blurRadius);
+        prepareGlassOccluder(viewportWidth, viewportHeight);
 
         prepareCommonState();
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, state.drawFramebuffer);
@@ -2015,6 +2051,7 @@ public final class Shader2DRenderer {
         GL20.glUniform2f(liquidGlassScreenSizeUniform, frameWidth, frameHeight);
         GL20.glUniform1i(liquidGlassBgTexUniform, 0);
         GL20.glUniform1i(liquidGlassBlurTexUniform, 1);
+        GL20.glUniform1i(liquidGlassOccluderTexUniform, 2);
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
         GL33.glBindSampler(0, 0);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, sourceTexture.texture);
@@ -2076,9 +2113,47 @@ public final class Shader2DRenderer {
                 continue;
 
             uploadGlassUniforms();
-            GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, batchCount);
+            drawGlassWithOccluder(state, viewportWidth, viewportHeight, liquidGlassMaskPassUniform, batchCount);
         }
 
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+    }
+
+    private void prepareGlassOccluder(int viewportWidth, int viewportHeight) {
+        if (glassOccluderTexture.framebuffer == 0
+                || glassOccluderTexture.width != viewportWidth
+                || glassOccluderTexture.height != viewportHeight) {
+            glassOccluderTexture.resize(viewportWidth, viewportHeight);
+            glassOccluderCleared = false;
+        }
+        if (glassOccluderCleared)
+            return;
+
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, glassOccluderTexture.framebuffer);
+        GL11.glColorMask(true, true, true, true);
+        GL30.glClearBufferfv(GL11.GL_COLOR, 0, occluderClearColor);
+        glassOccluderCleared = true;
+    }
+
+    private void drawGlassWithOccluder(GLState state, int viewportWidth, int viewportHeight,
+                                       int maskPassUniform, int instanceCount) {
+        GL13.glActiveTexture(GL13.GL_TEXTURE2);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, glassOccluderTexture.framebuffer);
+        GL11.glViewport(0, 0, viewportWidth, viewportHeight);
+        GL20.glBlendEquationSeparate(GL14.GL_MAX, GL14.GL_MAX);
+        GL14.glBlendFuncSeparate(GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE, GL11.GL_ONE);
+        GL20.glUniform1i(maskPassUniform, 1);
+        GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, instanceCount);
+
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, state.drawFramebuffer);
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, state.readFramebuffer);
+        GL11.glViewport(state.viewportX, state.viewportY, state.viewportWidth, state.viewportHeight);
+        GL20.glBlendEquationSeparate(GL14.GL_FUNC_ADD, GL14.GL_FUNC_ADD);
+        GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, glassOccluderTexture.texture);
+        GL20.glUniform1i(maskPassUniform, 0);
+        GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, instanceCount);
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
     }
 
@@ -2097,6 +2172,7 @@ public final class Shader2DRenderer {
         }
 
         ensureBackgroundTextures(state, viewportWidth, viewportHeight, blurRadius);
+        prepareGlassOccluder(viewportWidth, viewportHeight);
 
         prepareCommonState();
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, state.drawFramebuffer);
@@ -2110,6 +2186,7 @@ public final class Shader2DRenderer {
         GL20.glUniform2f(connectedGlassScreenSizeUniform, frameWidth, frameHeight);
         GL20.glUniform1i(connectedGlassBgTexUniform, 0);
         GL20.glUniform1i(connectedGlassBlurTexUniform, 1);
+        GL20.glUniform1i(connectedGlassOccluderTexUniform, 2);
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
         GL33.glBindSampler(0, 0);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, sourceTexture.texture);
@@ -2153,7 +2230,7 @@ public final class Shader2DRenderer {
             GL20.glUniform4f(connectedGlass1Uniform, style.edgeHighlight, style.specular, style.fresnel, style.distortion);
             GL20.glUniform4f(connectedGlass2Uniform, clamp(style.alpha, 0f, 1f), style.saturation, style.tintStrength, style.brightness);
             GL20.glUniform4f(connectedGlass3Uniform, glassShadowOpacity(style), Math.max(style.shadowSpread, 0f), style.shadowOffsetY, style.bevelMode);
-            GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, 1);
+            drawGlassWithOccluder(state, viewportWidth, viewportHeight, connectedGlassMaskPassUniform, 1);
         }
 
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
@@ -2467,6 +2544,8 @@ public final class Shader2DRenderer {
 
         sourceTexture.destroy();
         layerCopyTexture.destroy();
+        glassOccluderTexture.destroy();
+        glassOccluderCleared = false;
         blurPingTexture.destroy();
         blurPongTexture.destroy();
         silhouetteMaskTexture.destroy();
@@ -2588,6 +2667,8 @@ public final class Shader2DRenderer {
         liquidGlass1Uniform = uniform(liquidGlassProgram, "uGlass1[0]");
         liquidGlass2Uniform = uniform(liquidGlassProgram, "uGlass2[0]");
         liquidGlass3Uniform = uniform(liquidGlassProgram, "uGlass3[0]");
+        liquidGlassOccluderTexUniform = uniform(liquidGlassProgram, "uOccluderTex");
+        liquidGlassMaskPassUniform = uniform(liquidGlassProgram, "uMaskPass");
 
         connectedGlassDrawRectsUniform = uniform(connectedLiquidGlassProgram, "uDrawRects[0]");
         connectedGlassScreenSizeUniform = uniform(connectedLiquidGlassProgram, "uScreenSize");
@@ -2602,6 +2683,8 @@ public final class Shader2DRenderer {
         connectedGlass1Uniform = uniform(connectedLiquidGlassProgram, "uGlass1");
         connectedGlass2Uniform = uniform(connectedLiquidGlassProgram, "uGlass2");
         connectedGlass3Uniform = uniform(connectedLiquidGlassProgram, "uGlass3");
+        connectedGlassOccluderTexUniform = uniform(connectedLiquidGlassProgram, "uOccluderTex");
+        connectedGlassMaskPassUniform = uniform(connectedLiquidGlassProgram, "uMaskPass");
 
         indicatorTransformsUniform = uniform(indicatorProgram, "uIndicators[0]");
         indicatorScreenSizeUniform = uniform(indicatorProgram, "uScreenSize");
@@ -2676,6 +2759,10 @@ public final class Shader2DRenderer {
         connectedGlass1Uniform = -1;
         connectedGlass2Uniform = -1;
         connectedGlass3Uniform = -1;
+        liquidGlassOccluderTexUniform = -1;
+        liquidGlassMaskPassUniform = -1;
+        connectedGlassOccluderTexUniform = -1;
+        connectedGlassMaskPassUniform = -1;
         indicatorTransformsUniform = -1;
         indicatorScreenSizeUniform = -1;
         indicatorParamsUniform = -1;
