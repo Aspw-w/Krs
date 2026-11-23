@@ -17,7 +17,10 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.Holder;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.Container;
@@ -36,8 +39,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class InvManager extends Module {
 
@@ -75,6 +81,7 @@ public class InvManager extends Module {
     private static final int MAX_THROWABLE_STACKS = 2;
     private static final int MAX_BLOCK_STACKS = 3;
     private static final int MAX_HARMFUL_POTIONS = 3;
+    private static final int MAX_SAME_POTIONS = 3;
     private static final int GOLDEN_APPLE_SLOT = 4;
     private static final int ACTION_GAP_TICKS = 2;
     private static int lastClickTick = Integer.MIN_VALUE / 2;
@@ -394,6 +401,7 @@ public class InvManager extends Module {
         List<Integer> throwables = new ArrayList<>();
         List<Integer> blocks = new ArrayList<>();
         List<Integer> harmfulPotions = new ArrayList<>();
+        Map<PotionKey, List<Integer>> potionGroups = new HashMap<>();
         int bestRod = -1;
         boolean hasWaterBucket = false;
 
@@ -412,6 +420,9 @@ public class InvManager extends Module {
                 hasWaterBucket = true;
             } else if (isHarmfulPotion(stack)) {
                 harmfulPotions.add(i);
+            } else if (isPotion(item)) {
+                PotionKey key = getPotionKey(stack);
+                if (key != null) potionGroups.computeIfAbsent(key, k -> new ArrayList<>()).add(i);
             } else if (item instanceof BlockItem blockItem) {
                 if (blockItem.getBlock() instanceof BasePressurePlateBlock)
                     excessSlots[i] = true;
@@ -433,6 +444,48 @@ public class InvManager extends Module {
             markStacksOverLimit(inventory, blocks, blockLimit);
         }
         markItemsOverLimit(inventory, harmfulPotions, MAX_HARMFUL_POTIONS);
+
+        for (List<Integer> group : potionGroups.values()) {
+            group.sort(Comparator.<Integer, ItemStack>comparing(inventory::getItem, InvManager::comparePotionStrength).reversed().thenComparingInt(i -> i));
+            markItemsOverLimit(inventory, group, MAX_SAME_POTIONS);
+        }
+    }
+
+    private static boolean isPotion(Item item) {
+        return item instanceof PotionItem || item instanceof SplashPotionItem || item instanceof LingeringPotionItem;
+    }
+
+    private static PotionKey getPotionKey(ItemStack stack) {
+        PotionContents potionContents = stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
+        Set<Holder<MobEffect>> effects = new HashSet<>();
+        for (MobEffectInstance effectInstance : potionContents.getAllEffects())
+            effects.add(effectInstance.getEffect());
+        if (effects.isEmpty()) return null;
+        return new PotionKey(stack.getItem(), effects);
+    }
+
+    private static int comparePotionStrength(ItemStack potion1, ItemStack potion2) {
+        int amplifier = Integer.compare(getPotionAmplifier(potion1), getPotionAmplifier(potion2));
+        if (amplifier != 0) return amplifier;
+
+        return Long.compare(getPotionDuration(potion1), getPotionDuration(potion2));
+    }
+
+    private static int getPotionAmplifier(ItemStack stack) {
+        int amplifier = 0;
+        for (MobEffectInstance effectInstance : stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).getAllEffects())
+            amplifier += effectInstance.getAmplifier() + 1;
+        return amplifier;
+    }
+
+    private static long getPotionDuration(ItemStack stack) {
+        long duration = 0;
+        for (MobEffectInstance effectInstance : stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).getAllEffects())
+            duration += effectInstance.isInfiniteDuration() ? Integer.MAX_VALUE : effectInstance.getDuration();
+        return duration;
+    }
+
+    private record PotionKey(Item item, Set<Holder<MobEffect>> effects) {
     }
 
     private void markItemsOverLimit(Container inventory, List<Integer> slots, int limit) {
