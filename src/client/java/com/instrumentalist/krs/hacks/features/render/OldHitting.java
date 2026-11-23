@@ -40,7 +40,7 @@ public class OldHitting extends Module {
     public static final FloatValue itemPositionZ = new FloatValue("Item Position Z", 0f, -2f, 2f);
 
     @Setting
-    private static final BooleanValue noEquipAnimation = new BooleanValue("No Equip Animation", true);
+    private static final BooleanValue noEquipAnimation = new BooleanValue("No Equip Animation", false);
 
     private static boolean canBlock = false;
 

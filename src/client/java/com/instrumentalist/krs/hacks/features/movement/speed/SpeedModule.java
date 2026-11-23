@@ -27,10 +27,10 @@ public class SpeedModule extends Module {
     );
 
     @Setting
-    public static final BooleanValue noBobbing = new BooleanValue("No Bobbing", true);
+    public static final BooleanValue disableBobbing = new BooleanValue("Disable Bobbing", false);
 
     public static boolean shouldDisableBobbing() {
-        return noBobbing.get() && ModuleManager.getModuleState(SpeedModule.class);
+        return disableBobbing.get() && ModuleManager.getModuleState(SpeedModule.class);
     }
 
     private static final SpeedModeManager speedModeManager = new SpeedModeManager(speedMode);

@@ -1,6 +1,7 @@
 package com.instrumentalist.krs.hacks.features.movement;
 
 import com.instrumentalist.krs.events.features.TickEvent;
+import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
@@ -19,6 +20,8 @@ public class ElytraFly extends Module {
 
     @Setting
     private final FloatValue verticalSpeed = new FloatValue("Vertical Speed", 1.2f, 0.1f, 4f);
+
+    private boolean wasFallFlying;
 
     public ElytraFly() {
         super("Elytra Fly", ModuleCategory.Movement, Keys.KEY_UNKNOWN, false, true);
@@ -70,11 +73,28 @@ public class ElytraFly extends Module {
     }
 
     @Override
+    public void onUpdate(UpdateEvent event) {
+        LocalPlayer player = mc.player;
+        if (player == null) {
+            wasFallFlying = false;
+            return;
+        }
+
+        boolean fallFlying = player.isFallFlying();
+        if (wasFallFlying && !fallFlying && !player.onGround() && !player.isPassenger())
+            player.setDeltaMovement(Vec3.ZERO);
+
+        wasFallFlying = fallFlying;
+    }
+
+    @Override
     public void onDisable() {
+        wasFallFlying = false;
     }
 
     @Override
     public void onEnable() {
+        wasFallFlying = false;
     }
 
     private boolean isKeyDown(KeyMapping key) {

@@ -226,8 +226,8 @@ public class WatchdogLegacyFly implements FlyEvent {
                 moveSpeed -= moveSpeed / 250;
         }
 
-        if (moveSpeed >= 1) {
-            TimerUtil.timerSpeed = 2.5f;
+        if (moveSpeed >= 1.1) {
+            TimerUtil.timerSpeed = 3f;
         } else {
             TimerUtil.timerSpeed = 1.1f;
         }

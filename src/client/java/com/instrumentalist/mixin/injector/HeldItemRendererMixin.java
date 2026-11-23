@@ -64,12 +64,31 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
     }
 
     @Unique
-    private void applyVanillaBlockTransformation(PoseStack matrices, HumanoidArm arm) {
+    private void applyLegacyScreenCorrection(PoseStack matrices, HumanoidArm arm) {
         int direction = arm == HumanoidArm.RIGHT ? 1 : -1;
-        matrices.translate(direction * -0.15F, 0.16F, 0.15F);
-        matrices.rotate(Axis.YP.rotationDegrees(direction * -18.0F));
-        matrices.rotate(Axis.ZP.rotationDegrees(direction * 82.0F));
-        matrices.rotate(Axis.YP.rotationDegrees(direction * 112.0F));
+        float pivotX = 0.1257F;
+        float pivotY = -0.1878F;
+        float pivotZ = -0.6811F;
+        float scale = 1.26F;
+        matrices.translate(direction * (pivotX + 0.136F), pivotY - 0.074F, pivotZ);
+        matrices.rotate(Axis.ZP.rotationDegrees(direction * 3.6F));
+        matrices.scale(scale, scale, scale);
+        matrices.translate(direction * -pivotX, -pivotY, -pivotZ);
+    }
+
+    @Unique
+    private void applyLegacyItemTransform(PoseStack matrices, HumanoidArm arm) {
+        int direction = arm == HumanoidArm.RIGHT ? 1 : -1;
+        matrices.translate(direction * 0.58800083F, 0.36999986F, -0.77000016F);
+        matrices.translate(0.0F, -0.30000001F, 0.0F);
+        matrices.scale(1.5F, 1.5F, 1.5F);
+        matrices.rotate(Axis.YP.rotationDegrees(direction * 50.0F));
+        matrices.rotate(Axis.ZP.rotationDegrees(direction * 335.0F));
+        matrices.translate(direction * -0.9375F, -0.0625F, 0.0F);
+        matrices.scale(-2.0F, 2.0F, -2.0F);
+        matrices.scale(0.5F, 0.5F, 0.5F);
+        matrices.scale(2.2F / 1.7F, 2.2F / 1.7F, 2.2F / 1.7F);
+        this.applyModernDisplayInverse(matrices, arm);
     }
 
     @Unique
@@ -117,6 +136,12 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
         matrices.rotate(Axis.YP.rotationDegrees(direction * -135.0F));
         matrices.rotate(Axis.ZP.rotationDegrees(direction * 25.0F));
         matrices.scale(2.2F, 2.2F, 2.2F);
+        this.applyModernDisplayInverse(matrices, arm);
+    }
+
+    @Unique
+    private void applyModernDisplayInverse(PoseStack matrices, HumanoidArm arm) {
+        int direction = arm == HumanoidArm.RIGHT ? 1 : -1;
         matrices.rotate(new Quaternionf().rotationXYZ(
                 0.0F,
                 (float) Math.toRadians(direction * -90.0F),
@@ -403,18 +428,18 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
                 try {
                     matrices.translate(direction * OldHitting.itemPositionX.get(), OldHitting.itemPositionY.get(), OldHitting.itemPositionZ.get());
 
-                    ItemStack renderedItem = substituteMainHand ? player.getMainHandItem() : item;
                     float renderedEquipProgress = substituteMainHand
                             ? state.mainHandSwapScale * (1.0F - Mth.lerp(tickDelta, state.oldMainHandHeight, state.mainHandHeight))
                             : equipProgress;
                     float renderedSwingProgress = substituteMainHand ? 0.0F : swingProgress;
 
                     if (OldHitting.mode.get().equalsIgnoreCase("vanilla")) {
-                        this.customApplyEquipOffset(matrices, arm, renderedEquipProgress, null);
-                        this.applySwingOffset(matrices, arm, renderedSwingProgress, null);
-
-                        this.slightlyTiltItemPosition(player, InteractionHand.MAIN_HAND, renderedItem, matrices, false);
-                        this.applyVanillaBlockTransformation(matrices, arm);
+                        this.applyLegacyScreenCorrection(matrices, arm);
+                        matrices.translate(0.0F, 0.0F, -0.02F);
+                        matrices.rotate(Axis.ZP.rotationDegrees(direction * -1.0F));
+                        this.applyFirstPersonItem(matrices, arm, renderedEquipProgress * 0.5F, renderedSwingProgress);
+                        this.applyBlockTransformation(matrices, arm);
+                        this.applyLegacyItemTransform(matrices, arm);
                     } else {
                         matrices.translate(0.0F, 0.0F, -0.02F);
                         matrices.rotate(Axis.ZP.rotationDegrees(direction * -1.0F));

@@ -258,7 +258,7 @@ public class ModuleManager implements EventListener {
         for (Module module : modules) {
             if (module.tempEnabled && (module instanceof PluginsDetector || module instanceof Blink))
                 module.toggle();
-            else if (module.tempEnabled && (module instanceof InvManager || module instanceof ChestStealer || module instanceof Scaffold || module instanceof KillAura)) {
+            else if (module.tempEnabled && (module instanceof InvManager || module instanceof ChestStealer || module instanceof Scaffold || module instanceof KillAura || module instanceof FlyModule || module instanceof SpeedModule)) {
                 module.toggle();
                 Client.notificationManager.addNotification("World Change", "Automatically disabled " + module.moduleName);
             }

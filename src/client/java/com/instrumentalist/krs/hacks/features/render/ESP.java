@@ -62,7 +62,7 @@ import java.util.WeakHashMap;
 public class ESP extends Module {
 
     @Setting
-    private static final BooleanValue local = new BooleanValue("Local", true);
+    private static final BooleanValue local = new BooleanValue("Local", false);
 
     private static final Matrix4f VIEW_PROJECTION = new Matrix4f();
     private static final FloatArrayBuilder TRIANGLES = new FloatArrayBuilder(4096);

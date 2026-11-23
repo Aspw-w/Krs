@@ -67,6 +67,12 @@ public abstract class LivingEntityRendererMixin {
         if (krs$shouldApplyVanillaRotation(entity))
             return Client.rotationManager.getInterpolatedPitch(tickDelta);
 
+        if (entity == Minecraft.getInstance().player
+                && !GuiEntityRenderGuard.isActive()
+                && ServerRotations.shouldInterpolateHead()
+                && (Client.rotationManager == null || !Client.rotationManager.isRotating()))
+            return ServerRotations.getInterpolatedHeadPitch(tickDelta);
+
         return original;
     }
 
