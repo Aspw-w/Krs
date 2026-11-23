@@ -12,6 +12,7 @@ import com.instrumentalist.krs.hacks.features.movement.speed.SpeedModule;
 import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
+import com.instrumentalist.krs.utils.value.IntValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
@@ -36,6 +37,9 @@ public class Criticals extends Module {
     @Setting
     private final BooleanValue cooldownCheck = new BooleanValue("Cooldown Check", false, () -> mode.get().equalsIgnoreCase("packet") || mode.get().equalsIgnoreCase("less packet"));
 
+    @Setting
+    private final IntValue delay = new IntValue("Delay", 150, 0, 1000, "ms", () -> !mode.get().equalsIgnoreCase("cubecraft"));
+
     private final double[] packetValues = new double[]{0.0625D, 0.0D, 0.05D, 0.0D};
     private final double[] lessPacketValues = new double[]{0.0625D, 0.0D};
 
@@ -46,6 +50,7 @@ public class Criticals extends Module {
     private boolean holdingSpoofedFall;
     private double lastMotionY = Double.NaN;
     private long lastAttackMillis;
+    private long lastCritMillis;
 
     public Criticals() {
         super("Criticals", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
@@ -161,6 +166,7 @@ public class Criticals extends Module {
 
     @Override
     public void onEnable() {
+        lastCritMillis = 0L;
     }
 
     @Override
@@ -187,6 +193,7 @@ public class Criticals extends Module {
                 && mc.player.distanceTo(KillAura.closestEntity) >= KillAura.attackRange.get()))))
             return;
         if (cooldownCheck.get() && player.getAttackStrengthScale(0f) < 0.8) return;
+        if (System.currentTimeMillis() - lastCritMillis < delay.get()) return;
 
         Vec3 pos = player.position();
         boolean horizontalCollision = player.horizontalCollision;
@@ -196,12 +203,14 @@ public class Criticals extends Module {
                 for (double critY : packetValues) {
                     PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(pos.x, pos.y + critY, pos.z, false, horizontalCollision));
                 }
+                lastCritMillis = System.currentTimeMillis();
                 break;
 
             case "less packet":
                 for (double critY : lessPacketValues) {
                     PacketUtil.sendPacket(new ServerboundMovePlayerPacket.Pos(pos.x, pos.y + critY, pos.z, false, horizontalCollision));
                 }
+                lastCritMillis = System.currentTimeMillis();
                 break;
 
             case "watchdog legacy":
@@ -211,6 +220,7 @@ public class Criticals extends Module {
                     PacketUtil.sendPacketAsSilent(new ServerboundMovePlayerPacket.Pos(pos.x, pos.y + critY, pos.z, false, horizontalCollision));
                 }
                 watchdogLegacyCritted.put(event.entity.getId(), event.entity instanceof LivingEntity living ? living.hurtTime : 0);
+                lastCritMillis = System.currentTimeMillis();
                 break;
         }
     }
