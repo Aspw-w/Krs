@@ -148,7 +148,7 @@ public class Interface extends Module {
 
     @Setting
     private final TextValue waterMarkText = new TextValue(
-            "Watermark Component",
+            "Watermark Text",
             "Krs",
             waterMark::get
     );
