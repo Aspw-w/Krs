@@ -1,6 +1,7 @@
 package com.instrumentalist.krs.hacks.features.render;
 
 import com.instrumentalist.krs.utils.math.TimerUtil;
+import com.instrumentalist.krs.events.features.ReceivedPacketEvent;
 import com.instrumentalist.krs.events.features.TickEvent;
 import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
@@ -24,6 +25,11 @@ import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.state.level.SkyRenderState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -92,6 +98,31 @@ public class LegacyRenderer extends Module {
     public void onDisable() {
         lightmapPending = false;
         reloadTintsIfNeeded();
+    }
+
+    @Override
+    public void onReceivedPacket(ReceivedPacketEvent event) {
+        Holder<SoundEvent> sound = null;
+        if (event.packet instanceof ClientboundSoundPacket soundPacket)
+            sound = soundPacket.getSound();
+        else if (event.packet instanceof ClientboundSoundEntityPacket soundEntityPacket)
+            sound = soundEntityPacket.getSound();
+
+        if (sound != null && isMissAttackSound(sound.value()))
+            event.cancel();
+    }
+
+    private static boolean isMissAttackSound(SoundEvent sound) {
+        if (sound == null)
+            return false;
+
+        var location = sound.location();
+        return location.equals(SoundEvents.PLAYER_ATTACK_WEAK.location())
+                || location.equals(SoundEvents.PLAYER_ATTACK_NODAMAGE.location())
+                || location.equals(SoundEvents.PLAYER_ATTACK_STRONG.location())
+                || location.equals(SoundEvents.PLAYER_ATTACK_CRIT.location())
+                || location.equals(SoundEvents.PLAYER_ATTACK_KNOCKBACK.location())
+                || location.equals(SoundEvents.PLAYER_ATTACK_SWEEP.location());
     }
 
     @Override
