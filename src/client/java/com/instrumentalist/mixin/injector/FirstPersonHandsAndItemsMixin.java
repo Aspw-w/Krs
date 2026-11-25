@@ -1,5 +1,6 @@
 package com.instrumentalist.mixin.injector;
 
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
 import com.instrumentalist.krs.hacks.features.render.OldHitting;
@@ -16,6 +17,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import com.instrumentalist.krs.hacks.features.player.Freecam;
 import net.minecraft.world.item.ItemUseAnimation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -79,6 +81,9 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
 
     @Unique
     private ItemStack getMainHandTarget(LocalPlayer player) {
+        if (Freecam.isHotbarActive())
+            return Freecam.getHotbarStack(Freecam.getHotbarSelectedSlot());
+
         if (OldHitting.shouldBlock() || shouldKeepOldEatSwingItemVisible(player))
             return player.getMainHandItem();
 
@@ -149,6 +154,13 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
     private void firstPersonItemSpoofHook(LocalPlayer player, CallbackInfo ci) {
         PlayerUtil.INSTANCE.tickSpoofRelease();
 
+        if (player != null && Freecam.isHotbarActive()) {
+            ci.cancel();
+            updateSpoofedHeldItems(player, Freecam.getHotbarStack(Freecam.getHotbarSelectedSlot()), false);
+            replaceVisibleItemsWithoutEquipAnimation(player);
+            return;
+        }
+
         if (OldHitting.shouldBlock() || shouldKeepOldEatSwingItemVisible(player)) {
             ci.cancel();
 
@@ -180,7 +192,18 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
 
     @Unique
     private static boolean krs$legacyEquals(ItemStack a, ItemStack b) {
-        return a == b || a.isEmpty() && b.isEmpty();
+        return a == b || a.isEmpty() && b.isEmpty() || LegacyRenderer.isForcedBlockSwap(a, b);
+    }
+
+    @ModifyReturnValue(method = "shouldInstantlyReplaceVisibleItem", at = @At("RETURN"))
+    private boolean legacyRendererForcedBlockSwap(boolean original, ItemStack currentlyVisibleItem, ItemStack expectedItem, LocalPlayer player) {
+        return original || LegacyRenderer.isForcedBlockSwap(currentlyVisibleItem, expectedItem);
+    }
+
+    @Inject(method = "extractRenderState", at = @At("TAIL"))
+    private void legacyRendererHideSwordBlock(LocalPlayer player, float partialTicks, FirstPersonHandsAndItemsRenderState state, CallbackInfo ci) {
+        if (player != null && player.isUsingItem() && LegacyRenderer.isSwordBlock(player.getUseItem()))
+            state.useItemRemainingTicks = 0;
     }
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
@@ -227,10 +250,10 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
             this.offHandHeight += Mth.clamp((float) (krs$legacyEquals(this.offHandItem, itemstack1) ? 1 : 0) - this.offHandHeight, -krs$equipStep(), krs$equipStep());
         }
 
-        if (this.mainHandHeight < 0.1F && !holdRaised)
+        if (this.mainHandHeight < 0.1F && !holdRaised || !holdRaised && LegacyRenderer.isForcedBlockSwap(this.mainHandItem, itemstack))
             this.mainHandItem = itemstack;
 
-        if (this.offHandHeight < 0.1F)
+        if (this.offHandHeight < 0.1F || LegacyRenderer.isForcedBlockSwap(this.offHandItem, itemstack1))
             this.offHandItem = itemstack1;
 
         if (!this.mainHandItem.isEmpty()) {

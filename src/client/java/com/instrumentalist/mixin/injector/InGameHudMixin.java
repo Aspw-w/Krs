@@ -8,6 +8,10 @@ import com.instrumentalist.krs.hacks.features.render.AntiBlind;
 import com.instrumentalist.krs.hacks.features.render.Interface;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.instrumentalist.krs.hacks.features.player.Freecam;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -62,6 +66,8 @@ public abstract class InGameHudMixin implements IMinecraft {
 
     @ModifyExpressionValue(method = "extractItemHotbar", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Inventory;getSelectedSlot()I"))
     private int krs$spoofHotbarSelection(int original) {
+        if (Freecam.isHotbarActive())
+            return Freecam.getHotbarSelectedSlot();
         if (this.minecraft.player != null && this.minecraft.getCameraEntity() == this.minecraft.player && PlayerUtil.INSTANCE.hasVisualSpoofSlot())
             return PlayerUtil.INSTANCE.getSpoofSlot();
         return original;
@@ -69,9 +75,18 @@ public abstract class InGameHudMixin implements IMinecraft {
 
     @ModifyExpressionValue(method = "tick()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Inventory;getSelectedItem()Lnet/minecraft/world/item/ItemStack;"))
     private ItemStack krs$spoofToolHighlight(ItemStack original) {
+        if (Freecam.isHotbarActive())
+            return Freecam.getHotbarStack(Freecam.getHotbarSelectedSlot());
         if (this.minecraft.player != null && PlayerUtil.INSTANCE.hasVisualSpoofSlot())
             return this.minecraft.player.getInventory().getItem(PlayerUtil.INSTANCE.getSpoofSlot());
         return original;
+    }
+
+    @WrapOperation(method = "extractItemHotbar", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Inventory;getItem(I)Lnet/minecraft/world/item/ItemStack;"))
+    private ItemStack krs$freecamHotbarItems(Inventory inventory, int slot, Operation<ItemStack> original) {
+        if (Freecam.isHotbarActive())
+            return Freecam.getHotbarStack(slot);
+        return original.call(inventory, slot);
     }
 
     @Inject(at = @At("HEAD"), method = "extractTextureOverlay(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/resources/Identifier;F)V", cancellable = true)

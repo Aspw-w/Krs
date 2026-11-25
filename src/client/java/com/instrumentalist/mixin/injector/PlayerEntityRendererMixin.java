@@ -105,6 +105,13 @@ public abstract class PlayerEntityRendererMixin implements IMinecraft {
         return Client.rotationManager.getInterpolatedYaw(tickDelta);
     }
 
+    @ModifyReturnValue(method = "getArmPose(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/client/model/HumanoidModel$ArmPose;", at = @At("RETURN"))
+    private static HumanoidModel.ArmPose legacyRendererHideSwordBlock(HumanoidModel.ArmPose original, Avatar avatar, ItemStack stack, InteractionHand hand) {
+        if (original == HumanoidModel.ArmPose.BLOCK && LegacyRenderer.isSwordBlock(stack))
+            return HumanoidModel.ArmPose.ITEM;
+        return original;
+    }
+
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V", at = @At("RETURN"))
     private void legacyRendererSwimHook(Avatar avatar, AvatarRenderState state, float f, CallbackInfo info) {
         if (!LegacyRenderer.isPlayerAnimationsActive()) return;

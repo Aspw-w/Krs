@@ -97,7 +97,7 @@ public abstract class LegacyFirstPersonRendererMixin {
             boolean flag1 = side == HumanoidArm.RIGHT;
             int useDuration = flag ? state.mainHandUseDuration : state.offHandUseDuration;
 
-            if (avatar.isUsingItem && state.useItemRemainingTicks > 0 && avatar.useItemHand == hand) {
+            if (avatar.isUsingItem && state.useItemRemainingTicks > 0 && avatar.useItemHand == hand && !LegacyRenderer.isSwordBlock(stack)) {
                 int j = flag1 ? 1 : -1;
 
                 switch (stack.getUseAnimation()) {

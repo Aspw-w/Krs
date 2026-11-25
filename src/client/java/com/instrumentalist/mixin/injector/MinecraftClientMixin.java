@@ -57,6 +57,9 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemUseAnimation;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import com.instrumentalist.krs.hacks.features.player.Freecam;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
 
 @Mixin(Minecraft.class)
 public abstract class MinecraftClientMixin implements IMinecraft {
@@ -86,6 +89,8 @@ public abstract class MinecraftClientMixin implements IMinecraft {
     @Shadow protected int missTime;
 
     @Shadow @Nullable public HitResult hitResult;
+
+    @Shadow @Nullable public Entity crosshairPickEntity;
 
     @Shadow @Nullable public ClientLevel level;
 
@@ -160,6 +165,12 @@ public abstract class MinecraftClientMixin implements IMinecraft {
 
     @Inject(method = "pick", at = @At("RETURN"))
     private void ghostHandPickHook(float partialTicks, CallbackInfo ci) {
+        if (Freecam.isHotbarActive()) {
+            Vec3 camera = Freecam.getCamPos(partialTicks);
+            this.hitResult = BlockHitResult.miss(camera, Direction.UP, BlockPos.containing(camera));
+            this.crosshairPickEntity = null;
+            return;
+        }
         this.hitResult = GhostHand.modifyHitResult(this.hitResult);
     }
 

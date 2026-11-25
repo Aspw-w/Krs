@@ -1,5 +1,6 @@
 package com.instrumentalist.krs.hacks.features.render;
 
+import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.events.features.MouseClickEvent;
 import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
@@ -53,7 +54,7 @@ public class OldHitting extends Module {
         var level = mc.level;
         if (player == null || level == null) return true;
 
-        var hitResult = player.pick(5.0, 0.0f, false);
+        var hitResult = mc.hitResult != null ? mc.hitResult : player.pick(player.blockInteractionRange(), 0.0f, false);
         if (hitResult.getType() == HitResult.Type.BLOCK) {
             var blockPos = ((BlockHitResult) hitResult).getBlockPos();
             Block block = level.getBlockState(blockPos).getBlock();
@@ -96,6 +97,11 @@ public class OldHitting extends Module {
     public void onMouseClick(MouseClickEvent event) {
         if (mc.player == null || mc.level == null) return;
 
+        if (Freecam.isHotbarActive()) {
+            canBlock = false;
+            return;
+        }
+
         if (event.button == Keys.MOUSE_BUTTON_RIGHT) {
             if (event.action == Keys.PRESS && noBlockOnSelectedBlock())
                 canBlock = true;
@@ -134,6 +140,7 @@ public class OldHitting extends Module {
         var player = mc.player;
         if (player == null) return false;
         return mc.level != null
+                && !Freecam.isHotbarActive()
                 && ModuleManager.getModuleState(OldHitting.class)
                 && ToolUtil.INSTANCE.isSword(player.getMainHandItem())
                 && (canBlock && mc.gui.screen() == null || ModuleManager.getModuleState(KillAura.class) && KillAura.isBlocking);

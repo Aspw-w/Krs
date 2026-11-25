@@ -147,12 +147,13 @@ public abstract class ClientPlayerEntityMixin extends Player {
 
     @Inject(method = "sendChanges", at = @At("HEAD"))
     private void freecamSendChangesInputHead(CallbackInfo ci) {
-        if (!ModuleManager.getModuleState(Freecam.class) || !Freecam.getCanFly() || krs$freecamInputSwapDepth > 0)
+        if (!Freecam.blocksPlayerInput() || krs$freecamInputSwapDepth > 0)
             return;
 
         krs$sendChangesRealInput = this.input;
         this.input = new ClientInput();
         Navigator.applyInput(this.input);
+        Freecam.applyKeptInput(this.input);
     }
 
     @Inject(method = "sendChanges", at = @At("RETURN"))
@@ -176,15 +177,16 @@ public abstract class ClientPlayerEntityMixin extends Player {
 
     @Inject(method = "aiStep", at = @At("HEAD"))
     private void freecamStopInput(CallbackInfo ci) {
-        if (ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly()) {
+        if (Freecam.blocksPlayerInput()) {
             InputUtil.stop(this.input);
             Navigator.applyInput(this.input);
+            Freecam.applyKeptInput(this.input);
         }
     }
 
     @ModifyReturnValue(method = "isShiftKeyDown()Z", at = @At("RETURN"))
     private boolean freecamShiftKeyHook(boolean original) {
-        return original && (Navigator.isControlling() || !(ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly()));
+        return original && (Navigator.isControlling() || !Freecam.blocksPlayerInput() || Freecam.keepsSneak());
     }
 
     @Inject(method = "raycastHitResult(FLnet/minecraft/world/entity/Entity;)Lnet/minecraft/world/phys/HitResult;", at = @At("HEAD"), cancellable = true)
@@ -205,7 +207,7 @@ public abstract class ClientPlayerEntityMixin extends Player {
 
     @Unique
     private void krs$swapFreecamInput() {
-        if (!ModuleManager.getModuleState(Freecam.class) || !Freecam.getCanFly())
+        if (!Freecam.blocksPlayerInput())
             return;
 
         krs$freecamInputSwapDepth++;
@@ -216,6 +218,7 @@ public abstract class ClientPlayerEntityMixin extends Player {
         this.input.tick();
         this.input = new ClientInput();
         Navigator.applyInput(this.input);
+        Freecam.applyKeptInput(this.input);
     }
 
     @Unique
