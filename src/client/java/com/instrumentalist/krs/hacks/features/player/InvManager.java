@@ -79,7 +79,7 @@ public class InvManager extends Module {
     private final boolean[] excessSlots = new boolean[36];
 
     private static final int MAX_THROWABLE_STACKS = 2;
-    private static final int MAX_BLOCK_STACKS = 3;
+    private static final int MAX_BLOCK_STACKS = 4;
     private static final int MAX_HARMFUL_POTIONS = 3;
     private static final int MAX_SAME_POTIONS = 3;
     private static final int GOLDEN_APPLE_SLOT = 4;
@@ -426,7 +426,7 @@ public class InvManager extends Module {
             } else if (item instanceof BlockItem blockItem) {
                 if (blockItem.getBlock() instanceof BasePressurePlateBlock)
                     excessSlots[i] = true;
-                else if (Scaffold.isScaffoldBlock(blockItem.getBlock()))
+                else if (item != Items.CHEST)
                     blocks.add(i);
             }
         }
@@ -441,7 +441,7 @@ public class InvManager extends Module {
             int blockLimit = MAX_BLOCK_STACKS;
             if (mc.player != null && blocks.remove(Integer.valueOf(mc.player.getInventory().getSelectedSlot())))
                 blockLimit--;
-            markStacksOverLimit(inventory, blocks, blockLimit);
+            markBlocksOverLimit(inventory, blocks, blockLimit);
         }
         markItemsOverLimit(inventory, harmfulPotions, MAX_HARMFUL_POTIONS);
 
@@ -517,6 +517,16 @@ public class InvManager extends Module {
 
         slots.sort(Comparator.<Integer>comparingInt(i -> inventory.getItem(i).getCount()).reversed().thenComparingInt(i -> i));
         for (int i = limit; i < slots.size(); i++)
+            excessSlots[slots.get(i)] = true;
+    }
+
+    private void markBlocksOverLimit(Container inventory, List<Integer> slots, int limit) {
+        if (slots.size() <= limit) return;
+
+        slots.sort(Comparator.<Integer, Boolean>comparing(i -> isScaffoldBlockStack(inventory.getItem(i))).reversed()
+                .thenComparing(Comparator.<Integer>comparingInt(i -> inventory.getItem(i).getCount()).reversed())
+                .thenComparingInt(i -> i));
+        for (int i = Math.max(0, limit); i < slots.size(); i++)
             excessSlots[slots.get(i)] = true;
     }
 
