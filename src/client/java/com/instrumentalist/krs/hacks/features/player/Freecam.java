@@ -120,7 +120,7 @@ public class Freecam extends Module {
         rightHeld = false;
         leftHeld = false;
         flyMotion = Vec3.ZERO;
-        simulation.reset(player.position(), player.getDeltaMovement(), player.getAbilities().flying);
+        simulation.reset(player.position(), Vec3.ZERO, true);
         makeToolBar();
     }
 
