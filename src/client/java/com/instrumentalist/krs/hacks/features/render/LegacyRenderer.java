@@ -1,5 +1,9 @@
 package com.instrumentalist.krs.hacks.features.render;
 
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.Items;
+import com.instrumentalist.krs.utils.math.ToolUtil;
+import net.minecraft.world.item.ItemUseAnimation;
 import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.events.features.ReceivedPacketEvent;
 import com.instrumentalist.krs.events.features.TickEvent;
@@ -303,6 +307,20 @@ public class LegacyRenderer extends Module {
         return active();
     }
 
+    public static boolean isSwordBlock(ItemStack stack) {
+        if (!active() || stack == null || stack.isEmpty() || stack.is(Items.SHIELD))
+            return false;
+        return stack.has(DataComponents.BLOCKS_ATTACKS) || ToolUtil.INSTANCE.isSword(stack) && stack.getUseAnimation() == ItemUseAnimation.BLOCK;
+    }
+
+    public static boolean isForcedBlockSwap(ItemStack visible, ItemStack target) {
+        if (visible == null || target == null || visible.isEmpty() || target.isEmpty())
+            return false;
+        if (visible.getItem() != target.getItem() || visible.getCount() != target.getCount())
+            return false;
+        return isSwordBlock(visible) || isSwordBlock(target);
+    }
+
     public static boolean isFirstPersonActive() {
         return active() && !ModuleManager.getModuleState(ViewModel.class) && !OldHitting.shouldBlock();
     }
@@ -446,6 +464,9 @@ public class LegacyRenderer extends Module {
 
     private static HumanoidModel.ArmPose legacyArmPose(HumanoidRenderState state, HumanoidArm arm) {
         HumanoidModel.ArmPose pose = arm == HumanoidArm.RIGHT ? state.rightArmPose : state.leftArmPose;
+
+        if (pose == HumanoidModel.ArmPose.BLOCK && isSwordBlock(arm == HumanoidArm.RIGHT ? state.rightHandItemStack : state.leftHandItemStack))
+            return HumanoidModel.ArmPose.ITEM;
 
         return switch (pose) {
             case EMPTY, BLOCK -> pose;
