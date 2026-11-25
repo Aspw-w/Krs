@@ -76,7 +76,7 @@ public class ModuleManager implements EventListener {
                 new ChestStealer(), new FastLadder(), new InvManager(), new NoFall(), new AirPlace(),
                 new Sprint(), new ThunderDetector(), new KillEffect(), new Trails(), new NoRender(), new Camera(), new CameraNoClip(),
                 new AntiBlind(), new Breaker(), new CivBreak(), new Timer(), new Nuker(), new NoteBot(),
-                new Xray(), new CaveFinder(), new Scaffold(), new Blink(), new TransactionConfirmBlinker(), new ExploitPatcher(),
+                new Xray(), new CaveFinder(), new Scaffold(), new Blink(), new ExploitPatcher(),
                 new PortalScreen(), new FullBright(), new TargetStrafe(), new DisablerModule(),
                 new OldHitting(), new Freecam(), new Capes(), new MurdererDetector(),
                 new NoHurtCam(), new FastBow(), new FastEat(), new HitBoxes(),
@@ -321,7 +321,7 @@ public class ModuleManager implements EventListener {
             if (packet instanceof ServerboundMovePlayerPacket || ModuleManager.getModuleState(KillAura.class) && KillAura.closestEntity != null && KillAura.shouldCancelUseItemOnWhileBlinking() && packet instanceof ServerboundUseItemOnPacket)
                 event.cancel();
 
-            if (packet instanceof ServerboundMovePlayerPacket.Pos || packet instanceof ServerboundMovePlayerPacket.Rot || packet instanceof ServerboundMovePlayerPacket.PosRot || packet instanceof ServerboundMovePlayerPacket.StatusOnly || packet instanceof ServerboundPlayerCommandPacket || packet instanceof ServerboundUseItemOnPacket || packet instanceof ServerboundPlayerActionPacket || packet instanceof ServerboundUseItemPacket || ModuleManager.getModuleState(TransactionConfirmBlinker.class) && packet instanceof ServerboundPongPacket) {
+            if (packet instanceof ServerboundMovePlayerPacket.Pos || packet instanceof ServerboundMovePlayerPacket.Rot || packet instanceof ServerboundMovePlayerPacket.PosRot || packet instanceof ServerboundMovePlayerPacket.StatusOnly || packet instanceof ServerboundPlayerCommandPacket || packet instanceof ServerboundUseItemOnPacket || packet instanceof ServerboundPlayerActionPacket || packet instanceof ServerboundUseItemPacket || Blink.shouldBlinkTransactions() && packet instanceof ServerboundPongPacket) {
                 event.cancel();
                 BlinkUtil.INSTANCE.addPacket(packet);
             }

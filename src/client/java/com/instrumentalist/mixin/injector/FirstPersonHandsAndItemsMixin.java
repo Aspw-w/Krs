@@ -309,6 +309,11 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
     @Inject(method = "itemUsed", at = @At("HEAD"), cancellable = true)
     private void legacyRendererItemUsedHook(InteractionHand hand, CallbackInfo ci) {
         LocalPlayer player = Minecraft.getInstance().player;
+        if (player != null && LegacyRenderer.isSwordBlock(player.getItemInHand(hand))) {
+            ci.cancel();
+            return;
+        }
+
         if (!LegacyRenderer.isEquipAnimationActive() || player == null || OldHitting.shouldBlock()
                 || shouldKeepOldEatSwingItemVisible(player) || PlayerUtil.INSTANCE.getSpoofSlot() != null)
             return;
