@@ -6,7 +6,7 @@ import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.BlockEdgeEvent;
 import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.features.combat.Reach;
-import com.instrumentalist.krs.hacks.features.exploit.ChestTP;
+import com.instrumentalist.krs.hacks.features.exploit.Teleportation;
 import com.instrumentalist.krs.hacks.features.movement.MovementFix;
 import com.instrumentalist.krs.hacks.features.world.AlwaysRiptide;
 import com.instrumentalist.krs.hacks.features.movement.Sprint;
@@ -170,7 +170,7 @@ public abstract class PlayerEntityMixin implements IMinecraft {
     public double blockReachHook(double original) {
         if ((Object) this instanceof LocalPlayer) {
             original = Reach.hookBlockReach(original);
-            return ChestTP.hookBlockReach(original);
+            return Teleportation.hookBlockReach(original);
         }
 
         return original;

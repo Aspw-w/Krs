@@ -2,8 +2,6 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.KeyboardEvent;
-import com.instrumentalist.krs.hacks.features.render.ImGui;
-import com.instrumentalist.krs.hacks.features.render.ClickGui;
 import com.instrumentalist.krs.utils.GuiInputBlocker;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -27,7 +25,7 @@ public abstract class KeyboardMixin {
 
     @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
     public void onKey(long window, int action, KeyEvent keyEvent, CallbackInfo ci) {
-        if ((keyEvent.key() != ImGui.getOpenGuiKey() || keyEvent.key() != ClickGui.getOpenGuiKey()) && GuiInputBlocker.shouldBlockMinecraftKeyEvent(keyEvent.key())) {
+        if (GuiInputBlocker.shouldBlockMinecraftKeyEvent(keyEvent.key())) {
             GuiInputBlocker.releaseMovementKeys();
             ci.cancel();
             return;

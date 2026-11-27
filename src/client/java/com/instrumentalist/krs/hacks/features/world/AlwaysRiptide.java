@@ -6,7 +6,7 @@ import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.combat.HitBoxes;
+import com.instrumentalist.krs.hacks.features.combat.Reach;
 import com.instrumentalist.mixin.injector.LivingEntityAccessor;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -172,7 +172,7 @@ public class AlwaysRiptide extends Module {
         lastBox = currentBox;
         boolean attacked = false;
 
-        float expansion = HitBoxes.searchExpansion();
+        float expansion = Reach.searchExpansion();
         for (Entity entity : level.getEntities(player, expansion > 0f ? scanBox.inflate(expansion) : scanBox)) {
             if (!(entity instanceof LivingEntity livingEntity)
                     || !livingEntity.isAlive()
@@ -180,7 +180,7 @@ public class AlwaysRiptide extends Module {
                     || entity.skipAttackInteraction(player))
                 continue;
 
-            float extra = HitBoxes.extraRadius(entity);
+            float extra = Reach.extraRadius(entity);
             if (!entity.getBoundingBox().inflate(extra).intersects(scanBox))
                 continue;
 

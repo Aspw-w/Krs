@@ -4,7 +4,7 @@ import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.combat.AutoPot;
+import com.instrumentalist.krs.hacks.features.combat.AutoHeal;
 import com.instrumentalist.krs.hacks.features.exploit.disabler.features.HypixelDisabler;
 import com.instrumentalist.krs.utils.math.RandomUtil;
 import com.instrumentalist.krs.utils.math.ToolUtil;
@@ -302,8 +302,8 @@ public class InvManager extends Module {
     }
 
     private boolean isAutoPotActing(LocalPlayer player) {
-        return ModuleManager.getModuleState(AutoPot.class)
-                && (AutoPot.isThrowing() || AutoPot.getTicksSinceAction(player) < ACTION_GAP_TICKS);
+        return AutoHeal.isPotActive()
+                && (AutoHeal.isThrowing() || AutoHeal.getTicksSinceAction(player) < ACTION_GAP_TICKS);
     }
 
     public static int getTicksSinceClick(LocalPlayer player) {
@@ -316,12 +316,12 @@ public class InvManager extends Module {
     }
 
     private boolean handlePotionBorrow(LocalPlayer player, MultiPlayerGameMode gameMode, Container inventory) {
-        if (!ModuleManager.getModuleState(AutoPot.class) || AutoPot.isThrowing() || AutoPot.getRequestedPotions().isEmpty() || hasRequestedPotionInHotbar(inventory))
+        if (!AutoHeal.isPotActive() || AutoHeal.isThrowing() || AutoHeal.getRequestedPotions().isEmpty() || hasRequestedPotionInHotbar(inventory))
             return false;
 
         int inventoryIndex = -1;
         for (int i = 9; i < Math.min(36, inventory.getContainerSize()); i++) {
-            if (AutoPot.isRequestedPotion(inventory.getItem(i))) {
+            if (AutoHeal.isRequestedPotion(inventory.getItem(i))) {
                 inventoryIndex = i;
                 break;
             }
@@ -337,7 +337,7 @@ public class InvManager extends Module {
 
     private boolean hasRequestedPotionInHotbar(Container inventory) {
         for (int i = 0; i <= 8; i++) {
-            if (AutoPot.isRequestedPotion(inventory.getItem(i)))
+            if (AutoHeal.isRequestedPotion(inventory.getItem(i)))
                 return true;
         }
         return false;

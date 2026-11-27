@@ -7,6 +7,7 @@ import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.utils.render.BlockHighlight;
 import com.instrumentalist.krs.utils.render.RenderColors;
+import com.instrumentalist.krs.utils.value.BooleanValue;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.BlockItem;
@@ -14,15 +15,26 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import com.instrumentalist.krs.utils.input.Keys;
 
-public class AirPlace extends Module {
+public class FastPlace extends Module {
     private final BlockHighlight blockHighlight = new BlockHighlight(RenderColors.AIR_PLACE);
 
-    public AirPlace() {
-        super("Air Place", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
+    @Setting
+    private static final BooleanValue noPlaceCooldown = new BooleanValue("No Place Cooldown", false);
+
+    @Setting
+    private static final BooleanValue airPlace = new BooleanValue("Air Place", false);
+
+    public FastPlace() {
+        super("Fast Place", ModuleCategory.Player, Keys.KEY_UNKNOWN, false, true);
+    }
+
+    public static boolean isNoPlaceCooldownActive() {
+        return ModuleManager.getModuleState(FastPlace.class) && noPlaceCooldown.get();
     }
 
     public static HitResult createPlacementHit(HitResult original, LocalPlayer player) {
-        if (!ModuleManager.getModuleState(AirPlace.class)
+        if (!ModuleManager.getModuleState(FastPlace.class)
+                || !airPlace.get()
                 || original == null
                 || original.getType() != HitResult.Type.MISS
                 || !(original instanceof BlockHitResult miss)
@@ -52,7 +64,7 @@ public class AirPlace extends Module {
 
     @Override
     public void onTick(TickEvent event) {
-        if (mc.level == null || mc.gui.screen() != null) {
+        if (!airPlace.get() || mc.level == null || mc.gui.screen() != null) {
             blockHighlight.release();
             return;
         }

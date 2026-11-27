@@ -1,7 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.render.AntiBlind;
+import com.instrumentalist.krs.hacks.features.render.NoRender;
 import com.instrumentalist.krs.hacks.features.render.FullBright;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
@@ -21,7 +21,7 @@ public abstract class IrisCommonUniformsMixin {
 
     @Inject(method = "getDarknessFactor()F", at = @At("HEAD"), cancellable = true, require = 0)
     private static void krs$fullBrightDarkness(CallbackInfoReturnable<Float> cir) {
-        if (FullBright.isBrightening() || ModuleManager.getModuleState(AntiBlind.class) && AntiBlind.effects.get())
+        if (FullBright.isBrightening() || NoRender.active(NoRender.effects))
             cir.setReturnValue(0.0f);
     }
 }

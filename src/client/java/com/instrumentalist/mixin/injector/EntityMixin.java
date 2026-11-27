@@ -2,12 +2,12 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.combat.HitBoxes;
+import com.instrumentalist.krs.hacks.features.combat.Reach;
 import com.instrumentalist.krs.hacks.features.combat.TargetStrafe;
 import com.instrumentalist.krs.hacks.features.movement.EntityControl;
 import com.instrumentalist.krs.hacks.features.movement.MovementFix;
 import com.instrumentalist.krs.hacks.features.world.NoBlockEffects;
-import com.instrumentalist.krs.hacks.features.movement.NoPush;
+import com.instrumentalist.krs.hacks.features.movement.AntiEffects;
 import com.instrumentalist.krs.hacks.features.world.AlwaysRiptide;
 import com.instrumentalist.krs.hacks.features.movement.Step;
 import com.instrumentalist.krs.Client;
@@ -59,7 +59,7 @@ public abstract class EntityMixin implements IMinecraft {
 
     @ModifyReturnValue(method = "getPickRadius", at = @At("RETURN"))
     private float hitBoxesHook(float original) {
-        return HitBoxes.modifyPickRadius((Entity) (Object) this, original);
+        return Reach.modifyPickRadius((Entity) (Object) this, original);
     }
 
     @ModifyReturnValue(method = "getBlockSpeedFactor", at = @At("RETURN"))
@@ -149,7 +149,7 @@ public abstract class EntityMixin implements IMinecraft {
     @ModifyArgs(method = "push(Lnet/minecraft/world/entity/Entity;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;push(DDD)V"))
     private void hookNoPush(Args args, Entity entity) {
         if ((Object) this instanceof LocalPlayer) {
-            if (ModuleManager.getModuleState(NoPush.class) || ModuleManager.getModuleState(Phase.class)) {
+            if (AntiEffects.isNoPushActive() || ModuleManager.getModuleState(Phase.class)) {
                 args.set(0, 0.0);
                 args.set(2, 0.0);
             }

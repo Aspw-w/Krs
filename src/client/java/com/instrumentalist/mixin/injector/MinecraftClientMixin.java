@@ -1,8 +1,8 @@
 package com.instrumentalist.mixin.injector;
 
-import com.instrumentalist.krs.hacks.features.player.AirPlace;
-import com.instrumentalist.krs.hacks.features.combat.AutoPot;
-import com.instrumentalist.krs.hacks.features.combat.FastEat;
+import com.instrumentalist.krs.hacks.features.player.FastPlace;
+import com.instrumentalist.krs.hacks.features.combat.AutoHeal;
+import com.instrumentalist.krs.hacks.features.combat.FastUse;
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.utils.GuiInputBlocker;
@@ -16,7 +16,6 @@ import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.world.item.component.SwingAnimation;
-import com.instrumentalist.krs.hacks.features.world.NoPlaceCooldown;
 import com.instrumentalist.krs.hacks.features.render.Camera;
 import com.instrumentalist.krs.hacks.features.dev.GhostHand;
 import com.instrumentalist.krs.utils.world.QueuedMiner;
@@ -24,7 +23,7 @@ import com.instrumentalist.krs.utils.navigation.Navigator;
 import com.instrumentalist.krs.hacks.features.dev.AutoMine;
 import com.instrumentalist.krs.hacks.features.dev.AutoToolSaver;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import com.instrumentalist.krs.hacks.features.render.ViewModel;
+import com.instrumentalist.krs.hacks.features.render.Camera;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.CameraType;
 import com.instrumentalist.krs.screen.CustomTitleScreen;
@@ -181,7 +180,7 @@ public abstract class MinecraftClientMixin implements IMinecraft {
                 BlockHitResult blockHitResult = (BlockHitResult)this.hitResult;
                 BlockPos blockPos = blockHitResult.getBlockPos();
                 if (this.level != null && !this.level.getBlockState(blockPos).isAir()) {
-                    if (ModuleManager.getModuleState(ViewModel.class) && ViewModel.punchingABlockWhileDoingStuff.get() && this.player.isUsingItem() && mc.player.getUseItem().getUseAnimation() != ItemUseAnimation.NONE) {
+                    if (ModuleManager.getModuleState(Camera.class) && Camera.punchingABlockWhileDoingStuff.get() && this.player.isUsingItem() && mc.player.getUseItem().getUseAnimation() != ItemUseAnimation.NONE) {
                         ci.cancel();
                         this.level.addBreakingBlockEffects(blockPos, blockHitResult.getDirection(), false);
                         PlayerUtil.INSTANCE.swingHandWithoutPacket(InteractionHand.MAIN_HAND);
@@ -193,12 +192,12 @@ public abstract class MinecraftClientMixin implements IMinecraft {
 
     @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
     private void airPlaceBeforeItemUse(CallbackInfo ci) {
-        if (FastEat.shouldBlockUse() || AutoPot.shouldBlockUse() || com.instrumentalist.krs.hacks.features.movement.NoSlow.shouldBlockStartUseItem()) {
+        if (FastUse.shouldBlockUse() || AutoHeal.shouldBlockUse() || com.instrumentalist.krs.hacks.features.movement.NoSlow.shouldBlockStartUseItem()) {
             ci.cancel();
             return;
         }
 
-        HitResult placementHit = AirPlace.createPlacementHit(this.hitResult, this.player);
+        HitResult placementHit = FastPlace.createPlacementHit(this.hitResult, this.player);
         if (placementHit != this.hitResult) {
             this.krs$airPlaceOriginalHitResult = this.hitResult;
             this.hitResult = placementHit;
@@ -220,7 +219,7 @@ public abstract class MinecraftClientMixin implements IMinecraft {
 
     @Redirect(method = "handleKeybinds", at = @At(value = "FIELD", target = "Lnet/minecraft/client/Minecraft;rightClickDelay:I", opcode = Opcodes.GETFIELD, ordinal = 0))
     private int noPlaceCooldown(Minecraft minecraft) {
-        if (ModuleManager.getModuleState(NoPlaceCooldown.class))
+        if (FastPlace.isNoPlaceCooldownActive())
             return 0;
 
         return this.rightClickDelay;

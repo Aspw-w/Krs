@@ -322,7 +322,7 @@ public class LegacyRenderer extends Module {
     }
 
     public static boolean isFirstPersonActive() {
-        return active() && !ModuleManager.getModuleState(ViewModel.class) && !OldHitting.shouldBlock();
+        return active() && !ModuleManager.getModuleState(com.instrumentalist.krs.hacks.features.render.Camera.class) && !OldHitting.shouldBlock();
     }
 
     public static boolean callWithoutSwing(java.util.function.BooleanSupplier call) {
@@ -347,7 +347,7 @@ public class LegacyRenderer extends Module {
             end = fatigue != null ? 6 + (1 + fatigue.getAmplifier()) * 2 : 6;
         }
 
-        return Math.max(1, ViewModel.hookSwingSpeed(end, entity));
+        return Math.max(1, com.instrumentalist.krs.hacks.features.render.Camera.hookSwingSpeed(end, entity));
     }
 
     public static void updateDistance(LivingEntity entity, boolean swinging) {

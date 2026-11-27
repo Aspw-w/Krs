@@ -2,7 +2,7 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
-import com.instrumentalist.krs.hacks.features.render.AntiBlind;
+import com.instrumentalist.krs.hacks.features.render.NoRender;
 import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -75,7 +75,7 @@ public abstract class LevelExtractorMixin {
     // Since 26.3 the portal effect intensity is interpolated while the player state is extracted.
     @WrapOperation(method = "extractPlayerState", at = @At(value = "INVOKE", target = "Lnet/minecraft/util/Mth;lerp(FFF)F", ordinal = 0))
     private float antiBlindHook(float delta, float start, float end, Operation<Float> original) {
-        if (ModuleManager.getModuleState(AntiBlind.class) && AntiBlind.effects.get())
+        if (NoRender.active(NoRender.effects))
             return 0;
 
         return original.call(delta, start, end);

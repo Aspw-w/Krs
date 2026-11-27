@@ -6,7 +6,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import net.minecraft.world.item.ItemStack;
 import com.instrumentalist.krs.hacks.features.render.Camera;
 import com.instrumentalist.krs.hacks.features.render.NoRender;
-import com.instrumentalist.krs.hacks.features.exploit.PortalScreen;
+import com.instrumentalist.krs.hacks.features.exploit.Portal;
 import com.instrumentalist.krs.hacks.features.movement.*;
 import com.instrumentalist.krs.hacks.features.player.Phase;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
@@ -235,7 +235,7 @@ public abstract class ClientPlayerEntityMixin extends Player {
 
     @ModifyExpressionValue(method = "handlePortalTransitionEffect", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/Screen;isAllowedInPortal()Z"))
     private boolean portalScreenHook(boolean original) {
-        return PortalScreen.screenOpenLimitHook(original);
+        return Portal.screenOpenLimitHook(original);
     }
 
     @ModifyExpressionValue(method = "modifyInput(Lnet/minecraft/world/phys/Vec2;)Lnet/minecraft/world/phys/Vec2;", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;itemUseSpeedMultiplier()F"))
@@ -289,13 +289,13 @@ public abstract class ClientPlayerEntityMixin extends Player {
 
     @Inject(method = "moveTowardsClosestSpace(DD)V", at = @At("HEAD"), cancellable = true)
     private void hookNoPush(double x, double z, CallbackInfo ci) {
-        if (ModuleManager.getModuleState(NoPush.class) || ModuleManager.getModuleState(Phase.class))
+        if (AntiEffects.isNoPushActive() || ModuleManager.getModuleState(Phase.class))
             ci.cancel();
     }
 
     @ModifyReturnValue(method = "getJumpRidingScale", at = @At("RETURN"))
     private float horseJumpHook(float original) {
-        return PerfectHorseJump.modifiedHorseJump(original);
+        return EntityControl.modifiedHorseJump(original);
     }
 
     @Inject(method = "tick", at = @At("HEAD"))

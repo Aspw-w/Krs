@@ -1,6 +1,6 @@
 package com.instrumentalist.mixin.injector;
 
-import com.instrumentalist.krs.hacks.features.combat.HitBoxes;
+import com.instrumentalist.krs.hacks.features.combat.Reach;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.AABB;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,7 +15,7 @@ public abstract class HitBoxesPickMixin {
             index = 3
     )
     private static AABB hitBoxesSearchAreaHook(AABB box) {
-        float expansion = HitBoxes.searchExpansion();
+        float expansion = Reach.searchExpansion();
         return expansion > 0f ? box.inflate(expansion) : box;
     }
 }

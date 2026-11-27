@@ -2,6 +2,7 @@ package com.instrumentalist.krs.hacks.features.combat;
 
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.UpdateEvent;
+import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
@@ -10,7 +11,11 @@ import com.instrumentalist.krs.hacks.features.player.Scaffold;
 import net.minecraft.client.player.LocalPlayer;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.utils.math.BehaviorUtils;
+import com.instrumentalist.krs.utils.math.MSTimer;
 import com.instrumentalist.krs.utils.math.TickTimer;
+import com.instrumentalist.krs.utils.value.BooleanValue;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.level.GameType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -35,7 +40,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class AutoPot extends Module {
+public class AutoHeal extends Module {
     private boolean wasRotating = false;
     private boolean potted = false;
     private boolean resetPotiHaveAEffect = false;
@@ -62,12 +67,25 @@ public class AutoPot extends Module {
     private final ArrayList<Holder<MobEffect>> potionOrder = new ArrayList<>(potions.size());
     private final ArrayList<Holder<MobEffect>> needPots = new ArrayList<>(potions.size());
 
-    public AutoPot() {
-        super("Auto Pot", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
+    @Setting
+    private static final BooleanValue autoPot = new BooleanValue("Auto Pot", false);
+
+    @Setting
+    private final BooleanValue autoTotem = new BooleanValue("Auto Totem", false);
+
+    private final MSTimer totemSwapTimer = new MSTimer();
+
+    public AutoHeal() {
+        super("Auto Heal", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
+    }
+
+    public static boolean isPotActive() {
+        return ModuleManager.getModuleState(AutoHeal.class) && autoPot.get();
     }
 
     @Override
     public void onDisable() {
+        totemSwapTimer.reset();
         if (mc.player == null) return;
         BehaviorUtils.noKillAura = false;
         PlayerUtil.INSTANCE.stopSpoof();
@@ -90,11 +108,61 @@ public class AutoPot extends Module {
     }
 
     @Override
+    public void onWorld(WorldEvent event) {
+        totemSwapTimer.reset();
+    }
+
+    @Override
     public void onUpdate(UpdateEvent event) {
+        if (autoTotem.get())
+            updateTotem();
+
+        updatePot();
+    }
+
+    private void updateTotem() {
+        var player = mc.player;
+        var gameMode = mc.gameMode;
+        if (player == null || gameMode == null || gameMode.getPlayerMode() == GameType.SPECTATOR)
+            return;
+
+        if (mc.gui.screen() instanceof ContainerScreen)
+            return;
+
+        if (player.getOffhandItem().getItem() == Items.TOTEM_OF_UNDYING)
+            return;
+
+        if (!totemSwapTimer.hasTimePassed(150L))
+            return;
+
+        int sourceSlot = findTotemInventorySlot();
+        if (sourceSlot == -1)
+            return;
+
+        gameMode.handleContainerInput(player.containerMenu.containerId, sourceSlot, 40, ContainerInput.SWAP, player);
+        totemSwapTimer.reset();
+    }
+
+    private int findTotemInventorySlot() {
+        var player = mc.player;
+        if (player == null)
+            return -1;
+
+        for (int i = 0; i < Math.min(36, player.getInventory().getContainerSize()); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.getItem() == Items.TOTEM_OF_UNDYING)
+                return i < 9 ? i + 36 : i;
+        }
+
+        return -1;
+    }
+
+    private void updatePot() {
         var player = mc.player;
         if (player != null && isGroundDirectlyBelow(player))
             lastGroundTick = player.tickCount;
         if (player == null
+                || !autoPot.get()
                 || !canThrowHere(player)
                 || mc.gui.screen() instanceof ContainerScreen
                 || resetPotiHaveAEffect
@@ -317,7 +385,7 @@ public class AutoPot extends Module {
         var player = mc.player;
         return player != null
                 && throwing
-                && ModuleManager.getModuleState(AutoPot.class)
+                && isPotActive()
                 && player.getMainHandItem().getItem() instanceof SplashPotionItem;
     }
 

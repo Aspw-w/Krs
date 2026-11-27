@@ -5,13 +5,24 @@ import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
+import com.instrumentalist.krs.utils.math.MSTimer;
+import com.instrumentalist.krs.utils.move.MovementUtil;
+import com.instrumentalist.krs.utils.packet.PacketUtil;
+import com.instrumentalist.krs.utils.value.BooleanValue;
 import com.instrumentalist.krs.utils.value.FloatValue;
+import com.instrumentalist.krs.utils.value.IntValue;
+import com.instrumentalist.krs.utils.value.ListValue;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import com.instrumentalist.krs.utils.input.Keys;
+
+import java.util.Locale;
 
 public class ElytraFly extends Module {
 
@@ -21,6 +32,19 @@ public class ElytraFly extends Module {
     @Setting
     private final FloatValue verticalSpeed = new FloatValue("Vertical Speed", 1.2f, 0.1f, 4f);
 
+    @Setting
+    private final BooleanValue autoRocket = new BooleanValue("Auto Rocket", false);
+
+    @Setting
+    private final ListValue rocketMode = new ListValue("Rocket Mode", new String[]{"Low Speed", "Jump", "Always"}, "Low Speed", autoRocket::get);
+
+    @Setting
+    private final FloatValue rocketSpeed = new FloatValue("Rocket Speed", 0.7f, 0.1f, 3.0f, () -> autoRocket.get() && rocketMode.get().equalsIgnoreCase("low speed"));
+
+    @Setting
+    private final IntValue rocketDelay = new IntValue("Rocket Delay", 1500, 100, 5000, "ms", autoRocket::get);
+
+    private final MSTimer rocketTimer = new MSTimer();
     private boolean wasFallFlying;
 
     public ElytraFly() {
@@ -85,6 +109,50 @@ public class ElytraFly extends Module {
             player.setDeltaMovement(Vec3.ZERO);
 
         wasFallFlying = fallFlying;
+
+        if (autoRocket.get())
+            updateAutoRocket(player);
+    }
+
+    private void updateAutoRocket(LocalPlayer player) {
+        var gameMode = mc.gameMode;
+        if (gameMode == null || !player.isFallFlying() || mc.gui.screen() != null || !rocketTimer.hasTimePassed(rocketDelay.get()) || !shouldUseRocket())
+            return;
+
+        int slot = findRocketSlot(player);
+        if (slot == -1)
+            return;
+
+        int oldSlot = player.getInventory().getSelectedSlot();
+        if (slot != oldSlot) {
+            player.getInventory().setSelectedSlot(slot);
+            PacketUtil.sendPacket(new ServerboundSetCarriedItemPacket(slot));
+        }
+
+        gameMode.useItem(player, InteractionHand.MAIN_HAND);
+
+        if (slot != oldSlot) {
+            player.getInventory().setSelectedSlot(oldSlot);
+            PacketUtil.sendPacket(new ServerboundSetCarriedItemPacket(oldSlot));
+        }
+
+        rocketTimer.reset();
+    }
+
+    private boolean shouldUseRocket() {
+        return switch (rocketMode.get().toLowerCase(Locale.ROOT)) {
+            case "jump" -> mc.options.keyJump.isDown();
+            case "always" -> true;
+            default -> MovementUtil.getSpeed() <= rocketSpeed.get();
+        };
+    }
+
+    private int findRocketSlot(LocalPlayer player) {
+        for (int i = 0; i <= 8; i++) {
+            if (player.getInventory().getItem(i).getItem() == Items.FIREWORK_ROCKET)
+                return i;
+        }
+        return -1;
     }
 
     @Override
@@ -95,6 +163,7 @@ public class ElytraFly extends Module {
     @Override
     public void onEnable() {
         wasFallFlying = false;
+        rocketTimer.reset();
     }
 
     private boolean isKeyDown(KeyMapping key) {

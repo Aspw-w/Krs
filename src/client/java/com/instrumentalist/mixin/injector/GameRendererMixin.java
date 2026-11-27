@@ -232,7 +232,7 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
             cancelNextBobView = false;
         }
 
-        if (!ci.isCancelled() && ModuleManager.getModuleState(FPSBobbing.class)) {
+        if (!ci.isCancelled() && Camera.isFpsBobbingActive()) {
             Entity cameraEntity = mc.getCameraEntity();
             if (cameraEntity instanceof AbstractClientPlayer player) {
                 float tickDelta = krs$currentCameraTickDelta;
@@ -292,7 +292,7 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
     private void hideHand(CameraRenderState cameraRenderState, PlayerRenderState playerState, GpuTextureView depthTextureView, CallbackInfo ci) {
         cancelNextBobView = false;
 
-        if (Zoom.shouldZoom())
+        if (Camera.shouldZoom())
             ci.cancel();
     }
 
@@ -322,7 +322,7 @@ public abstract class GameRendererMixin implements DebugOverlayRenderer, IMinecr
 
     @Inject(method = "bobHurt", at = @At("HEAD"), cancellable = true)
     private void noHurtCamHook(CameraRenderState cameraRenderState, PoseStack matrixStack, CallbackInfo ci) {
-        if (ModuleManager.getModuleState(NoHurtCam.class))
+        if (NoRender.active(NoRender.hurtCam))
             ci.cancel();
     }
 }

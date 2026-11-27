@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
 import com.instrumentalist.krs.hacks.features.render.OldHitting;
-import com.instrumentalist.krs.hacks.features.render.ViewModel;
+import com.instrumentalist.krs.hacks.features.render.Camera;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.utils.render.FirstPersonItemOverrides;
 import com.instrumentalist.mixin.oringo.ILegacyHeldItems;
@@ -64,8 +64,8 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
     @Unique
     private boolean shouldKeepOldEatSwingItemVisible(LocalPlayer player) {
         return player != null
-                && ModuleManager.getModuleState(ViewModel.class)
-                && ViewModel.oldEatSwing.get()
+                && ModuleManager.getModuleState(Camera.class)
+                && Camera.oldEatSwing.get()
                 && player.isUsingItem()
                 && player.getUseItem().getUseAnimation() != ItemUseAnimation.NONE;
     }
@@ -97,7 +97,7 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
 
     @Unique
     private void replaceVisibleItemsWithoutEquipAnimation(LocalPlayer player) {
-        if (player == null || !ViewModel.shouldSkipEquipAnimation())
+        if (player == null || !Camera.shouldSkipEquipAnimation())
             return;
 
         this.mainHandItem = getMainHandTarget(player);

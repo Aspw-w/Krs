@@ -1,6 +1,6 @@
 package com.instrumentalist.mixin.injector;
 
-import com.instrumentalist.krs.hacks.features.render.Zoom;
+import com.instrumentalist.krs.hacks.features.render.Camera;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
@@ -13,7 +13,7 @@ public abstract class IrisHandRendererMixin {
 
     @Inject(method = "canRender(Lnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/GameRenderer;)Z", at = @At("HEAD"), cancellable = true, require = 0)
     private void krs$hideHandWhileZooming(CallbackInfoReturnable<Boolean> cir) {
-        if (Zoom.shouldZoom())
+        if (Camera.shouldZoom())
             cir.setReturnValue(false);
     }
 }

@@ -7,12 +7,10 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
-import com.instrumentalist.krs.hacks.features.render.AntiBlind;
-import com.instrumentalist.krs.hacks.features.render.CameraNoClip;
+import com.instrumentalist.krs.hacks.features.render.NoRender;
 import com.instrumentalist.krs.hacks.features.movement.LongJump;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.hacks.features.render.WidelyPutin;
-import com.instrumentalist.krs.hacks.features.render.Zoom;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.client.DeltaTracker;
@@ -96,12 +94,12 @@ public abstract class CameraMixin implements IMinecraft {
 
     @ModifyVariable(at = @At("HEAD"), method = "getMaxZoom(F)F", argsOnly = true, name = "cameraDist")
     private float cameraDistanceHook(float cameraDist) {
-        return ModuleManager.getModuleState(CameraNoClip.class) ? CameraNoClip.distance.get() + cameraDist : cameraDist;
+        return com.instrumentalist.krs.hacks.features.render.Camera.isNoClipActive() ? com.instrumentalist.krs.hacks.features.render.Camera.getNoClipDistance() + cameraDist : cameraDist;
     }
 
     @Inject(method = "getMaxZoom(F)F", at = @At(value = "HEAD"), cancellable = true)
     public void cameraNoClipHook(float cameraDist, CallbackInfoReturnable<Float> ci) {
-        if (ModuleManager.getModuleState(CameraNoClip.class) || ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly())
+        if (com.instrumentalist.krs.hacks.features.render.Camera.isNoClipActive() || ModuleManager.getModuleState(Freecam.class) && Freecam.getCanFly())
             ci.setReturnValue(cameraDist);
     }
 
@@ -203,7 +201,7 @@ public abstract class CameraMixin implements IMinecraft {
 
     @ModifyReturnValue(method = "calculateFov", at = @At("RETURN"))
     private float zoomHook(float original) {
-        return Zoom.zoomFovHook(original);
+        return com.instrumentalist.krs.hacks.features.render.Camera.zoomFovHook(original);
     }
 
     @ModifyArgs(method = "setupPerspective", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/Projection;setupPerspective(FFFFF)V"))
@@ -215,7 +213,7 @@ public abstract class CameraMixin implements IMinecraft {
 
     @Inject(at = @At("HEAD"), method = "getFluidInCamera()Lnet/minecraft/world/level/material/FogType;", cancellable = true)
     private void antiBlindHook(CallbackInfoReturnable<FogType> ci) {
-        if (ModuleManager.getModuleState(AntiBlind.class) && AntiBlind.camera.get())
+        if (NoRender.active(NoRender.camera))
             ci.setReturnValue(FogType.NONE);
     }
 }

@@ -1,7 +1,7 @@
 package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.render.AntiBlind;
+import com.instrumentalist.krs.hacks.features.render.NoRender;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.ScreenEffectRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -16,7 +16,7 @@ public abstract class InGameOverlayRendererMixin {
 
     @Inject(method = "submitFire", at = @At("HEAD"), cancellable = true)
     private static void antiBlindHook(PoseStack poseStack, SubmitNodeCollector submitter, TextureAtlasSprite sprite, CallbackInfo ci) {
-        if (ModuleManager.getModuleState(AntiBlind.class) && AntiBlind.fire.get())
+        if (NoRender.active(NoRender.fire))
             ci.cancel();
     }
 }

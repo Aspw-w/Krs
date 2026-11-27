@@ -13,6 +13,7 @@ import com.instrumentalist.krs.utils.math.ToolUtil;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.packet.PacketUtil;
 import com.instrumentalist.krs.utils.value.BooleanValue;
+import com.instrumentalist.krs.utils.value.FloatValue;
 import com.instrumentalist.krs.utils.value.ListValue;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -32,6 +33,8 @@ import net.minecraft.world.item.SplashPotionItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUseAnimation;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
 import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.ArrayDeque;
@@ -40,16 +43,28 @@ import java.util.Locale;
 public class NoSlow extends Module {
 
     @Setting
-    private static final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "Hypixel NCP", "Watchdog Legacy", "Prediction", "Grim"}, "Vanilla");
+    private static final BooleanValue items = new BooleanValue("Items", true);
 
     @Setting
-    private static final BooleanValue sneak = new BooleanValue("Sneak", false, () -> mode.get().equalsIgnoreCase("vanilla"));
+    private static final ListValue mode = new ListValue("Mode", new String[]{"Vanilla", "Hypixel NCP", "Watchdog Legacy", "Prediction", "Grim"}, "Vanilla", items::get);
 
     @Setting
-    private static final BooleanValue predictionFoodSprint = new BooleanValue("Food Sprint", true, () -> mode.get().equalsIgnoreCase("prediction"));
+    private static final BooleanValue sneak = new BooleanValue("Sneak", false, () -> items.get() && mode.get().equalsIgnoreCase("vanilla"));
 
     @Setting
-    private static final ListValue grimMode = new ListValue("Grim Mode", new String[]{"2 Tick", "1.19"}, "2 Tick", () -> mode.get().equalsIgnoreCase("grim"));
+    private static final BooleanValue predictionFoodSprint = new BooleanValue("Food Sprint", true, () -> items.get() && mode.get().equalsIgnoreCase("prediction"));
+
+    @Setting
+    private static final ListValue grimMode = new ListValue("Grim Mode", new String[]{"2 Tick", "1.19"}, "2 Tick", () -> items.get() && mode.get().equalsIgnoreCase("grim"));
+
+    @Setting
+    private static final BooleanValue noWeb = new BooleanValue("No Web", false);
+
+    @Setting
+    private static final FloatValue webSpeed = new FloatValue("Web Speed", 0.35f, 0.05f, 1.0f, noWeb::get);
+
+    @Setting
+    private static final BooleanValue webVertical = new BooleanValue("Web Vertical", true, noWeb::get);
 
     private static int lastSneakInputTick = Integer.MIN_VALUE;
     private boolean waitingPacket = false;
@@ -71,7 +86,11 @@ public class NoSlow extends Module {
 
     @Override
     public String tag() {
-        return mode.get();
+        return items.get() ? mode.get() : null;
+    }
+
+    public static boolean isItemsActive() {
+        return ModuleManager.getModuleState(NoSlow.class) && items.get();
     }
 
     @Override
@@ -95,6 +114,16 @@ public class NoSlow extends Module {
     public void onTick(TickEvent event) {
         var player = mc.player;
         if (player == null) return;
+
+        if (!items.get()) {
+            if (predictionBlinking || predictionBlocking || predictionAwaitingReblock || predictionReblockPending) {
+                stopPredictionBlink();
+                resetPredictionFlags();
+            }
+            resetGrim();
+            waitingPacket = false;
+            return;
+        }
 
         if (mode.get().equalsIgnoreCase("grim"))
             updateGrim(player);
@@ -251,7 +280,7 @@ public class NoSlow extends Module {
         var player = mc.player;
         return player != null
                 && !predictionInternalStartUse
-                && ModuleManager.getModuleState(NoSlow.class)
+                && isItemsActive()
                 && mode.get().equalsIgnoreCase("prediction")
                 && ToolUtil.INSTANCE.isSword(player.getMainHandItem());
     }
@@ -263,7 +292,7 @@ public class NoSlow extends Module {
     @Override
     public void onMotion(MotionEvent event) {
         var player = mc.player;
-        if (player == null) return;
+        if (player == null || !items.get()) return;
 
         if (mode.get().equalsIgnoreCase("prediction")) {
             handlePredictionMotion(event, player);
@@ -309,7 +338,7 @@ public class NoSlow extends Module {
     @Override
     public void onSendPacket(SendPacketEvent event) {
         var player = mc.player;
-        if (player == null) return;
+        if (player == null || !items.get()) return;
 
         var packet = event.packet;
         if (predictionBlinking && mode.get().equalsIgnoreCase("prediction")) {
@@ -341,6 +370,11 @@ public class NoSlow extends Module {
         var player = mc.player;
         if (player == null) return;
 
+        if (noWeb.get())
+            updateWeb();
+
+        if (!items.get()) return;
+
         if (mode.get().equalsIgnoreCase("prediction")
                 && predictionFoodSprint.get()
                 && player.isUsingItem()
@@ -364,7 +398,7 @@ public class NoSlow extends Module {
     public static boolean shouldNoSlowSneak() {
         var player = mc.player;
         if (player == null
-                || !ModuleManager.getModuleState(NoSlow.class)
+                || !isItemsActive()
                 || !mode.get().equalsIgnoreCase("vanilla")
                 || !sneak.get())
             return false;
@@ -379,7 +413,7 @@ public class NoSlow extends Module {
     }
 
     public static boolean noSlowHook() {
-        if (!ModuleManager.getModuleState(NoSlow.class))
+        if (!isItemsActive())
             return false;
 
         switch (mode.get().toLowerCase(Locale.ROOT)) {
@@ -401,7 +435,7 @@ public class NoSlow extends Module {
 
     public static boolean shouldNoSlowUseItem() {
         var player = mc.player;
-        if (player == null || !ModuleManager.getModuleState(NoSlow.class))
+        if (player == null || !isItemsActive())
             return false;
 
         if (mode.get().equalsIgnoreCase("prediction"))
@@ -464,4 +498,35 @@ public class NoSlow extends Module {
         return stack.has(DataComponents.FOOD) || item == Items.POTION || item instanceof BowItem || item == Items.MILK_BUCKET;
     }
 
+    private void updateWeb() {
+        if (!isInWeb()) return;
+
+        if (MovementUtil.isMoving())
+            MovementUtil.setSpeed(Math.max(MovementUtil.getSpeed(), webSpeed.get()));
+
+        if (webVertical.get()) {
+            if (mc.options.keyJump.isDown())
+                MovementUtil.setVelocityY(webSpeed.get());
+            else if (mc.options.keyShift.isDown())
+                MovementUtil.setVelocityY(-webSpeed.get());
+        }
+    }
+
+    private boolean isInWeb() {
+        var player = mc.player;
+        var level = mc.level;
+        if (player == null || level == null)
+            return false;
+
+        AABB box = player.getBoundingBox();
+        for (int x = (int) Math.floor(box.minX); x <= (int) Math.floor(box.maxX); x++) {
+            for (int y = (int) Math.floor(box.minY); y <= (int) Math.floor(box.maxY); y++) {
+                for (int z = (int) Math.floor(box.minZ); z <= (int) Math.floor(box.maxZ); z++) {
+                    if (level.getBlockState(new BlockPos(x, y, z)).is(Blocks.COBWEB))
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
 }

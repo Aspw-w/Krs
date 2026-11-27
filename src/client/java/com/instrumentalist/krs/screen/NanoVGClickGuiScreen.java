@@ -737,19 +737,24 @@ public class NanoVGClickGuiScreen extends Screen {
         Shader2DRenderer.INSTANCE.beginFrame();
 
         float zoom = 0.5f + 0.5f * (openProgress * openProgress * (3f - 2f * openProgress));
+        float alpha = openProgress * openProgress * openProgress;
+        renderZoomed(vg, screenWidth, screenHeight, zoom, alpha, () -> renderConfigManager(vg, screenWidth, screenHeight));
+        renderNotificationsOnTop(vg);
+        renderZoomed(vg, screenWidth, screenHeight, zoom, alpha, () -> {
+            renderColumnView(vg, screenWidth, screenHeight);
+            renderFloatingModulePanel(vg, screenWidth, screenHeight);
+            renderHoverTooltip(vg);
+        });
+        applyHoverCursor();
+    }
+
+    private void renderZoomed(NVGU vg, float screenWidth, float screenHeight, float zoom, float alpha, Runnable renderer) {
         vg.scale(screenWidth / 2f, screenHeight / 2f, zoom);
         try {
-            vg.globalAlpha(openProgress * openProgress * openProgress, () -> {
-                renderColumnView(vg, screenWidth, screenHeight);
-                renderConfigManager(vg, screenWidth, screenHeight);
-                renderFloatingModulePanel(vg, screenWidth, screenHeight);
-                renderHoverTooltip(vg);
-            });
+            vg.globalAlpha(alpha, renderer);
         } finally {
             vg.scale(screenWidth / 2f, screenHeight / 2f, 1f / zoom);
         }
-        renderNotificationsOnTop(vg);
-        applyHoverCursor();
     }
 
     private void renderNotificationsOnTop(NVGU vg) {

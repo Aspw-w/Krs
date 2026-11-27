@@ -14,7 +14,8 @@ import com.instrumentalist.krs.utils.math.TimerUtil;
 import com.instrumentalist.krs.hacks.features.player.Freecam;
 import com.instrumentalist.krs.hacks.features.exploit.Blink;
 import com.instrumentalist.krs.hacks.features.exploit.disabler.DisablerModule;
-import com.instrumentalist.krs.hacks.features.player.LookTP;
+import com.instrumentalist.krs.hacks.features.exploit.LookTP;
+import com.instrumentalist.krs.hacks.features.exploit.Teleportation;
 import com.instrumentalist.krs.hacks.features.player.MurdererDetector;
 import com.instrumentalist.krs.hacks.features.player.Scaffold;
 import com.instrumentalist.krs.hacks.features.exploit.disabler.features.HypixelDisabler;
@@ -1583,7 +1584,7 @@ public class Interface extends Module {
             entries.add(new StyledTextRenderEntry("Disabling... " + HypixelDisabler.airStuckTicks + "/25", centerX, startY, progress));
         if (hypixelDisablerActive) startY -= 40f;
 
-        LookTP lookTP = ModuleManager.getModule(LookTP.class);
+        LookTP lookTP = Teleportation.lookTeleport();
         boolean lookTpTeleporting = lookTP != null && lookTP.isClientsideTeleporting();
         progress = advanceModuleInformationFade(INFO_LOOK_TP, lookTpTeleporting, deltaSpeed);
         if (progress > 0f)

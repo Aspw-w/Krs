@@ -7,6 +7,7 @@ import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.HandleInputEvent;
 import com.instrumentalist.krs.events.features.Render3DEvent;
 import com.instrumentalist.krs.events.features.SendPacketEvent;
+import com.instrumentalist.krs.events.features.WorldEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
@@ -316,6 +317,15 @@ public class KillAura extends Module {
     @Setting
     private final TextValue preferTargetId = new TextValue("Prefer Target ID", "1zun4");
 
+    @Setting
+    public static final BooleanValue targetStrafe = new BooleanValue("Target Strafe", false);
+
+    @Setting
+    public static final FloatValue strafeDistance = new FloatValue("Strafe Distance", 1f, 0.3f, 8f, "m", targetStrafe::get);
+
+    @Setting
+    public static final BooleanValue strafeJumpOnly = new BooleanValue("Strafe Jump Only", true, targetStrafe::get);
+
     public static Entity closestEntity = null;
     private static final Object PREDICTION_LINE = new Object();
     private static final int PREDICTION_TICKS = 10;
@@ -472,6 +482,7 @@ public class KillAura extends Module {
 
     @Override
     public void onDisable() {
+        TargetStrafe.disable();
         projectileAttacker.reset(true);
         restoreShieldBreakSlot(true);
         cancelPendingTeleportSequence();
@@ -487,6 +498,11 @@ public class KillAura extends Module {
 
     @Override
     public void onEnable() {
+    }
+
+    @Override
+    public void onWorld(WorldEvent event) {
+        TargetStrafe.resetSteering();
     }
 
     @Override
@@ -1264,7 +1280,7 @@ public class KillAura extends Module {
 
         switch (mode) {
             case "hypixel ncp":
-                if (ModuleManager.getModuleState(NoSlow.class))
+                if (NoSlow.isItemsActive())
                     spoofHypixelNoSlowSlot();
                 releaseAutoBlock();
                 break;
@@ -1952,6 +1968,8 @@ public class KillAura extends Module {
 
     @Override
     public void onRender3D(Render3DEvent event) {
+        TargetStrafe.render(event);
+
         Entity target = closestEntity;
         if (!targetPrediction.get() || target == null || mc.player == null || mc.level == null || target.isRemoved() || !target.isAlive()) {
             PathLines.hide(this, PREDICTION_LINE);

@@ -46,6 +46,21 @@ public class NoRender extends Module {
     @Setting
     public static final BooleanValue portalOverlay = new BooleanValue("Portal Overlay", true);
 
+    @Setting
+    public static final BooleanValue fire = new BooleanValue("Fire", false);
+
+    @Setting
+    public static final BooleanValue pumpkin = new BooleanValue("Pumpkin", false);
+
+    @Setting
+    public static final BooleanValue camera = new BooleanValue("Camera", false);
+
+    @Setting
+    public static final BooleanValue effects = new BooleanValue("Effects", false);
+
+    @Setting
+    public static final BooleanValue hurtCam = new BooleanValue("Hurt Cam", false);
+
     public NoRender() {
         super("No Render", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, false);
     }

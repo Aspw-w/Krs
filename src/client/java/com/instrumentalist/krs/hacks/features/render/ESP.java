@@ -91,7 +91,7 @@ public class ESP extends Module {
     private static boolean irisProjectionSynced = false;
 
     public ESP() {
-        super("ESP", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, true);
+        super("ESP", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, false);
     }
 
     @Override

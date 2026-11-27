@@ -4,7 +4,7 @@ import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.AttackEvent;
 import com.instrumentalist.krs.events.features.CancelBlockBreakingEvent;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.world.NoBreakCooldown;
+import com.instrumentalist.krs.hacks.features.player.FastBreak;
 import com.instrumentalist.krs.utils.world.QueuedMiner;
 import com.instrumentalist.krs.utils.entity.ItemUseHold;
 import net.minecraft.client.Minecraft;
@@ -64,7 +64,7 @@ public abstract class ClientPlayerInteractionManagerMixin {
 
     @Redirect(method = "continueDestroyBlock", at = @At(value = "FIELD", target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;destroyDelay:I", opcode = Opcodes.GETFIELD, ordinal = 0))
     public int noBreakCooldown(MultiPlayerGameMode clientPlayerInteractionManager) {
-        if (ModuleManager.getModuleState(NoBreakCooldown.class))
+        if (FastBreak.isNoBreakCooldownActive())
             return 0;
 
         return this.destroyDelay;

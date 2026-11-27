@@ -9,7 +9,7 @@ import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.nulling.PluginsDetector;
 import com.instrumentalist.krs.hacks.features.exploit.ServerCrasher;
 import com.instrumentalist.krs.hacks.features.player.ChatCommands;
-import com.instrumentalist.krs.hacks.features.render.ImGui;
+import com.instrumentalist.krs.hacks.features.render.ClickGui;
 import com.instrumentalist.krs.hacks.features.render.Interface;
 import com.instrumentalist.krs.utils.ChatUtil;
 import com.instrumentalist.krs.utils.network.FileUtil;
@@ -85,7 +85,7 @@ public class ModuleRenderable implements Renderable, IMinecraft {
 
     @Override
     public Theme getTheme() {
-        return switch (ImGui.theme.get().toLowerCase()) {
+        return switch (ClickGui.theme.get().toLowerCase()) {
             case "light" -> LIGHT_THEME;
             case "dark" -> DARK_THEME;
             default -> CLASSIC_THEME;
@@ -191,7 +191,7 @@ public class ModuleRenderable implements Renderable, IMinecraft {
     private void renderModuleEntry(Module module) {
         imgui.ImGui.pushID(module.moduleName);
         try {
-            boolean lightTheme = ImGui.theme.get().equalsIgnoreCase("light");
+            boolean lightTheme = ClickGui.theme.get().equalsIgnoreCase("light");
             if (module.tempEnabled && lightTheme) {
                 imgui.ImGui.pushStyleColor(ImGuiCol.Header, 206, 212, 255, 255);
                 imgui.ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 190, 198, 252, 255);

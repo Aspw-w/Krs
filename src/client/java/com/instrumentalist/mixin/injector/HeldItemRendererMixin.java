@@ -3,7 +3,7 @@ package com.instrumentalist.mixin.injector;
 import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.OldHitting;
-import com.instrumentalist.krs.hacks.features.render.ViewModel;
+import com.instrumentalist.krs.hacks.features.render.Camera;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.instrumentalist.krs.utils.render.custommodel.CustomModelRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -45,7 +45,7 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
         float realEquipProgress = equipProgress;
         float sizeModifier = getItemModelScale();
 
-        if (ViewModel.shouldSkipEquipAnimation())
+        if (Camera.shouldSkipEquipAnimation())
             realEquipProgress = 0f;
 
         matrices.translate(direction * 0.56F, -0.52F, -0.71999997F);
@@ -268,7 +268,7 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
 
     @Inject(method = "swingArm", at = @At("HEAD"), cancellable = true)
     private void fluxSwingHook(float swingProgress, PoseStack matrices, int armX, HumanoidArm arm, CallbackInfo ci) {
-        if (ModuleManager.getModuleState(ViewModel.class) && ViewModel.fluxSwing.get())
+        if (ModuleManager.getModuleState(Camera.class) && Camera.fluxSwing.get())
             this.customFluxSwingArm(swingProgress, matrices, arm, ci);
     }
 
@@ -285,7 +285,7 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
         if (ci != null)
             ci.cancel();
 
-        if (!(ci != null && ModuleManager.getModuleState(ViewModel.class) && ViewModel.fluxSwing.get())) {
+        if (!(ci != null && ModuleManager.getModuleState(Camera.class) && Camera.fluxSwing.get())) {
             float f = -0.4F * Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
             float g = 0.2F * Mth.sin(Mth.sqrt(swingProgress) * ((float) Math.PI * 2F));
             float h = -0.2F * Mth.sin(swingProgress * (float) Math.PI);
@@ -303,7 +303,7 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
         float realEquipProgress = equipProgress;
         float sizeModifier = getItemModelScale();
 
-        if (ViewModel.shouldSkipEquipAnimation())
+        if (Camera.shouldSkipEquipAnimation())
             realEquipProgress = 0f;
 
         int i = arm == HumanoidArm.RIGHT ? 1 : -1;
@@ -315,13 +315,13 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
 
     @Unique
     private void applyCustomItemPosition(PoseStack matrices, HumanoidArm arm) {
-        if (!ModuleManager.getModuleState(ViewModel.class))
+        if (!ModuleManager.getModuleState(Camera.class))
             return;
 
         final int direction = arm == HumanoidArm.RIGHT ? 1 : -1;
-        final float positionX = ViewModel.itemPositionX.get();
-        final float positionY = ViewModel.itemPositionY.get();
-        final float positionZ = ViewModel.itemPositionZ.get();
+        final float positionX = Camera.itemPositionX.get();
+        final float positionY = Camera.itemPositionY.get();
+        final float positionZ = Camera.itemPositionZ.get();
 
         if (positionX == 0.0F && positionY == 0.0F && positionZ == 0.0F)
             return;
@@ -336,7 +336,7 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
 
         float realEquipProgress = equipProgress;
 
-        if (ViewModel.shouldSkipEquipAnimation())
+        if (Camera.shouldSkipEquipAnimation())
             realEquipProgress = 0f;
 
         boolean bl = arm != HumanoidArm.LEFT;
@@ -370,7 +370,7 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
 
     @Unique
     private boolean shouldApplyOldEatSwing(AbstractClientPlayer player, InteractionHand hand, ItemStack stack) {
-        if (!ModuleManager.getModuleState(ViewModel.class) || !ViewModel.oldEatSwing.get())
+        if (!ModuleManager.getModuleState(Camera.class) || !Camera.oldEatSwing.get())
             return false;
         if (!player.isUsingItem() || player.getUsedItemHand() != hand)
             return false;
@@ -385,7 +385,7 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
 
     @Unique
     private void slightlyTiltItemPosition(AbstractClientPlayer player, InteractionHand hand, ItemStack stack, PoseStack matrices, boolean moduleCheck) {
-        if ((!moduleCheck || ModuleManager.getModuleState(ViewModel.class) && ViewModel.oldItemPosition.get()) && !(stack.getItem() instanceof BlockItem)) {
+        if ((!moduleCheck || ModuleManager.getModuleState(Camera.class) && Camera.oldItemPosition.get()) && !(stack.getItem() instanceof BlockItem)) {
             final HumanoidArm arm = hand == InteractionHand.MAIN_HAND ? player.getMainArm() : player.getMainArm().getOpposite();
             final int direction = arm == HumanoidArm.RIGHT ? 1 : -1;
 
@@ -414,8 +414,8 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
         HumanoidArm arm = bl || substituteMainHand ? player.getMainArm() : player.getMainArm().getOpposite();
         final int direction = arm == HumanoidArm.RIGHT ? 1 : -1;
 
-        if (ModuleManager.getModuleState(ViewModel.class)) {
-            float itemFovScale = bl || substituteMainHand ? Mth.clamp(1f + ViewModel.itemFov.get(), 0.1F, 3.0F) : 1f;
+        if (ModuleManager.getModuleState(Camera.class)) {
+            float itemFovScale = bl || substituteMainHand ? Mth.clamp(1f + Camera.itemFov.get(), 0.1F, 3.0F) : 1f;
             matrices.scale(1f, 1f, itemFovScale);
         }
 
@@ -519,24 +519,24 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
 
     @Unique
     private boolean shouldUseCustomEquipOffset() {
-        return ViewModel.shouldSkipEquipAnimation() || ModuleManager.getModuleState(ViewModel.class) && (getItemModelScale() != 1.0F || hasCustomItemPosition());
+        return Camera.shouldSkipEquipAnimation() || ModuleManager.getModuleState(Camera.class) && (getItemModelScale() != 1.0F || hasCustomItemPosition());
     }
 
     @Unique
     private float getItemModelScale() {
-        if (!ModuleManager.getModuleState(ViewModel.class))
+        if (!ModuleManager.getModuleState(Camera.class))
             return 1.0F;
 
-        return Mth.clamp(1.0F + ViewModel.itemSize.get(), 0.1F, 3.0F);
+        return Mth.clamp(1.0F + Camera.itemSize.get(), 0.1F, 3.0F);
     }
 
     @Unique
     private boolean hasCustomItemPosition() {
-        if (!ModuleManager.getModuleState(ViewModel.class))
+        if (!ModuleManager.getModuleState(Camera.class))
             return false;
 
-        return ViewModel.itemPositionX.get() != 0.0F
-                || ViewModel.itemPositionY.get() != 0.0F
-                || ViewModel.itemPositionZ.get() != 0.0F;
+        return Camera.itemPositionX.get() != 0.0F
+                || Camera.itemPositionY.get() != 0.0F
+                || Camera.itemPositionZ.get() != 0.0F;
     }
 }

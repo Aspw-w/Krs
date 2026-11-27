@@ -66,7 +66,7 @@ public class NameTags extends Module {
     private long lastNameCachePrune;
 
     public NameTags() {
-        super("Name Tags", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, true);
+        super("Name Tags", ModuleCategory.Render, Keys.KEY_UNKNOWN, false, false);
     }
 
     @Override

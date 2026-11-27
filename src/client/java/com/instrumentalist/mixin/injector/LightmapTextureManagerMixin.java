@@ -2,7 +2,7 @@ package com.instrumentalist.mixin.injector;
 
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
-import com.instrumentalist.krs.hacks.features.render.AntiBlind;
+import com.instrumentalist.krs.hacks.features.render.NoRender;
 import com.instrumentalist.krs.hacks.features.render.FullBright;
 import net.minecraft.client.renderer.LightmapRenderStateExtractor;
 import net.minecraft.client.renderer.state.LightmapRenderState;
@@ -29,7 +29,7 @@ public abstract class LightmapTextureManagerMixin {
             state.nightVisionColor = LightmapRenderStateExtractor.WHITE;
             state.bossOverlayWorldDarkening = 0.0F;
         }
-        if (ModuleManager.getModuleState(AntiBlind.class) && AntiBlind.effects.get()) {
+        if (NoRender.active(NoRender.effects)) {
             state.needsUpdate = true;
             state.darknessEffectScale = 0f;
         }

@@ -68,36 +68,20 @@ public class ModuleManager implements EventListener {
         clearModuleRegistry();
 
         modules.addAll(List.of(
-                new SpeedModule(), new FlyModule(), new ElytraFly(), new EntityControl(), new NoBreakCooldown(), new NoPlaceCooldown(),
-                new Interface(), new KillAura(), new Backtrack(),
-                new SpinBot(), new BrandSpoofer(), new AntiBot(), new AutoPot(), new Criticals(),
-                new Teams(), new Velocity(), new Phase(), new ServerCrasher(), new Spammer(),
-                new PerfectHorseJump(), new InventoryMove(), new Jesus(), new NoSlow(), new LongJump(),
-                new ChestStealer(), new FastLadder(), new InvManager(), new NoFall(), new AirPlace(),
-                new Sprint(), new ThunderDetector(), new KillEffect(), new Trails(), new NoRender(), new Camera(), new CameraNoClip(),
-                new AntiBlind(), new Breaker(), new CivBreak(), new Timer(), new Nuker(), new NoteBot(),
-                new Xray(), new CaveFinder(), new Scaffold(), new Blink(), new ExploitPatcher(),
-                new PortalScreen(), new FullBright(), new TargetStrafe(), new DisablerModule(),
-                new OldHitting(), new Freecam(), new Capes(), new MurdererDetector(),
-                new NoHurtCam(), new FastBow(), new FastEat(), new HitBoxes(),
-                new Zoom(), new PathFinder(),
-                new FastBreak(), new ViewModel(), new EntityDesync(), new Step(), new AntiVoid(),
-                new AutoFish(), new NoJumpCooldown(), new AlwaysRiptide(),
-                new WorldTime(), new ChatCommands(), new ServerRotations(),
-                new PluginsDetector(), new NameTags(), new ESP(), new MovementFix(), new LongThrow(),
-                new MaceExploit(), new NoPush(), new LookTP(),
-                new AntiCheatDetector(), new HackerDetector(), new PackSpoofer(),
-                new EntityFly(), new WidelyPutin(), new Imposter(), new CustomModel(), new Stalker(),
-                new PacketDuper(), new SneakSpam(), new ImGui(), new ClickGui(), new ConsoleSpammer(),
-                new Reach(), new NoCombatDelay(), new AutoBypass(), new PingDisabler(), new QuickMacro(),
-                new FPSBobbing(), new CrossbowExploit(), new WTap(), new PianoProGamer(),
-                new SafeWalk(), new Parkour(), new AutoWalk(), new AutoRespawn(),
-                new AutoLeave(), new AutoSneak(), new MiddleClick(), new AntiAFK(), new SpeedEffectFix(),
-                new NoWeb(), new NoBlockEffects(), new AntiLevitation(), new FastFall(),
-                new Spider(), new AutoRocket(), new AutoTotem(), new VisualSpoofer(),
-                new XCarry(), new PortalGodMode(), new ChestTP(), new SurroundTP(),
-                new NoBreakReset(), new PacketMine(), new TrueSight(), new AutoTool(), new HUDHider(), new LegacyRenderer(), new RewoundHider(),
-                new Incognito()
+                new SpeedModule(), new FlyModule(), new ElytraFly(), new EntityControl(), new Interface(), new KillAura(), new Backtrack(),
+                new SpinBot(), new AntiBot(), new Criticals(), new Teams(), new Velocity(), new Phase(), new ServerCrasher(), new Spammer(),
+                new InventoryMove(), new Jesus(), new NoSlow(), new LongJump(), new ChestStealer(), new FastLadder(), new InvManager(), new NoFall(),
+                new Sprint(), new ThunderDetector(), new KillEffect(), new Trails(), new NoRender(), new Camera(), new Breaker(), new CivBreak(),
+                new Timer(), new Nuker(), new NoteBot(), new Xray(), new CaveFinder(), new Scaffold(), new Blink(), new ExploitPatcher(),
+                new FullBright(), new DisablerModule(), new OldHitting(), new Freecam(), new Capes(), new MurdererDetector(), new PathFinder(),
+                new FastBreak(), new EntityDesync(), new Step(), new AntiVoid(), new AutoFish(), new AlwaysRiptide(), new WorldTime(),
+                new ChatCommands(), new ServerRotations(), new PluginsDetector(), new NameTags(), new ESP(), new MovementFix(), 
+                new AntiCheatDetector(), new HackerDetector(), new WidelyPutin(), new Imposter(), new CustomModel(), new Stalker(),
+                new PacketDuper(), new SneakSpam(), new ClickGui(), new ConsoleSpammer(), new Reach(), new NoCombatDelay(),
+                new AutoBypass(), new PingDisabler(), new QuickMacro(), new WTap(), new PianoProGamer(), new SafeWalk(), new AutoWalk(),
+                new MiddleClick(), new SpeedEffectFix(), new NoBlockEffects(), new FastFall(), new Spider(), new VisualSpoofer(), new PacketMine(),
+                new TrueSight(), new AutoTool(), new HUDHider(), new LegacyRenderer(), new RewoundHider(), new FastUse(), new WeaponExploit(),
+                new AutoHeal(), new AntiEffects(), new FastPlace(), new Automation(), new ClientSpoofer(), new Portal(), new Teleportation()
         ));
 
         devModules.addAll(List.of(
@@ -306,14 +290,12 @@ public class ModuleManager implements EventListener {
 
         if (BlinkUtil.INSTANCE.getBlinking() && Blink.shouldBlinkOutgoing() && !BlinkUtil.INSTANCE.getLimiter() && !getModuleState(Freecam.class)) {
             if (KillAura.isSendingSpreadTeleportPacket()
-                    || ChestTP.isSendingSpreadTeleportPacket()
-                    || SurroundTP.isSendingSpreadTeleportPacket())
+                    || Teleportation.isSendingSpreadTeleportPacket())
                 return;
 
             if (packet instanceof ServerboundMovePlayerPacket
                     && (KillAura.shouldSuppressMovementDuringSpreadTeleport()
-                    || ChestTP.shouldSuppressMovement()
-                    || SurroundTP.shouldSuppressMovement())) {
+                    || Teleportation.shouldSuppressMovement())) {
                 event.cancel();
                 return;
             }
@@ -342,28 +324,30 @@ public class ModuleManager implements EventListener {
     public void onKey(KeyboardEvent event) {
         boolean shouldOpenEmptyScreen = false;
 
-        if (GuiInputBlocker.shouldBlockMinecraftKeyEvent(event.key) && (event.key != ImGui.getOpenGuiKey() || event.key != ClickGui.getOpenGuiKey()))
+        if (GuiInputBlocker.shouldBlockMinecraftKeyEvent(event.key))
             return;
 
-        if (event.key == ClickGui.getOpenGuiKey() && event.action == Keys.PRESS) {
-            if (mc.gui.screen() instanceof NanoVGClickGuiScreen screen) {
+        boolean guiKeyPressed = event.key == ClickGui.getOpenGuiKey() && event.action == Keys.PRESS;
+        if (guiKeyPressed) {
+            if (isDebugRendering) {
+                pullDebugScreen();
+            } else if (ClickGui.isImGuiMode()) {
+                Initializer.pushRenderable(new ModuleRenderable());
+                isDebugRendering = true;
+                GuiInputBlocker.releaseMovementKeys();
+                mc.mouseHandler.releaseMouse();
+                shouldOpenEmptyScreen = mc.gui.screen() == null;
+            } else if (mc.gui.screen() instanceof NanoVGClickGuiScreen screen) {
                 screen.onClose();
             } else {
                 GuiInputBlocker.releaseMovementKeys();
                 mc.mouseHandler.releaseMouse();
                 mc.gui.setScreen(new NanoVGClickGuiScreen(mc.gui.screen()));
             }
-        }
-
-        if ((event.key == ImGui.getOpenGuiKey() || event.key == Keys.KEY_ESCAPE) && event.action == Keys.PRESS) {
-            if (!isDebugRendering) {
-                if (event.key != ImGui.getOpenGuiKey()) return;
-                Initializer.pushRenderable(new ModuleRenderable());
-                isDebugRendering = true;
-                GuiInputBlocker.releaseMovementKeys();
-                mc.mouseHandler.releaseMouse();
-                shouldOpenEmptyScreen = mc.gui.screen() == null;
-            } else if (event.key == Keys.KEY_ESCAPE && !(mc.gui.screen() instanceof EmptyScreen) || event.key == ImGui.getOpenGuiKey())
+        } else if (event.key == Keys.KEY_ESCAPE && event.action == Keys.PRESS) {
+            if (!isDebugRendering)
+                return;
+            if (!(mc.gui.screen() instanceof EmptyScreen))
                 pullDebugScreen();
         }
 

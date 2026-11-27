@@ -4,7 +4,7 @@ import com.instrumentalist.krs.utils.IMinecraft;
 import com.instrumentalist.krs.Client;
 import com.instrumentalist.krs.events.features.RenderHudEvent;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.render.AntiBlind;
+import com.instrumentalist.krs.hacks.features.render.NoRender;
 import com.instrumentalist.krs.hacks.features.render.Interface;
 import com.instrumentalist.krs.utils.entity.PlayerUtil;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
@@ -91,7 +91,7 @@ public abstract class InGameHudMixin implements IMinecraft {
 
     @Inject(at = @At("HEAD"), method = "extractTextureOverlay(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/resources/Identifier;F)V", cancellable = true)
     private void antiBlindHook(GuiGraphicsExtractor context, Identifier texture, float opacity, CallbackInfo ci) {
-        if (ModuleManager.getModuleState(AntiBlind.class) && AntiBlind.pumpkin.get())
+        if (NoRender.active(NoRender.pumpkin))
             ci.cancel();
     }
 

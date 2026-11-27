@@ -4,25 +4,21 @@ package com.instrumentalist.krs.hacks.features.combat;
 
 import com.instrumentalist.krs.utils.render.RenderColors;
 import com.instrumentalist.krs.events.features.*;
-import com.instrumentalist.krs.hacks.Module;
-import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.movement.fly.FlyModule;
 import com.instrumentalist.krs.hacks.features.movement.speed.SpeedModule;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.render.PathLines;
 import com.instrumentalist.krs.utils.render.RenderUtil;
-import com.instrumentalist.krs.utils.value.BooleanValue;
-import com.instrumentalist.krs.utils.value.FloatValue;
+import com.instrumentalist.krs.utils.IMinecraft;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import com.instrumentalist.krs.utils.input.Keys;
 
 import java.util.ArrayList;
 
-public class TargetStrafe extends Module {
+public final class TargetStrafe implements IMinecraft {
 
     private static final double MIN_LOOK_AHEAD = 0.8;
     private static final double MAX_LOOK_AHEAD = 3.0;
@@ -40,28 +36,16 @@ public class TargetStrafe extends Module {
 
     private static float steeringOffset;
 
-    private final ArrayList<Vec3> orbitPoints = new ArrayList<>(ORBIT_SEGMENTS + 1);
+    private static final Object ORBIT_LINE = new Object();
+    private static final ArrayList<Vec3> orbitPoints = new ArrayList<>(ORBIT_SEGMENTS + 1);
 
-    public TargetStrafe() {
-        super("Target Strafe", ModuleCategory.Combat, Keys.KEY_UNKNOWN, false, true);
+    private TargetStrafe() {
     }
-
-    @Setting
-    public static FloatValue distance = new FloatValue(
-            "Distance",
-            1f,
-            0.3f,
-            8f,
-            "m"
-    );
-
-    @Setting
-    private static final BooleanValue jumpOnly = new BooleanValue("Jump Only", true);
 
     public static int direction = 1;
 
     public static boolean targetStrafeHook() {
-        return ModuleManager.getModuleState(TargetStrafe.class) && shouldDoStrafe();
+        return ModuleManager.getModuleState(KillAura.class) && KillAura.targetStrafe.get() && shouldDoStrafe();
     }
 
     private static boolean shouldDoStrafe() {
@@ -70,15 +54,15 @@ public class TargetStrafe extends Module {
             return false;
         }
 
-        return (ModuleManager.getModuleState(FlyModule.class) || ModuleManager.getModuleState(SpeedModule.class)) && (!jumpOnly.get() || InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyJump.saveString()).getValue())) && !InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyLeft.saveString()).getValue()) && !InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyRight.saveString()).getValue()) && !InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyDown.saveString()).getValue());
+        return (ModuleManager.getModuleState(FlyModule.class) || ModuleManager.getModuleState(SpeedModule.class)) && (!KillAura.strafeJumpOnly.get() || InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyJump.saveString()).getValue())) && !InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyLeft.saveString()).getValue()) && !InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyRight.saveString()).getValue()) && !InputConstants.isKeyDown(InputConstants.getKey(mc.options.keyDown.saveString()).getValue());
     }
 
     public static float getDesiredMovementYaw(float targetYaw, double targetDistance) {
         float yawOffset;
 
-        if (targetDistance >= distance.get() + 2.0f)
+        if (targetDistance >= KillAura.strafeDistance.get() + 2.0f)
             yawOffset = 0.0f;
-        else if (targetDistance > distance.get())
+        else if (targetDistance > KillAura.strafeDistance.get())
             yawOffset = 45.0f;
         else yawOffset = 90.0f;
 
@@ -390,7 +374,7 @@ public class TargetStrafe extends Module {
         return Math.max(min, Math.min(max, value));
     }
 
-    private static void resetSteering() {
+    static void resetSteering() {
         direction = 1;
         steeringOffset = 0.0f;
     }
@@ -401,24 +385,17 @@ public class TargetStrafe extends Module {
     public record SteeringResult(float yaw, boolean safe) {
     }
 
-    @Override
-    public String description() {
-        return "Use by pressing only the forward key";
-    }
-
-    @Override
-    public void onDisable() {
+    static void disable() {
         resetSteering();
-        PathLines.hide(this, this);
+        PathLines.hide(ORBIT_LINE, ORBIT_LINE);
     }
 
-    @Override
-    public void onRender3D(Render3DEvent event) {
+    static void render(Render3DEvent event) {
         Entity target = KillAura.closestEntity;
-        double radius = distance.get();
-        if (mc.player == null || mc.level == null || target == null || !target.isAlive()
+        double radius = KillAura.strafeDistance.get();
+        if (!KillAura.targetStrafe.get() || mc.player == null || mc.level == null || target == null || !target.isAlive()
                 || radius < MIN_ORBIT_RADIUS || !shouldDoStrafe()) {
-            PathLines.hide(this, this);
+            PathLines.hide(ORBIT_LINE, ORBIT_LINE);
             return;
         }
 
@@ -428,16 +405,6 @@ public class TargetStrafe extends Module {
             double angle = Math.PI * 2.0 * (segment % ORBIT_SEGMENTS) / ORBIT_SEGMENTS;
             orbitPoints.add(new Vec3(center.x + Math.cos(angle) * radius, center.y, center.z + Math.sin(angle) * radius));
         }
-        PathLines.show(this, this, null, orbitPoints, RenderColors.TARGET_STRAFE);
+        PathLines.show(ORBIT_LINE, ORBIT_LINE, null, orbitPoints, RenderColors.TARGET_STRAFE);
     }
-
-    @Override
-    public void onEnable() {
-    }
-
-    @Override
-    public void onWorld(WorldEvent event) {
-        resetSteering();
-    }
-
 }

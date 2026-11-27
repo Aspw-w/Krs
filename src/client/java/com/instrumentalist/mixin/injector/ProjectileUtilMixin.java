@@ -1,6 +1,6 @@
 package com.instrumentalist.mixin.injector;
 
-import com.instrumentalist.krs.hacks.features.combat.HitBoxes;
+import com.instrumentalist.krs.hacks.features.combat.Reach;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.Minecraft;
@@ -21,7 +21,7 @@ public abstract class ProjectileUtilMixin {
     private static AABB hitBoxesManySearchAreaHook(AABB area, @Local(argsOnly = true) Entity source) {
         if (source == null || source != Minecraft.getInstance().player)
             return area;
-        float expansion = HitBoxes.searchExpansion();
+        float expansion = Reach.searchExpansion();
         return expansion > 0f ? area.inflate(expansion) : area;
     }
 
@@ -32,7 +32,7 @@ public abstract class ProjectileUtilMixin {
     private static AABB hitBoxesManyEntityBoxHook(AABB box, @Local(argsOnly = true) Entity source, @Local(ordinal = 1) Entity entity) {
         if (source == null || source != Minecraft.getInstance().player)
             return box;
-        float extra = HitBoxes.extraRadius(entity);
+        float extra = Reach.extraRadius(entity);
         return extra > 0f ? box.inflate(extra) : box;
     }
 }

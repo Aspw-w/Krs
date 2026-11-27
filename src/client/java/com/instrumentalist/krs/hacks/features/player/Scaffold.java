@@ -16,7 +16,7 @@ import com.instrumentalist.krs.events.features.UpdateEvent;
 import com.instrumentalist.krs.hacks.Module;
 import com.instrumentalist.krs.hacks.ModuleCategory;
 import com.instrumentalist.krs.hacks.ModuleManager;
-import com.instrumentalist.krs.hacks.features.combat.AutoPot;
+import com.instrumentalist.krs.hacks.features.combat.AutoHeal;
 import com.instrumentalist.krs.hacks.features.movement.MovementFix;
 import com.instrumentalist.krs.hacks.features.movement.speed.SpeedModule;
 import com.instrumentalist.krs.hacks.features.movement.Sprint;
@@ -321,7 +321,7 @@ public class Scaffold extends Module {
         if (player == null || mc.level == null) return;
 
         launchY = player.blockPosition().getY();
-        int autoPotSlot = AutoPot.takeOriginalSlot();
+        int autoPotSlot = AutoHeal.takeOriginalSlot();
         lastSlot = autoPotSlot != -1 ? autoPotSlot : player.getInventory().getSelectedSlot();
         placedScaffoldBlock = false;
         lastPlacedScaffoldBlock = null;

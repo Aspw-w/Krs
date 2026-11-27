@@ -9,7 +9,7 @@ import com.instrumentalist.krs.hacks.features.world.NoBlockEffects;
 import com.instrumentalist.krs.hacks.features.world.AlwaysRiptide;
 import com.instrumentalist.krs.hacks.features.movement.Sprint;
 import com.instrumentalist.krs.hacks.features.movement.Step;
-import com.instrumentalist.krs.hacks.features.render.ViewModel;
+import com.instrumentalist.krs.hacks.features.render.Camera;
 import com.instrumentalist.krs.utils.move.MovementUtil;
 import com.instrumentalist.krs.utils.render.OldHittingRenderGuard;
 import com.instrumentalist.krs.hacks.features.render.LegacyRenderer;
@@ -233,7 +233,7 @@ public abstract class LivingEntityMixin extends EntityMixin implements ILegacySw
     // Since 26.3 the swing duration is computed once when a swing starts, so this also drives the swing ticking.
     @ModifyReturnValue(method = "getModifiedSwingDuration", at = @At("RETURN"))
     private int swingSpeedModifier1(int original) {
-        return ViewModel.hookSwingSpeed(original, (LivingEntity) (Object) this);
+        return Camera.hookSwingSpeed(original, (LivingEntity) (Object) this);
     }
 
     @ModifyReturnValue(method = "isAutoSpinAttack", at = @At("RETURN"))

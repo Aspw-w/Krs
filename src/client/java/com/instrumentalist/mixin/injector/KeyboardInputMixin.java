@@ -3,7 +3,8 @@ package com.instrumentalist.mixin.injector;
 import com.instrumentalist.krs.hacks.features.combat.Velocity;
 import com.instrumentalist.krs.hacks.ModuleManager;
 import com.instrumentalist.krs.hacks.features.movement.MovementFix;
-import com.instrumentalist.krs.hacks.features.player.LookTP;
+import com.instrumentalist.krs.hacks.features.exploit.LookTP;
+import com.instrumentalist.krs.hacks.features.exploit.Teleportation;
 import com.instrumentalist.krs.hacks.features.player.Scaffold;
 import com.instrumentalist.krs.hacks.features.combat.WTap;
 import com.instrumentalist.krs.utils.GuiInputBlocker;
@@ -27,7 +28,7 @@ public abstract class KeyboardInputMixin {
             return;
         }
 
-        LookTP lookTP = ModuleManager.getModule(LookTP.class);
+        LookTP lookTP = Teleportation.lookTeleport();
 
         if (lookTP != null && lookTP.shouldStopClientInput()) {
             InputUtil.stop(input);

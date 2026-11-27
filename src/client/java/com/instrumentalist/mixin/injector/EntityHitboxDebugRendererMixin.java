@@ -1,6 +1,6 @@
 package com.instrumentalist.mixin.injector;
 
-import com.instrumentalist.krs.hacks.features.combat.HitBoxes;
+import com.instrumentalist.krs.hacks.features.combat.Reach;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.renderer.debug.EntityHitboxDebugRenderer;
@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 public abstract class EntityHitboxDebugRendererMixin {
     @ModifyExpressionValue(method = "showHitboxes", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;getBoundingBox()Lnet/minecraft/world/phys/AABB;", ordinal = 0))
     private AABB hitBoxesDebugHook(AABB original, @Local(argsOnly = true) Entity entity) {
-        float extra = HitBoxes.extraRadius(entity);
+        float extra = Reach.extraRadius(entity);
         return extra > 0f ? original.inflate(extra) : original;
     }
 }
