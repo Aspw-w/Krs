@@ -16,6 +16,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Locale;
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
@@ -162,6 +163,52 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
         matrices.rotate(Axis.ZP.rotationDegrees((float) i * g * -20.0F));
         matrices.rotate(Axis.XP.rotationDegrees(g * -80.0F));
         matrices.rotate(Axis.YP.rotationDegrees((float) i * -45.0F));
+    }
+
+    @Unique
+    private void applyLeakedAnimation(PoseStack matrices, HumanoidArm arm, float swingProgress) {
+        int direction = arm == HumanoidArm.RIGHT ? 1 : -1;
+        float sizeModifier = getItemModelScale();
+        float swing = Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
+
+        matrices.translate(direction * 0.56F, -0.52F, -0.72F);
+        this.applyCustomItemPosition(matrices, arm);
+        if (sizeModifier != 1.0F)
+            matrices.scale(sizeModifier, sizeModifier, sizeModifier);
+
+        matrices.rotate(Axis.YP.rotationDegrees(direction * 77.0F));
+        matrices.rotate(Axis.ZP.rotationDegrees(direction * -10.0F));
+        matrices.rotate(Axis.XP.rotationDegrees(-80.0F));
+        this.applyLegacyQuaternionRotation(matrices, swing * 10.0F, -4.0F, direction * -2.0F, direction * 5.0F);
+        this.applyLegacyQuaternionRotation(matrices, swing * 30.0F, 1.0F, 0.0F, direction * -1.0F);
+    }
+
+    @Unique
+    private void applyLegacyQuaternionRotation(PoseStack matrices, float degrees, float x, float y, float z) {
+        float half = (float) Math.toRadians(degrees) * 0.5F;
+        float sin = (float) Math.sin(half);
+        float qx = x * sin;
+        float qy = y * sin;
+        float qz = z * sin;
+        float qw = (float) Math.cos(half);
+
+        float xx = 2.0F * qx * qx;
+        float yy = 2.0F * qy * qy;
+        float zz = 2.0F * qz * qz;
+        float xy = qx * qy;
+        float yz = qy * qz;
+        float zx = qz * qx;
+        float xw = qx * qw;
+        float yw = qy * qw;
+        float zw = qz * qw;
+
+        Matrix4f matrix = new Matrix4f(
+                1.0F - yy - zz, 2.0F * (xy + zw), 2.0F * (zx - yw), 0.0F,
+                2.0F * (xy - zw), 1.0F - zz - xx, 2.0F * (yz + xw), 0.0F,
+                2.0F * (zx + yw), 2.0F * (yz - xw), 1.0F - xx - yy, 0.0F,
+                0.0F, 0.0F, 0.0F, 1.0F
+        );
+        matrices.mulPose(matrix);
     }
 
     @Unique
@@ -440,6 +487,8 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
                         this.applyFirstPersonItem(matrices, arm, renderedEquipProgress * 0.5F, renderedSwingProgress);
                         this.applyBlockTransformation(matrices, arm);
                         this.applyLegacyItemTransform(matrices, arm);
+                    } else if (OldHitting.mode.get().equalsIgnoreCase("leaked")) {
+                        this.applyLeakedAnimation(matrices, arm, renderedSwingProgress);
                     } else {
                         matrices.translate(0.0F, 0.0F, -0.02F);
                         matrices.rotate(Axis.ZP.rotationDegrees(direction * -1.0F));
