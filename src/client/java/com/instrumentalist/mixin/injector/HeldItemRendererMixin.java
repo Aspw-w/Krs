@@ -166,12 +166,14 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
     }
 
     @Unique
-    private void applyLeakedAnimation(PoseStack matrices, HumanoidArm arm, float swingProgress) {
+    private void applyLeakedAnimation(PoseStack matrices, HumanoidArm arm, float equipProgress, float swingProgress) {
         int direction = arm == HumanoidArm.RIGHT ? 1 : -1;
         float sizeModifier = getItemModelScale();
         float swing = Mth.sin(Mth.sqrt(swingProgress) * (float) Math.PI);
+        float realEquipProgress = Camera.shouldSkipEquipAnimation() ? 0.0F : equipProgress;
 
         matrices.translate(direction * 0.56F, -0.52F, -0.72F);
+        matrices.translate(0.0F, realEquipProgress * 0.5F * -0.6F, 0.0F);
         this.applyCustomItemPosition(matrices, arm);
         if (sizeModifier != 1.0F)
             matrices.scale(sizeModifier, sizeModifier, sizeModifier);
@@ -488,7 +490,7 @@ public abstract class HeldItemRendererMixin implements IMinecraft {
                         this.applyBlockTransformation(matrices, arm);
                         this.applyLegacyItemTransform(matrices, arm);
                     } else if (OldHitting.mode.get().equalsIgnoreCase("leaked")) {
-                        this.applyLeakedAnimation(matrices, arm, renderedSwingProgress);
+                        this.applyLeakedAnimation(matrices, arm, renderedEquipProgress, renderedSwingProgress);
                     } else {
                         matrices.translate(0.0F, 0.0F, -0.02F);
                         matrices.rotate(Axis.ZP.rotationDegrees(direction * -1.0F));

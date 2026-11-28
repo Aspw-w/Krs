@@ -1,5 +1,6 @@
 package com.instrumentalist.krs.hacks.features.render;
 
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.Items;
 import com.instrumentalist.krs.utils.math.ToolUtil;
@@ -316,9 +317,21 @@ public class LegacyRenderer extends Module {
     public static boolean isForcedBlockSwap(ItemStack visible, ItemStack target) {
         if (visible == null || target == null || visible.isEmpty() || target.isEmpty())
             return false;
+        if (!isSwordBlock(visible) && !isSwordBlock(target))
+            return false;
         if (visible.getItem() != target.getItem() || visible.getCount() != target.getCount())
             return false;
-        return isSwordBlock(visible) || isSwordBlock(target);
+        return sameIgnoringBlockComponents(visible, target) && sameIgnoringBlockComponents(target, visible);
+    }
+
+    private static boolean sameIgnoringBlockComponents(ItemStack a, ItemStack b) {
+        for (DataComponentType<?> type : a.getComponents().keySet()) {
+            if (type == DataComponents.BLOCKS_ATTACKS || type == DataComponents.CONSUMABLE)
+                continue;
+            if (!java.util.Objects.equals(a.get(type), b.get(type)))
+                return false;
+        }
+        return true;
     }
 
     public static boolean isFirstPersonActive() {

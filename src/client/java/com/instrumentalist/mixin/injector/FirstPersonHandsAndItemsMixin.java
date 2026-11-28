@@ -234,11 +234,14 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
             } else {
                 this.krs$reequipDelay = -1;
                 this.krs$reequipStack = ItemStack.EMPTY;
+                this.krs$reequipPending = true;
             }
         } else if (this.mainHandItem == this.krs$lastVisibleMainHandRef && this.mainHandItem.isEmpty() && !this.krs$lastVisibleMainHand.isEmpty()) {
             this.mainHandItem = this.krs$lastVisibleMainHand;
             this.krs$lastVisibleMainHandRef = null;
         }
+
+        boolean mainForcedSwap = !holdRaised && !this.krs$reequipPending && LegacyRenderer.isForcedBlockSwap(this.mainHandItem, itemstack);
 
         if (player.isHandsBusy()) {
             LegacyRenderer.tickCooledAttackStrength(player);
@@ -246,12 +249,15 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
             this.offHandHeight = Mth.clamp(this.offHandHeight - krs$equipStep(), 0.0F, 1.0F);
         } else {
             float f = LegacyRenderer.tickCooledAttackStrength(player);
-            this.mainHandHeight += Mth.clamp((holdRaised || krs$legacyEquals(this.mainHandItem, itemstack) ? f * f * f : 0.0F) - this.mainHandHeight, -krs$equipStep(), krs$equipStep());
+            boolean mainEquals = this.mainHandItem == itemstack || this.mainHandItem.isEmpty() && itemstack.isEmpty() || mainForcedSwap;
+            this.mainHandHeight += Mth.clamp((holdRaised || mainEquals ? f * f * f : 0.0F) - this.mainHandHeight, -krs$equipStep(), krs$equipStep());
             this.offHandHeight += Mth.clamp((float) (krs$legacyEquals(this.offHandItem, itemstack1) ? 1 : 0) - this.offHandHeight, -krs$equipStep(), krs$equipStep());
         }
 
-        if (this.mainHandHeight < 0.1F && !holdRaised || !holdRaised && LegacyRenderer.isForcedBlockSwap(this.mainHandItem, itemstack))
+        if (this.mainHandHeight < 0.1F && !holdRaised || mainForcedSwap) {
             this.mainHandItem = itemstack;
+            this.krs$reequipPending = false;
+        }
 
         if (this.offHandHeight < 0.1F || LegacyRenderer.isForcedBlockSwap(this.offHandItem, itemstack1))
             this.offHandItem = itemstack1;
@@ -284,6 +290,9 @@ public abstract class FirstPersonHandsAndItemsMixin implements ILegacyHeldItems 
 
     @Unique
     private int krs$reequipDelay = -1;
+
+    @Unique
+    private boolean krs$reequipPending;
 
     @Override
     public void krs$scheduleMainHandReequip(ItemStack visible, int delay) {
